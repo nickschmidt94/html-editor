@@ -53,6 +53,50 @@
             letter-spacing: 1px;
             border-bottom: 1px solid #444;
         }
+
+.preview-pane.mobile {
+    background: #f0f0f0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.phone-frame {
+    background: #1a1a1a;
+    border-radius: 40px;
+    padding: 10px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+    position: relative;
+}
+
+.phone-screen {
+    width: 393px;
+    height: 852px;
+    border-radius: 30px;
+    overflow: hidden;
+    position: relative;
+    background: #000;
+}
+
+.phone-screen iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+}
+
+/* Phone details */
+.phone-frame::before {
+    content: '';
+    position: absolute;
+    top: 50px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 150px;
+    height: 30px;
+    background: #1a1a1a;
+    border-radius: 20px;
+}
         
         textarea {
             flex: 1;
@@ -106,7 +150,22 @@
     <header>
         <h1>Real-time HTML Editor</h1>
     </header>
-    
+    <button id="deviceToggle" onclick="toggleDevice()" style="
+    position: absolute;
+    top: 15px;
+    right: 20px;
+    background: #444;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    z-index: 10;
+    transition: all 0.3s;
+">
+    📱 Mobile View
+</button>
     <div class="container">
         <div class="editor-pane">
             <div class="pane-header">HTML</div>
@@ -200,6 +259,68 @@
         document.addEventListener('mouseup', () => {
             isResizing = false;
         });
+        let isMobile = false;
+
+function toggleDevice() {
+    isMobile = !isMobile;
+    const button = document.getElementById('deviceToggle');
+    const previewPane = document.querySelector('.preview-pane');
+    const preview = document.getElementById('preview');
+    
+    if (isMobile) {
+        // Switch to mobile view
+        button.innerHTML = '🖥️ Desktop View';
+        button.style.background = '#764ba2';
+        
+        previewPane.classList.add('mobile');
+        previewPane.innerHTML = `
+            <div class="pane-header" style="position: absolute; top: 0; left: 0; right: 0;">
+                Preview - iPhone 15 Pro (393×852)
+            </div>
+            <div class="phone-frame">
+                <div class="phone-screen">
+                    <iframe id="preview"></iframe>
+                </div>
+            </div>
+        `;
+        
+        // Re-establish preview and update
+        const newPreview = document.getElementById('preview');
+        setupPreview(newPreview);
+        
+    } else {
+        // Switch back to desktop view
+        button.innerHTML = '📱 Mobile View';
+        button.style.background = '#444';
+        
+        previewPane.classList.remove('mobile');
+        previewPane.innerHTML = `
+            <div class="pane-header">Preview</div>
+            <iframe id="preview"></iframe>
+        `;
+        
+        // Re-establish preview and update
+        const newPreview = document.getElementById('preview');
+        setupPreview(newPreview);
+    }
+}
+
+// Refactor the preview setup into a function
+function setupPreview(previewElement) {
+    const html = textarea.value;
+    const previewDoc = previewElement.contentDocument || previewElement.contentWindow.document;
+    previewDoc.open();
+    previewDoc.write(html);
+    previewDoc.close();
+}
+
+// Update your existing updatePreview function
+function updatePreview() {
+    const preview = document.getElementById('preview');
+    if (preview) {
+        setupPreview(preview);
+    }
+}
     </script>
 </body>
 </html>
