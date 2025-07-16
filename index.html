@@ -12,23 +12,28 @@
         }
         
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
             height: 100vh;
             display: flex;
             flex-direction: column;
-            background: #1a1a1a;
+            background: #fafafa;
+            color: #1a1a1a;
         }
         
         header {
-            background: #2d2d2d;
-            color: #fff;
-            padding: 12px 20px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+            color: #1a1a1a;
+            padding: 16px 24px;
+            position: relative;
         }
         
         h1 {
-            font-size: 20px;
-            font-weight: 500;
+            font-size: 16px;
+            font-weight: 600;
+            letter-spacing: -0.01em;
+            color: #2d3748;
         }
         
         .container {
@@ -42,78 +47,93 @@
             display: flex;
             flex-direction: column;
             overflow: hidden;
+            min-width: 0; /* Prevent flex items from overflowing */
         }
         
         .pane-header {
-            background: #333;
-            color: #888;
-            padding: 8px 15px;
-            font-size: 12px;
+            background: rgba(255, 255, 255, 0.6);
+            backdrop-filter: blur(10px);
+            color: #64748b;
+            padding: 12px 20px;
+            font-size: 11px;
+            font-weight: 500;
             text-transform: uppercase;
-            letter-spacing: 1px;
-            border-bottom: 1px solid #444;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.08);
         }
 
 .preview-pane.mobile {
-    background: #f0f0f0;
+    background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 20px;
+    padding: 32px;
 }
 
 .phone-frame {
-    background: #1a1a1a;
-    border-radius: 40px;
-    padding: 10px;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+    background: linear-gradient(145deg, #2d3748 0%, #1a202c 100%);
+    border-radius: 46px;
+    padding: 8px;
+    box-shadow: 
+        0 25px 50px rgba(0, 0, 0, 0.15),
+        0 0 0 1px rgba(255, 255, 255, 0.05),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
     position: relative;
 }
 
 .phone-screen {
     width: 393px;
     height: 852px;
-    border-radius: 30px;
+    border-radius: 39px;
     overflow: hidden;
     position: relative;
     background: #000;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
 }
 
 .phone-screen iframe {
     width: 100%;
     height: 100%;
     border: none;
+    border-radius: 39px;
 }
 
-/* Phone details */
+/* Dynamic Island */
 .phone-frame::before {
     content: '';
     position: absolute;
-    top: 50px;
+    top: 20px;
     left: 50%;
     transform: translateX(-50%);
-    width: 150px;
-    height: 30px;
-    background: #1a1a1a;
-    border-radius: 20px;
+    width: 126px;
+    height: 37px;
+    background: #000;
+    border-radius: 19px;
+    z-index: 10;
+    box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5);
 }
         
         textarea {
             flex: 1;
             width: 100%;
-            background: #1e1e1e;
-            color: #d4d4d4;
+            background: #ffffff;
+            color: #1a202c;
             border: none;
-            padding: 20px;
-            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-            font-size: 14px;
-            line-height: 1.5;
+            padding: 24px;
+            font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace;
+            font-size: 13px;
+            line-height: 1.6;
             resize: none;
             outline: none;
+            font-weight: 400;
         }
         
         textarea::selection {
-            background: #264f78;
+            background: rgba(99, 102, 241, 0.2);
+        }
+        
+        textarea::placeholder {
+            color: #a0aec0;
         }
         
         #preview {
@@ -125,13 +145,58 @@
         
         .divider {
             width: 1px;
-            background: #444;
+            min-width: 1px;
+            max-width: 1px;
+            background: rgba(0, 0, 0, 0.06);
             cursor: col-resize;
             position: relative;
+            transition: all 0.2s ease;
+            user-select: none;
+            flex-shrink: 0;
+            z-index: 10;
+        }
+        
+        .divider::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -8px;
+            right: -8px;
+            bottom: 0;
+            cursor: col-resize;
         }
         
         .divider:hover {
-            background: #666;
+            background: rgba(99, 102, 241, 0.3);
+            width: 2px;
+            min-width: 2px;
+            max-width: 2px;
+        }
+        
+        .divider.dragging {
+            background: rgba(99, 102, 241, 0.6);
+            width: 3px;
+            min-width: 3px;
+            max-width: 3px;
+        }
+        
+        .container.resizing {
+            cursor: col-resize;
+        }
+        
+        .container.resizing * {
+            pointer-events: none;
+            user-select: none;
+        }
+        
+        .container.resizing .divider {
+            pointer-events: auto;
+        }
+        
+        #deviceToggle:hover, .nav-btn:hover {
+            background: rgba(255, 255, 255, 1) !important;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
         }
         
         @media (max-width: 768px) {
@@ -143,6 +208,15 @@
                 width: 100%;
                 cursor: row-resize;
             }
+            
+            .pane-header {
+                padding: 10px 16px;
+            }
+            
+            textarea {
+                padding: 16px;
+                font-size: 14px;
+            }
         }
     </style>
 </head>
@@ -150,60 +224,114 @@
     <header>
         <h1>Real-time HTML Editor</h1>
     </header>
-    <button id="deviceToggle" onclick="toggleDevice()" style="
-    position: absolute;
-    top: 15px;
-    right: 20px;
-    background: #444;
-    color: white;
-    border: none;
-    padding: 8px 16px;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 14px;
-    z-index: 10;
-    transition: all 0.3s;
-">
-    📱 Mobile View
-</button>
+    <div style="
+        position: absolute;
+        top: 14px;
+        right: 24px;
+        display: flex;
+        gap: 8px;
+        z-index: 10;
+    ">
+        <a href="compare.html" style="
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            color: #4a5568;
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            padding: 8px 14px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            letter-spacing: -0.01em;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+            text-decoration: none;
+        " onmouseover="this.style.background='rgba(255, 255, 255, 1)'; this.style.transform='translateY(-1px)'; this.style.boxShadow='0 4px 12px rgba(0, 0, 0, 0.08)'" 
+           onmouseout="this.style.background='rgba(255, 255, 255, 0.9)'; this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 8px rgba(0, 0, 0, 0.04)'">
+            🔍 Compare
+        </a>
+        <button id="deviceToggle" onclick="toggleDevice()" style="
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            color: #4a5568;
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            padding: 8px 14px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            letter-spacing: -0.01em;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        ">
+            📱 Mobile View
+        </button>
+    </div>
     <div class="container">
         <div class="editor-pane">
             <div class="pane-header">HTML</div>
-            <textarea id="htmlInput" placeholder="Type your HTML here..." spellcheck="false"><!DOCTYPE html>
+            <textarea id="htmlInput" placeholder="Start building something beautiful..." spellcheck="false"><!DOCTYPE html>
 <html>
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
         body {
-            font-family: Arial, sans-serif;
-            padding: 20px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             min-height: 100vh;
-        }
-        h1 {
-            text-align: center;
-            animation: fadeIn 1s ease-in;
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(-20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        .card {
-            background: rgba(255,255,255,0.1);
-            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
             padding: 20px;
-            border-radius: 10px;
-            margin: 20px auto;
-            max-width: 500px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        }
+        
+        .container {
+            text-align: center;
+            max-width: 600px;
+        }
+        
+        h1 {
+            font-size: 3rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, #fff 0%, rgba(255,255,255,0.8) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: fadeInUp 0.8s ease-out;
+        }
+        
+        p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+            line-height: 1.6;
+            animation: fadeInUp 0.8s ease-out 0.2s both;
+        }
+        
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
     </style>
 </head>
 <body>
-    <h1>Welcome to Real-time HTML!</h1>
-    <div class="card">
-        <p>Start typing in the editor to see your changes instantly.</p>
-        <p>Try adding some HTML elements, CSS styles, or even JavaScript!</p>
+    <div class="container">
+        <h1>Beautiful HTML</h1>
+        <p>Start creating something amazing. Changes appear instantly as you type.</p>
     </div>
 </body>
 </html></textarea>
@@ -235,29 +363,119 @@
         // Initial preview
         updatePreview();
         
-        // Optional: Add resizable panes
+        // Improved resizable panes
         const divider = document.querySelector('.divider');
         const container = document.querySelector('.container');
+        let editorPane = document.querySelector('.editor-pane');
+        let previewPane = document.querySelector('.preview-pane');
         let isResizing = false;
+        let lastUpdateTime = 0;
         
-        divider.addEventListener('mousedown', (e) => {
+        function updatePaneReferences() {
+            editorPane = document.querySelector('.editor-pane');
+            previewPane = document.querySelector('.preview-pane');
+        }
+        
+        function resetPaneSizes() {
+            editorPane.style.flexBasis = '';
+            editorPane.style.flexGrow = '';
+            editorPane.style.flexShrink = '';
+            
+            previewPane.style.flexBasis = '';
+            previewPane.style.flexGrow = '';
+            previewPane.style.flexShrink = '';
+        }
+        
+        function startResize(e) {
             isResizing = true;
-        });
+            divider.classList.add('dragging');
+            container.classList.add('resizing');
+            document.body.style.cursor = 'col-resize';
+            e.preventDefault();
+        }
         
-        document.addEventListener('mousemove', (e) => {
+        function stopResize() {
+            if (!isResizing) return;
+            isResizing = false;
+            divider.classList.remove('dragging');
+            container.classList.remove('resizing');
+            document.body.style.cursor = '';
+            
+            // Force a reflow to ensure divider styling is properly applied
+            divider.offsetHeight;
+            
+            // Ensure divider remains properly styled
+            divider.style.width = '1px';
+            divider.style.minWidth = '1px';
+            divider.style.maxWidth = '1px';
+            divider.style.flexShrink = '0';
+        }
+        
+        function handleResize(e) {
             if (!isResizing) return;
             
-            const containerRect = container.getBoundingClientRect();
-            const percentage = ((e.clientX - containerRect.left) / containerRect.width) * 100;
+            // Throttle updates for better performance
+            const now = Date.now();
+            if (now - lastUpdateTime < 16) return; // ~60fps
+            lastUpdateTime = now;
             
-            if (percentage > 20 && percentage < 80) {
-                document.querySelector('.editor-pane').style.flex = `0 0 ${percentage}%`;
-                document.querySelector('.preview-pane').style.flex = `0 0 ${100 - percentage}%`;
+            const containerRect = container.getBoundingClientRect();
+            const clientX = e.clientX || (e.touches && e.touches[0] ? e.touches[0].clientX : 0);
+            const percentage = Math.max(20, Math.min(80, 
+                ((clientX - containerRect.left) / containerRect.width) * 100
+            ));
+            
+            // Use flexBasis for more reliable resizing
+            editorPane.style.flexBasis = `${percentage}%`;
+            editorPane.style.flexGrow = '0';
+            editorPane.style.flexShrink = '0';
+            
+            previewPane.style.flexBasis = `${100 - percentage}%`;
+            previewPane.style.flexGrow = '0';
+            previewPane.style.flexShrink = '0';
+            
+            // Ensure divider stays properly sized
+            divider.style.width = '1px';
+            divider.style.flexShrink = '0';
+            
+            e.preventDefault();
+        }
+        
+        // Mouse events
+        divider.addEventListener('mousedown', startResize);
+        document.addEventListener('mousemove', handleResize);
+        document.addEventListener('mouseup', stopResize);
+        
+        // Touch events for mobile
+        divider.addEventListener('touchstart', (e) => {
+            startResize(e.touches[0]);
+        });
+        
+        document.addEventListener('touchmove', (e) => {
+            if (isResizing) {
+                handleResize(e.touches[0]);
             }
         });
         
-        document.addEventListener('mouseup', () => {
-            isResizing = false;
+        document.addEventListener('touchend', stopResize);
+        
+        // Prevent context menu on divider
+        divider.addEventListener('contextmenu', (e) => e.preventDefault());
+        
+        // Double-click to reset to 50/50 split
+        divider.addEventListener('dblclick', () => {
+            editorPane.style.flexBasis = '50%';
+            editorPane.style.flexGrow = '0';
+            editorPane.style.flexShrink = '0';
+            
+            previewPane.style.flexBasis = '50%';
+            previewPane.style.flexGrow = '0';
+            previewPane.style.flexShrink = '0';
+            
+            // Ensure divider returns to normal state
+            divider.style.width = '1px';
+            divider.style.minWidth = '1px';
+            divider.style.maxWidth = '1px';
         });
         let isMobile = false;
 
@@ -267,10 +485,17 @@ function toggleDevice() {
     const previewPane = document.querySelector('.preview-pane');
     const preview = document.getElementById('preview');
     
+    // Store current flex properties before switching
+    const currentEditorBasis = editorPane.style.flexBasis;
+    const currentPreviewBasis = previewPane.style.flexBasis;
+    const hadCustomSizing = currentEditorBasis && currentPreviewBasis;
+    
     if (isMobile) {
         // Switch to mobile view
         button.innerHTML = '🖥️ Desktop View';
-        button.style.background = '#764ba2';
+        button.style.background = 'rgba(99, 102, 241, 0.9)';
+        button.style.color = 'white';
+        button.style.borderColor = 'rgba(99, 102, 241, 0.2)';
         
         previewPane.classList.add('mobile');
         previewPane.innerHTML = `
@@ -291,7 +516,9 @@ function toggleDevice() {
     } else {
         // Switch back to desktop view
         button.innerHTML = '📱 Mobile View';
-        button.style.background = '#444';
+        button.style.background = 'rgba(255, 255, 255, 0.9)';
+        button.style.color = '#4a5568';
+        button.style.borderColor = 'rgba(0, 0, 0, 0.08)';
         
         previewPane.classList.remove('mobile');
         previewPane.innerHTML = `
@@ -302,6 +529,20 @@ function toggleDevice() {
         // Re-establish preview and update
         const newPreview = document.getElementById('preview');
         setupPreview(newPreview);
+    }
+    
+    // Update pane references after DOM changes
+    updatePaneReferences();
+    
+    // Restore flex properties if they were customized
+    if (hadCustomSizing) {
+        editorPane.style.flexBasis = currentEditorBasis;
+        editorPane.style.flexGrow = '0';
+        editorPane.style.flexShrink = '0';
+        
+        previewPane.style.flexBasis = currentPreviewBasis;
+        previewPane.style.flexGrow = '0';
+        previewPane.style.flexShrink = '0';
     }
 }
 
