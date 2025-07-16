@@ -493,6 +493,11 @@
         const refactoredCode = document.getElementById('refactoredCode');
         
         // Analysis functions
+        function getByteSize(text) {
+            // Calculate actual UTF-8 byte size
+            return new Blob([text]).size;
+        }
+        
         function formatBytes(bytes) {
             if (bytes === 0) return '0 bytes';
             const k = 1024;
@@ -503,9 +508,10 @@
         
         function estimateGzipSize(text) {
             // Rough estimation: gzip typically achieves 60-80% compression on text
+            const actualByteSize = getByteSize(text);
             const baseCompression = 0.7;
             const repetitiveBonus = Math.min(0.3, (text.length - new Set(text).size) / text.length);
-            return Math.ceil(text.length * (baseCompression - repetitiveBonus));
+            return Math.ceil(actualByteSize * (baseCompression - repetitiveBonus));
         }
         
         function minifyCode(code) {
@@ -659,8 +665,10 @@
             const refactored = refactoredCode.value;
             
             // Update file sizes in headers
-            document.getElementById('originalSize').textContent = formatBytes(original.length);
-            document.getElementById('refactoredSize').textContent = formatBytes(refactored.length);
+            const originalByteSize = getByteSize(original);
+            const refactoredByteSize = getByteSize(refactored);
+            document.getElementById('originalSize').textContent = formatBytes(originalByteSize);
+            document.getElementById('refactoredSize').textContent = formatBytes(refactoredByteSize);
             
             if (!original && !refactored) {
                 // Reset all displays
@@ -669,8 +677,8 @@
             }
             
             // Size metrics
-            const originalSize = original.length;
-            const refactoredSize = refactored.length;
+            const originalSize = originalByteSize;
+            const refactoredSize = refactoredByteSize;
             const sizeDiff = originalSize - refactoredSize;
             const sizePercent = originalSize > 0 ? (sizeDiff / originalSize * 100) : 0;
             
@@ -684,11 +692,13 @@
             // Minified comparison
             const originalMinified = minifyCode(original);
             const refactoredMinified = minifyCode(refactored);
-            const minSizeDiff = originalMinified.length - refactoredMinified.length;
-            const minPercent = originalMinified.length > 0 ? (minSizeDiff / originalMinified.length * 100) : 0;
+            const originalMinifiedSize = getByteSize(originalMinified);
+            const refactoredMinifiedSize = getByteSize(refactoredMinified);
+            const minSizeDiff = originalMinifiedSize - refactoredMinifiedSize;
+            const minPercent = originalMinifiedSize > 0 ? (minSizeDiff / originalMinifiedSize * 100) : 0;
             
             document.getElementById('minifiedComparison').innerHTML = 
-                `${formatBytes(originalMinified.length)} → ${formatBytes(refactoredMinified.length)} ` +
+                `${formatBytes(originalMinifiedSize)} → ${formatBytes(refactoredMinifiedSize)} ` +
                 `<span class="${minSizeDiff > 0 ? 'metric-improvement' : 'metric-regression'}">` +
                 `(${minSizeDiff > 0 ? '-' : '+'}${Math.abs(minPercent).toFixed(1)}%)</span>`;
             
