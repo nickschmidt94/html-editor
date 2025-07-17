@@ -60,6 +60,15 @@
             text-transform: uppercase;
             letter-spacing: 0.5px;
             border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .header-controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
 .preview-pane.mobile {
@@ -193,10 +202,20 @@
             pointer-events: auto;
         }
         
-        #deviceToggle:hover, .nav-btn:hover {
+        #deviceToggle:hover {
             background: rgba(255, 255, 255, 1) !important;
             transform: translateY(-1px);
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
+        }
+        
+        #formatCodeBtn:hover {
+            background: rgba(99, 102, 241, 0.2) !important;
+            transform: scale(1.05);
+        }
+        
+        #searchInput:focus {
+            border-color: rgba(99, 102, 241, 0.4);
+            background: rgba(255, 255, 255, 1);
         }
         
         @media (max-width: 768px) {
@@ -217,6 +236,24 @@
                 padding: 16px;
                 font-size: 14px;
             }
+            
+            #deviceToggle {
+                right: 16px !important;
+                top: 10px !important;
+                padding: 6px 10px !important;
+                font-size: 11px !important;
+            }
+            
+            .header-controls {
+                flex-direction: column;
+                gap: 4px;
+            }
+            
+            #searchInput {
+                width: 80px !important;
+                font-size: 10px !important;
+                margin-right: 4px !important;
+            }
         }
     </style>
 </head>
@@ -224,52 +261,69 @@
     <header>
         <h1>Real-time HTML Editor</h1>
     </header>
-    <div style="
-        position: absolute;
-        top: 14px;
-        right: 24px;
-        display: flex;
-        gap: 8px;
-        z-index: 10;
-    ">
-        <a href="compare.html" style="
-            background: rgba(255, 255, 255, 0.9);
-            backdrop-filter: blur(10px);
-            color: #4a5568;
-            border: 1px solid rgba(0, 0, 0, 0.08);
-            padding: 8px 14px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 12px;
-            font-weight: 500;
-            transition: all 0.2s ease;
-            letter-spacing: -0.01em;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-            text-decoration: none;
-        " onmouseover="this.style.background='rgba(255, 255, 255, 1)'; this.style.transform='translateY(-1px)'; this.style.boxShadow='0 4px 12px rgba(0, 0, 0, 0.08)'" 
-           onmouseout="this.style.background='rgba(255, 255, 255, 0.9)'; this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 8px rgba(0, 0, 0, 0.04)'">
-            🔍 Compare
-        </a>
-        <button id="deviceToggle" onclick="toggleDevice()" style="
-            background: rgba(255, 255, 255, 0.9);
-            backdrop-filter: blur(10px);
-            color: #4a5568;
-            border: 1px solid rgba(0, 0, 0, 0.08);
-            padding: 8px 14px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 12px;
-            font-weight: 500;
-            transition: all 0.2s ease;
-            letter-spacing: -0.01em;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-        ">
-            📱 Mobile View
-        </button>
-    </div>
+    <button id="deviceToggle" onclick="toggleDevice()" style="
+    position: absolute;
+    top: 14px;
+    right: 24px;
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(10px);
+    color: #4a5568;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    padding: 8px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 500;
+    z-index: 10;
+    transition: all 0.2s ease;
+    letter-spacing: -0.01em;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+">
+    📱 Mobile View
+</button>
     <div class="container">
         <div class="editor-pane">
-            <div class="pane-header">HTML</div>
+            <div class="pane-header">
+                <span>HTML</span>
+                <div class="header-controls">
+                    <input 
+                        type="text" 
+                        id="searchInput" 
+                        placeholder="Search..." 
+                        style="
+                            background: rgba(255, 255, 255, 0.8);
+                            border: 1px solid rgba(0, 0, 0, 0.1);
+                            border-radius: 6px;
+                            padding: 4px 8px;
+                            font-size: 11px;
+                            width: 120px;
+                            margin-right: 8px;
+                            outline: none;
+                            color: #4a5568;
+                        "
+                    >
+                    <button 
+                        id="formatCodeBtn" 
+                        onclick="formatHtmlCode()" 
+                        title="Format Code"
+                        style="
+                            background: rgba(99, 102, 241, 0.1);
+                            border: 1px solid rgba(99, 102, 241, 0.2);
+                            border-radius: 6px;
+                            padding: 4px 8px;
+                            cursor: pointer;
+                            font-size: 12px;
+                            color: #6366f1;
+                            transition: all 0.2s ease;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                        "
+                    >
+                        ✨
+                    </button>
+                </div>
+            </div>
             <textarea id="htmlInput" placeholder="Start building something beautiful..." spellcheck="false"><!DOCTYPE html>
 <html>
 <head>
@@ -360,8 +414,262 @@
         // Update preview as user types
         textarea.addEventListener('input', updatePreview);
         
+        // Add auto-formatting functionality
+        setupAutoFormatting(textarea);
+        
+        // Add search functionality
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', setupSearch);
+        } else {
+            setupSearch();
+        }
+        
         // Initial preview
         updatePreview();
+        
+        // Auto-formatting functions
+        function setupAutoFormatting(textarea) {
+            textarea.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleEnterKey(textarea);
+                } else if (e.key === 'Tab') {
+                    e.preventDefault();
+                    handleTabKey(textarea, e.shiftKey);
+                }
+            });
+        }
+        
+        function handleEnterKey(textarea) {
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            const value = textarea.value;
+            const lines = value.substring(0, start).split('\n');
+            const currentLine = lines[lines.length - 1];
+            
+            // Get current indentation level
+            const currentIndent = currentLine.match(/^(\s*)/)[1];
+            let newIndent = currentIndent;
+            
+            // Check if we're inside a tag that needs more indentation
+            const tagMatch = currentLine.match(/<(\w+)(?:\s[^>]*)?>/);
+            const isClosingTag = currentLine.includes('</');
+            const isSelfClosing = currentLine.includes('/>') || currentLine.match(/<(img|br|hr|input|meta|link|area|base|col|embed|source|track|wbr)\b[^>]*>/i);
+            
+            if (tagMatch && !isClosingTag && !isSelfClosing) {
+                // Add indentation for opening tags
+                newIndent += '    ';
+            }
+            
+            // Insert new line with proper indentation
+            const newValue = value.substring(0, start) + '\n' + newIndent + value.substring(end);
+            textarea.value = newValue;
+            textarea.selectionStart = textarea.selectionEnd = start + 1 + newIndent.length;
+            
+            // Trigger input event to update preview
+            textarea.dispatchEvent(new Event('input'));
+        }
+        
+        function handleTabKey(textarea, isShiftKey) {
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            const value = textarea.value;
+            
+            if (start === end) {
+                // No selection - insert or remove tab at cursor
+                if (isShiftKey) {
+                    // Remove indentation
+                    const lines = value.substring(0, start).split('\n');
+                    const currentLine = lines[lines.length - 1];
+                    if (currentLine.startsWith('    ')) {
+                        const lineStart = start - currentLine.length;
+                        const newValue = value.substring(0, lineStart) + currentLine.substring(4) + value.substring(start);
+                        textarea.value = newValue;
+                        textarea.selectionStart = textarea.selectionEnd = start - 4;
+                    }
+                } else {
+                    // Add indentation
+                    const newValue = value.substring(0, start) + '    ' + value.substring(end);
+                    textarea.value = newValue;
+                    textarea.selectionStart = textarea.selectionEnd = start + 4;
+                }
+            } else {
+                // Has selection - indent or dedent multiple lines
+                const beforeSelection = value.substring(0, start);
+                const selection = value.substring(start, end);
+                const afterSelection = value.substring(end);
+                
+                const startLineIndex = beforeSelection.lastIndexOf('\n') + 1;
+                const endLineIndex = beforeSelection.length + selection.lastIndexOf('\n') + 1;
+                
+                const beforeLines = value.substring(0, startLineIndex);
+                const selectedLines = value.substring(startLineIndex, end);
+                const afterLines = value.substring(end);
+                
+                let modifiedLines;
+                if (isShiftKey) {
+                    // Remove indentation
+                    modifiedLines = selectedLines.split('\n').map(line => 
+                        line.startsWith('    ') ? line.substring(4) : line
+                    ).join('\n');
+                } else {
+                    // Add indentation
+                    modifiedLines = selectedLines.split('\n').map(line => 
+                        line.length > 0 ? '    ' + line : line
+                    ).join('\n');
+                }
+                
+                textarea.value = beforeLines + modifiedLines + afterLines;
+                textarea.selectionStart = startLineIndex;
+                textarea.selectionEnd = startLineIndex + modifiedLines.length;
+            }
+            
+            // Trigger input event to update preview
+            textarea.dispatchEvent(new Event('input'));
+        }
+        
+        function formatHtmlCode() {
+            const textarea = document.getElementById('htmlInput');
+            const formatted = formatHtml(textarea.value);
+            textarea.value = formatted;
+            updatePreview();
+        }
+        
+        function formatHtml(html) {
+            // Simple HTML formatter
+            const tab = '    ';
+            let result = '';
+            let indent = 0;
+            
+            // Clean up the HTML first
+            html = html.replace(/>\s*</g, '><').trim();
+            
+            // Split by tags
+            const tokens = html.split(/(<[^>]*>)/);
+            
+            for (let i = 0; i < tokens.length; i++) {
+                const token = tokens[i];
+                
+                if (token.match(/<\/\w+>/)) {
+                    // Closing tag
+                    indent--;
+                    result += tab.repeat(Math.max(0, indent)) + token;
+                    if (i < tokens.length - 1) result += '\n';
+                } else if (token.match(/<\w+(?:\s[^>]*)?>/)) {
+                    // Opening tag
+                    const isSelfClosing = token.match(/<(img|br|hr|input|meta|link|area|base|col|embed|source|track|wbr)\b[^>]*>/i) || token.includes('/>');
+                    
+                    result += tab.repeat(indent) + token;
+                    if (!isSelfClosing) {
+                        indent++;
+                    }
+                    if (i < tokens.length - 1) result += '\n';
+                } else if (token.match(/^<!/)) {
+                    // DOCTYPE or comment
+                    result += tab.repeat(indent) + token;
+                    if (i < tokens.length - 1) result += '\n';
+                } else if (token.trim()) {
+                    // Text content
+                    const lines = token.split('\n');
+                    for (let j = 0; j < lines.length; j++) {
+                        const line = lines[j].trim();
+                        if (line) {
+                            result += tab.repeat(indent) + line;
+                            if (j < lines.length - 1 || i < tokens.length - 1) result += '\n';
+                        }
+                    }
+                }
+            }
+            
+            return result;
+        }
+        
+        // Search functionality
+        function setupSearch() {
+            const searchInput = document.getElementById('searchInput');
+            const textarea = document.getElementById('htmlInput');
+            
+            if (!searchInput || !textarea) {
+                console.error('Search elements not found');
+                return;
+            }
+            
+            let currentMatches = [];
+            let currentMatchIndex = -1;
+            
+            searchInput.addEventListener('input', function() {
+                const searchTerm = this.value.trim();
+                if (searchTerm === '') {
+                    clearHighlights();
+                    return;
+                }
+                
+                findMatches(searchTerm);
+                highlightCurrentMatch();
+            });
+            
+            searchInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (currentMatches.length > 0) {
+                        currentMatchIndex = (currentMatchIndex + 1) % currentMatches.length;
+                        highlightCurrentMatch();
+                    }
+                } else if (e.key === 'Escape') {
+                    this.value = '';
+                    this.blur();
+                    clearHighlights();
+                }
+            });
+            
+            function findMatches(searchTerm) {
+                const text = textarea.value;
+                currentMatches = [];
+                currentMatchIndex = -1;
+                
+                if (searchTerm === '') return;
+                
+                const regex = new RegExp(escapeRegExp(searchTerm), 'gi');
+                let match;
+                
+                while ((match = regex.exec(text)) !== null) {
+                    currentMatches.push({
+                        start: match.index,
+                        end: match.index + match[0].length,
+                        text: match[0]
+                    });
+                }
+                
+                if (currentMatches.length > 0) {
+                    currentMatchIndex = 0;
+                }
+            }
+            
+            function highlightCurrentMatch() {
+                if (currentMatches.length === 0 || currentMatchIndex === -1) {
+                    searchInput.placeholder = 'No matches';
+                    return;
+                }
+                
+                const match = currentMatches[currentMatchIndex];
+                textarea.focus();
+                textarea.setSelectionRange(match.start, match.end);
+                textarea.scrollTop = textarea.scrollHeight * (match.start / textarea.value.length) - textarea.clientHeight / 2;
+                
+                // Update search input placeholder to show match count
+                searchInput.placeholder = `${currentMatchIndex + 1} of ${currentMatches.length}`;
+            }
+            
+            function clearHighlights() {
+                currentMatches = [];
+                currentMatchIndex = -1;
+                searchInput.placeholder = 'Search...';
+            }
+            
+            function escapeRegExp(string) {
+                return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            }
+        }
         
         // Improved resizable panes
         const divider = document.querySelector('.divider');
