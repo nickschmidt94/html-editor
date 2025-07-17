@@ -241,10 +241,25 @@
                 gap: 4px;
             }
             
+            .search-container {
+                flex-direction: column !important;
+                gap: 2px !important;
+                margin-right: 4px !important;
+            }
+            
             #searchInput {
                 width: 80px !important;
                 font-size: 10px !important;
-                margin-right: 4px !important;
+            }
+            
+            #searchCounter {
+                font-size: 8px !important;
+                padding: 1px 2px !important;
+            }
+            
+            .search-container button {
+                font-size: 8px !important;
+                padding: 1px 3px !important;
             }
             
             #deviceToggle, #exportBtn {
@@ -263,22 +278,78 @@
             <div class="pane-header">
                 <span>HTML</span>
                 <div class="header-controls">
-                    <input 
-                        type="text" 
-                        id="searchInput" 
-                        placeholder="Search..." 
-                        style="
-                            background: rgba(255, 255, 255, 0.8);
-                            border: 1px solid rgba(0, 0, 0, 0.1);
-                            border-radius: 6px;
-                            padding: 4px 8px;
-                            font-size: 11px;
-                            width: 120px;
-                            margin-right: 8px;
-                            outline: none;
-                            color: #4a5568;
-                        "
-                    >
+                    <div class="search-container" style="display: flex; align-items: center; gap: 4px; margin-right: 8px;">
+                        <div style="position: relative;">
+                            <input 
+                                type="text" 
+                                id="searchInput" 
+                                placeholder="Search..." 
+                                style="
+                                    background: rgba(255, 255, 255, 0.9);
+                                    border: 1px solid rgba(0, 0, 0, 0.1);
+                                    border-radius: 6px;
+                                    padding: 4px 8px;
+                                    font-size: 11px;
+                                    width: 140px;
+                                    outline: none;
+                                    color: #4a5568;
+                                    transition: all 0.2s ease;
+                                "
+                            >
+                            <div id="searchCounter" style="
+                                position: absolute;
+                                right: 8px;
+                                top: 50%;
+                                transform: translateY(-50%);
+                                font-size: 9px;
+                                color: #6b7280;
+                                background: rgba(255, 255, 255, 0.9);
+                                padding: 1px 4px;
+                                border-radius: 3px;
+                                display: none;
+                                pointer-events: none;
+                            "></div>
+                        </div>
+                        <button id="searchPrevBtn" title="Previous match (Shift+Enter)" style="
+                            background: rgba(59, 130, 246, 0.1);
+                            border: 1px solid rgba(59, 130, 246, 0.2);
+                            border-radius: 4px;
+                            padding: 2px 4px;
+                            cursor: pointer;
+                            font-size: 10px;
+                            color: #3b82f6;
+                            display: flex;
+                            align-items: center;
+                            opacity: 0.7;
+                            transition: all 0.2s ease;
+                        ">↑</button>
+                        <button id="searchNextBtn" title="Next match (Enter)" style="
+                            background: rgba(59, 130, 246, 0.1);
+                            border: 1px solid rgba(59, 130, 246, 0.2);
+                            border-radius: 4px;
+                            padding: 2px 4px;
+                            cursor: pointer;
+                            font-size: 10px;
+                            color: #3b82f6;
+                            display: flex;
+                            align-items: center;
+                            opacity: 0.7;
+                            transition: all 0.2s ease;
+                        ">↓</button>
+                        <button id="searchOptionsBtn" title="Search options" style="
+                            background: rgba(107, 114, 128, 0.1);
+                            border: 1px solid rgba(107, 114, 128, 0.2);
+                            border-radius: 4px;
+                            padding: 2px 4px;
+                            cursor: pointer;
+                            font-size: 10px;
+                            color: #6b7280;
+                            display: flex;
+                            align-items: center;
+                            opacity: 0.7;
+                            transition: all 0.2s ease;
+                        ">⚙</button>
+                    </div>
                     <button 
                         id="formatCodeBtn" 
                         onclick="formatHtmlCode()" 
@@ -295,10 +366,37 @@
                             display: flex;
                             align-items: center;
                             justify-content: center;
+                            margin-right: 8px;
                         "
                     >
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                             <path d="M16 18L22 12L16 6M8 6L2 12L8 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </button>
+                    <button 
+                        id="downloadBtn" 
+                        onclick="downloadHtml()" 
+                        title="Download HTML"
+                        style="
+                            background: rgba(16, 185, 129, 0.1);
+                            border: 1px solid rgba(16, 185, 129, 0.2);
+                            border-radius: 6px;
+                            padding: 4px 8px;
+                            cursor: pointer;
+                            font-size: 12px;
+                            color: #10b981;
+                            transition: all 0.2s ease;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                        "
+                        onmouseover="this.style.background='rgba(16, 185, 129, 0.2)'; this.style.transform='scale(1.05)'" 
+                        onmouseout="this.style.background='rgba(16, 185, 129, 0.1)'; this.style.transform='scale(1)'"
+                    >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <polyline points="7,10 12,15 17,10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <line x1="12" y1="15" x2="12" y2="3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                         </svg>
                     </button>
                 </div>
@@ -605,102 +703,429 @@
             return result;
         }
         
-        // Search functionality
+        // Simple but effective search functionality
         function setupSearch() {
             const searchInput = document.getElementById('searchInput');
+            const searchPrevBtn = document.getElementById('searchPrevBtn');
+            const searchNextBtn = document.getElementById('searchNextBtn');
+            const searchOptionsBtn = document.getElementById('searchOptionsBtn');
             const textarea = document.getElementById('htmlInput');
             
-            if (!searchInput || !textarea) {
+            if (!searchInput || !textarea || !searchPrevBtn || !searchNextBtn || !searchOptionsBtn) {
                 console.error('Search elements not found');
                 return;
             }
             
             let currentMatches = [];
             let currentMatchIndex = -1;
+            let caseSensitive = false;
+            let useRegex = false;
+            let replaceMode = false;
+            let highlightLayer = null;
             
-            searchInput.addEventListener('input', function() {
-                const searchTerm = this.value.trim();
+            // Create options panel
+            createOptionsPanel();
+            
+            // Event listeners
+                         searchInput.addEventListener('input', handleSearch);
+             searchInput.addEventListener('keydown', handleKeydown);
+             searchPrevBtn.addEventListener('click', () => navigateMatch(-1));
+             searchNextBtn.addEventListener('click', () => navigateMatch(1));
+             searchOptionsBtn.addEventListener('click', toggleOptionsPanel);
+             
+             // Clear highlights when text changes
+             textarea.addEventListener('input', () => {
+                 if (searchInput.value.trim()) {
+                     // Debounce re-search when typing
+                     clearTimeout(textarea.searchTimeout);
+                     textarea.searchTimeout = setTimeout(() => {
+                         handleSearch();
+                     }, 300);
+                 } else {
+                     clearMatches();
+                 }
+             });
+            
+            function createOptionsPanel() {
+                const panel = document.createElement('div');
+                panel.id = 'searchPanel';
+                panel.style.cssText = `
+                    position: fixed;
+                    top: 60px;
+                    right: 20px;
+                    background: white;
+                    border: 1px solid #e5e7eb;
+                    border-radius: 8px;
+                    padding: 16px;
+                    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+                    z-index: 1000;
+                    display: none;
+                    min-width: 250px;
+                    font-size: 13px;
+                `;
+                
+                panel.innerHTML = `
+                    <div style="font-weight: 600; margin-bottom: 12px; color: #374151;">Search Options</div>
+                    
+                    <label style="display: flex; align-items: center; margin-bottom: 8px; cursor: pointer;">
+                        <input type="checkbox" id="caseSensitiveCheck" style="margin-right: 8px;">
+                        <span>Case sensitive</span>
+                    </label>
+                    
+                    <label style="display: flex; align-items: center; margin-bottom: 12px; cursor: pointer;">
+                        <input type="checkbox" id="regexCheck" style="margin-right: 8px;">
+                        <span>Use regular expressions</span>
+                    </label>
+                    
+                    <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 12px 0;">
+                    
+                    <button id="replaceToggle" style="
+                        width: 100%;
+                        background: rgba(168, 85, 247, 0.1);
+                        border: 1px solid rgba(168, 85, 247, 0.2);
+                        border-radius: 6px;
+                        padding: 8px;
+                        cursor: pointer;
+                        font-size: 12px;
+                        color: #a855f7;
+                        margin-bottom: 8px;
+                    ">Show Replace</button>
+                    
+                    <div id="replaceSection" style="display: none;">
+                        <input type="text" id="replaceInput" placeholder="Replace with..." style="
+                            width: 100%;
+                            padding: 6px 8px;
+                            border: 1px solid #d1d5db;
+                            border-radius: 4px;
+                            font-size: 12px;
+                            margin-bottom: 8px;
+                            box-sizing: border-box;
+                        ">
+                        <div style="display: flex; gap: 6px;">
+                            <button id="replaceOneBtn" style="
+                                flex: 1;
+                                background: rgba(16, 185, 129, 0.1);
+                                border: 1px solid rgba(16, 185, 129, 0.2);
+                                border-radius: 4px;
+                                padding: 6px;
+                                cursor: pointer;
+                                font-size: 11px;
+                                color: #10b981;
+                            ">Replace</button>
+                            <button id="replaceAllBtn" style="
+                                flex: 1;
+                                background: rgba(239, 68, 68, 0.1);
+                                border: 1px solid rgba(239, 68, 68, 0.2);
+                                border-radius: 4px;
+                                padding: 6px;
+                                cursor: pointer;
+                                font-size: 11px;
+                                color: #ef4444;
+                            ">Replace All</button>
+                        </div>
+                    </div>
+                `;
+                
+                document.body.appendChild(panel);
+                
+                // Setup event listeners
+                document.getElementById('caseSensitiveCheck').addEventListener('change', (e) => {
+                    caseSensitive = e.target.checked;
+                    if (searchInput.value.trim()) handleSearch();
+                });
+                
+                document.getElementById('regexCheck').addEventListener('change', (e) => {
+                    useRegex = e.target.checked;
+                    if (searchInput.value.trim()) handleSearch();
+                });
+                
+                document.getElementById('replaceToggle').addEventListener('click', toggleReplace);
+                document.getElementById('replaceOneBtn').addEventListener('click', replaceOne);
+                document.getElementById('replaceAllBtn').addEventListener('click', replaceAll);
+                
+                // Close panel when clicking outside
+                document.addEventListener('click', (e) => {
+                    if (!panel.contains(e.target) && !searchOptionsBtn.contains(e.target)) {
+                        panel.style.display = 'none';
+                    }
+                });
+            }
+            
+            function handleSearch() {
+                const searchTerm = searchInput.value.trim();
+                
                 if (searchTerm === '') {
-                    clearHighlights();
+                    clearMatches();
+                    updateStatus('Search...');
                     return;
                 }
                 
                 findMatches(searchTerm);
-                highlightCurrentMatch(false); // Don't steal focus while typing
-            });
-            
-            searchInput.addEventListener('keydown', function(e) {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    if (currentMatches.length > 0) {
-                        currentMatchIndex = (currentMatchIndex + 1) % currentMatches.length;
-                        highlightCurrentMatch(true); // Focus when navigating with Enter
-                        // Update placeholder to show current match
-                        searchInput.placeholder = `${currentMatchIndex + 1} of ${currentMatches.length}`;
-                    }
-                } else if (e.key === 'Escape') {
-                    this.value = '';
-                    this.blur();
-                    clearHighlights();
-                }
-            });
+                
+                                 if (currentMatches.length > 0) {
+                     currentMatchIndex = 0;
+                     createHighlights();
+                     highlightCurrentMatch();
+                     updateStatus(`1 of ${currentMatches.length}`);
+                 } else {
+                     updateStatus('No matches');
+                     currentMatchIndex = -1;
+                     clearHighlights();
+                 }
+                 
+                 updateButtons();
+            }
             
             function findMatches(searchTerm) {
                 const text = textarea.value;
                 currentMatches = [];
-                currentMatchIndex = -1;
                 
-                if (searchTerm === '') return;
-                
-                const regex = new RegExp(escapeRegExp(searchTerm), 'gi');
-                let match;
-                
-                while ((match = regex.exec(text)) !== null) {
-                    currentMatches.push({
-                        start: match.index,
-                        end: match.index + match[0].length,
-                        text: match[0]
-                    });
-                }
-                
-                if (currentMatches.length > 0) {
-                    currentMatchIndex = 0;
+                try {
+                    let flags = 'g';
+                    if (!caseSensitive) flags += 'i';
+                    
+                    let pattern = useRegex ? searchTerm : escapeRegExp(searchTerm);
+                    const regex = new RegExp(pattern, flags);
+                    
+                    let match;
+                    while ((match = regex.exec(text)) !== null) {
+                        currentMatches.push({
+                            start: match.index,
+                            end: match.index + match[0].length
+                        });
+                        
+                        // Prevent infinite loop
+                        if (match[0].length === 0) {
+                            regex.lastIndex++;
+                        }
+                    }
+                } catch (error) {
+                    updateStatus('Invalid regex');
+                    currentMatches = [];
                 }
             }
             
-            function highlightCurrentMatch(shouldFocus = false) {
-                if (currentMatches.length === 0 || currentMatchIndex === -1) {
-                    searchInput.placeholder = 'No matches';
-                    return;
+            function navigateMatch(direction) {
+                if (currentMatches.length === 0) return;
+                
+                currentMatchIndex += direction;
+                
+                if (currentMatchIndex >= currentMatches.length) {
+                    currentMatchIndex = 0;
+                } else if (currentMatchIndex < 0) {
+                    currentMatchIndex = currentMatches.length - 1;
                 }
+                
+                                 updateHighlights();
+                 highlightCurrentMatch();
+                 updateStatus(`${currentMatchIndex + 1} of ${currentMatches.length}`);
+            }
+            
+            function highlightCurrentMatch() {
+                if (currentMatchIndex < 0 || currentMatchIndex >= currentMatches.length) return;
                 
                 const match = currentMatches[currentMatchIndex];
                 
-                // Always select the text to highlight it
+                // Select the text
                 textarea.setSelectionRange(match.start, match.end);
                 
-                // Calculate scroll position to center the match
+                // Scroll to the match
                 const textBeforeMatch = textarea.value.substring(0, match.start);
                 const linesBefore = textBeforeMatch.split('\n').length - 1;
                 const lineHeight = parseInt(getComputedStyle(textarea).lineHeight) || 20;
-                const scrollPosition = (linesBefore * lineHeight) - (textarea.clientHeight / 2);
-                textarea.scrollTop = Math.max(0, scrollPosition);
+                const scrollTop = Math.max(0, (linesBefore * lineHeight) - (textarea.clientHeight / 2));
                 
-                // Only focus if explicitly requested (like when pressing Enter)
-                if (shouldFocus) {
+                textarea.scrollTop = scrollTop;
+                textarea.focus();
+                
+                // Briefly return focus to search input
+                setTimeout(() => searchInput.focus(), 100);
+            }
+            
+            function handleKeydown(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (e.shiftKey) {
+                        navigateMatch(-1);
+                    } else {
+                        navigateMatch(1);
+                    }
+                } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    searchInput.value = '';
+                    clearMatches();
+                    updateStatus('Search...');
                     textarea.focus();
-                    searchInput.placeholder = `${currentMatchIndex + 1} of ${currentMatches.length}`;
-                } else {
-                    // Keep focus in search box while typing
-                    searchInput.placeholder = `${currentMatches.length} found`;
                 }
             }
             
-            function clearHighlights() {
-                currentMatches = [];
-                currentMatchIndex = -1;
-                searchInput.placeholder = 'Search...';
+            function toggleOptionsPanel() {
+                const panel = document.getElementById('searchPanel');
+                panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
             }
+            
+            function toggleReplace() {
+                replaceMode = !replaceMode;
+                const section = document.getElementById('replaceSection');
+                const btn = document.getElementById('replaceToggle');
+                
+                if (replaceMode) {
+                    section.style.display = 'block';
+                    btn.textContent = 'Hide Replace';
+                    document.getElementById('replaceInput').focus();
+                } else {
+                    section.style.display = 'none';
+                    btn.textContent = 'Show Replace';
+                }
+            }
+            
+            function replaceOne() {
+                if (currentMatchIndex < 0 || currentMatchIndex >= currentMatches.length) return;
+                
+                const replaceText = document.getElementById('replaceInput').value;
+                const match = currentMatches[currentMatchIndex];
+                
+                const before = textarea.value.substring(0, match.start);
+                const after = textarea.value.substring(match.end);
+                
+                textarea.value = before + replaceText + after;
+                textarea.dispatchEvent(new Event('input'));
+                
+                // Re-search to update matches
+                handleSearch();
+            }
+            
+            function replaceAll() {
+                if (currentMatches.length === 0) return;
+                
+                const replaceText = document.getElementById('replaceInput').value;
+                let text = textarea.value;
+                
+                // Replace from end to start to preserve indices
+                for (let i = currentMatches.length - 1; i >= 0; i--) {
+                    const match = currentMatches[i];
+                    text = text.substring(0, match.start) + replaceText + text.substring(match.end);
+                }
+                
+                textarea.value = text;
+                textarea.dispatchEvent(new Event('input'));
+                
+                updateStatus(`Replaced ${currentMatches.length} matches`);
+                clearMatches();
+            }
+            
+                         function updateStatus(message) {
+                 const counter = document.getElementById('searchCounter');
+                 
+                 if (message === 'Search...' || message === 'No matches' || message === 'Invalid regex') {
+                     searchInput.placeholder = message;
+                     counter.style.display = 'none';
+                 } else {
+                     searchInput.placeholder = 'Search...';
+                     counter.textContent = message;
+                     counter.style.display = 'block';
+                 }
+             }
+            
+            function updateButtons() {
+                const hasMatches = currentMatches.length > 0;
+                searchPrevBtn.style.opacity = hasMatches ? '1' : '0.3';
+                searchNextBtn.style.opacity = hasMatches ? '1' : '0.3';
+                searchPrevBtn.style.pointerEvents = hasMatches ? 'auto' : 'none';
+                searchNextBtn.style.pointerEvents = hasMatches ? 'auto' : 'none';
+            }
+            
+                         function createHighlights() {
+                 clearHighlights();
+                 
+                 if (currentMatches.length === 0) return;
+                 
+                 // Create highlight overlay
+                 highlightLayer = document.createElement('div');
+                 highlightLayer.style.cssText = `
+                     position: absolute;
+                     top: 0;
+                     left: 0;
+                     right: 0;
+                     bottom: 0;
+                     pointer-events: none;
+                     z-index: 1;
+                     font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace;
+                     font-size: 13px;
+                     line-height: 1.6;
+                     white-space: pre-wrap;
+                     padding: 24px;
+                     overflow: hidden;
+                     color: transparent;
+                 `;
+                 
+                 const textareaParent = textarea.parentElement;
+                 textareaParent.style.position = 'relative';
+                 textareaParent.appendChild(highlightLayer);
+                 
+                 updateHighlights();
+                 
+                 // Sync scroll
+                 textarea.addEventListener('scroll', syncScroll);
+             }
+             
+             function updateHighlights() {
+                 if (!highlightLayer || currentMatches.length === 0) return;
+                 
+                 const text = textarea.value;
+                 let highlightedText = '';
+                 let lastIndex = 0;
+                 
+                 currentMatches.forEach((match, index) => {
+                     // Add text before this match
+                     highlightedText += escapeHtml(text.substring(lastIndex, match.start));
+                     
+                     // Add highlighted match
+                     const isActive = index === currentMatchIndex;
+                     const bgColor = isActive ? '#3b82f6' : '#fbbf24';
+                     const textColor = isActive ? 'white' : '#1f2937';
+                     
+                     highlightedText += `<span style="background-color: ${bgColor}; color: ${textColor}; border-radius: 2px;">`;
+                     highlightedText += escapeHtml(text.substring(match.start, match.end));
+                     highlightedText += '</span>';
+                     
+                     lastIndex = match.end;
+                 });
+                 
+                 // Add remaining text
+                 highlightedText += escapeHtml(text.substring(lastIndex));
+                 
+                 highlightLayer.innerHTML = highlightedText;
+                 syncScroll();
+             }
+             
+             function syncScroll() {
+                 if (highlightLayer) {
+                     highlightLayer.scrollTop = textarea.scrollTop;
+                     highlightLayer.scrollLeft = textarea.scrollLeft;
+                 }
+             }
+             
+             function clearHighlights() {
+                 if (highlightLayer) {
+                     textarea.removeEventListener('scroll', syncScroll);
+                     highlightLayer.remove();
+                     highlightLayer = null;
+                 }
+             }
+             
+             function clearMatches() {
+                 currentMatches = [];
+                 currentMatchIndex = -1;
+                 clearHighlights();
+                 updateButtons();
+             }
+             
+             function escapeHtml(text) {
+                 const div = document.createElement('div');
+                 div.textContent = text;
+                 return div.innerHTML;
+             }
             
             function escapeRegExp(string) {
                 return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -1098,6 +1523,32 @@ function setupDragging(overlay) {
             overlay.style.cursor = 'move';
         }
     }
+}
+
+// Download HTML function
+function downloadHtml() {
+    const textarea = document.getElementById('htmlInput');
+    const htmlContent = textarea.value;
+    
+    // Create a blob with the HTML content
+    const blob = new Blob([htmlContent], { type: 'text/html' });
+    
+    // Create a temporary download link
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    
+    // Generate filename with timestamp
+    const now = new Date();
+    const timestamp = now.toISOString().slice(0, 19).replace(/[:]/g, '-');
+    link.download = `html-editor-${timestamp}.html`;
+    
+    // Trigger download
+    document.body.appendChild(link);
+    link.click();
+    
+    // Clean up
+    document.body.removeChild(link);
+    URL.revokeObjectURL(link.href);
 }
 
 
