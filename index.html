@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Real-time HTML Editor</title>
+
     <style>
         * {
             margin: 0;
@@ -202,11 +203,7 @@
             pointer-events: auto;
         }
         
-        #deviceToggle:hover {
-            background: rgba(255, 255, 255, 1) !important;
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
-        }
+
         
         #formatCodeBtn:hover {
             background: rgba(99, 102, 241, 0.2) !important;
@@ -237,12 +234,7 @@
                 font-size: 14px;
             }
             
-            #deviceToggle {
-                right: 16px !important;
-                top: 10px !important;
-                padding: 6px 10px !important;
-                font-size: 11px !important;
-            }
+
             
             .header-controls {
                 flex-direction: column;
@@ -254,6 +246,11 @@
                 font-size: 10px !important;
                 margin-right: 4px !important;
             }
+            
+            #deviceToggle, #exportBtn {
+                font-size: 12px !important;
+                padding: 2px 4px !important;
+            }
         }
     </style>
 </head>
@@ -261,26 +258,6 @@
     <header>
         <h1>Real-time HTML Editor</h1>
     </header>
-    <button id="deviceToggle" onclick="toggleDevice()" style="
-    position: absolute;
-    top: 14px;
-    right: 24px;
-    background: rgba(255, 255, 255, 0.9);
-    backdrop-filter: blur(10px);
-    color: #4a5568;
-    border: 1px solid rgba(0, 0, 0, 0.08);
-    padding: 8px 14px;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 12px;
-    font-weight: 500;
-    z-index: 10;
-    transition: all 0.2s ease;
-    letter-spacing: -0.01em;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-">
-    📱 Mobile View
-</button>
     <div class="container">
         <div class="editor-pane">
             <div class="pane-header">
@@ -320,7 +297,9 @@
                             justify-content: center;
                         "
                     >
-                        ✨
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M16 18L22 12L16 6M8 6L2 12L8 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
                     </button>
                 </div>
             </div>
@@ -394,7 +373,49 @@
         <div class="divider"></div>
         
         <div class="preview-pane">
-            <div class="pane-header">Preview</div>
+            <div class="pane-header">
+                <span>Preview</span>
+                <div class="header-controls">
+                    <button id="exportBtn" onclick="exportOpenGraphImage()" title="Show OpenGraph screenshot overlay" style="
+                        background: rgba(34, 197, 94, 0.1);
+                        border: 1px solid rgba(34, 197, 94, 0.2);
+                        border-radius: 6px;
+                        padding: 4px 8px;
+                        cursor: pointer;
+                        font-size: 12px;
+                        color: #22c55e;
+                        transition: all 0.2s ease;
+                        margin-right: 8px;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                    " onmouseover="this.style.background='rgba(34, 197, 94, 0.2)'; this.style.transform='scale(1.05)'" onmouseout="this.style.background='rgba(34, 197, 94, 0.1)'; this.style.transform='scale(1)'">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M23 19C23 19.5304 22.7893 20.0391 22.4142 20.4142C22.0391 20.7893 21.5304 21 21 21H3C2.46957 21 1.96086 20.7893 1.58579 20.4142C1.21071 20.0391 1 19.5304 1 19V8C1 7.46957 1.21071 6.96086 1.58579 6.58579C1.96086 6.21071 2.46957 6 3 6H7L9 4H15L17 6H21C21.5304 6 22.0391 6.21071 22.4142 6.58579C22.7893 6.96086 23 7.46957 23 8V19Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <circle cx="12" cy="13" r="4" stroke="currentColor" stroke-width="2"/>
+                        </svg>
+                    </button>
+                    <button id="deviceToggle" onclick="toggleDevice()" style="
+                        background: transparent;
+                        border: none;
+                        color: #64748b;
+                        cursor: pointer;
+                        font-size: 14px;
+                        padding: 2px 4px;
+                        border-radius: 3px;
+                        transition: all 0.2s ease;
+                        opacity: 0.7;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                    " onmouseover="this.style.opacity='1'; this.style.background='rgba(0,0,0,0.05)'" onmouseout="this.style.opacity='0.7'; this.style.background='transparent'">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <rect x="5" y="2" width="14" height="20" rx="2" ry="2" stroke="currentColor" stroke-width="2"/>
+                            <line x1="12" y1="18" x2="12.01" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
             <iframe id="preview"></iframe>
         </div>
     </div>
@@ -605,7 +626,7 @@
                 }
                 
                 findMatches(searchTerm);
-                highlightCurrentMatch();
+                highlightCurrentMatch(false); // Don't steal focus while typing
             });
             
             searchInput.addEventListener('keydown', function(e) {
@@ -613,7 +634,9 @@
                     e.preventDefault();
                     if (currentMatches.length > 0) {
                         currentMatchIndex = (currentMatchIndex + 1) % currentMatches.length;
-                        highlightCurrentMatch();
+                        highlightCurrentMatch(true); // Focus when navigating with Enter
+                        // Update placeholder to show current match
+                        searchInput.placeholder = `${currentMatchIndex + 1} of ${currentMatches.length}`;
                     }
                 } else if (e.key === 'Escape') {
                     this.value = '';
@@ -645,19 +668,32 @@
                 }
             }
             
-            function highlightCurrentMatch() {
+            function highlightCurrentMatch(shouldFocus = false) {
                 if (currentMatches.length === 0 || currentMatchIndex === -1) {
                     searchInput.placeholder = 'No matches';
                     return;
                 }
                 
                 const match = currentMatches[currentMatchIndex];
-                textarea.focus();
-                textarea.setSelectionRange(match.start, match.end);
-                textarea.scrollTop = textarea.scrollHeight * (match.start / textarea.value.length) - textarea.clientHeight / 2;
                 
-                // Update search input placeholder to show match count
-                searchInput.placeholder = `${currentMatchIndex + 1} of ${currentMatches.length}`;
+                // Always select the text to highlight it
+                textarea.setSelectionRange(match.start, match.end);
+                
+                // Calculate scroll position to center the match
+                const textBeforeMatch = textarea.value.substring(0, match.start);
+                const linesBefore = textBeforeMatch.split('\n').length - 1;
+                const lineHeight = parseInt(getComputedStyle(textarea).lineHeight) || 20;
+                const scrollPosition = (linesBefore * lineHeight) - (textarea.clientHeight / 2);
+                textarea.scrollTop = Math.max(0, scrollPosition);
+                
+                // Only focus if explicitly requested (like when pressing Enter)
+                if (shouldFocus) {
+                    textarea.focus();
+                    searchInput.placeholder = `${currentMatchIndex + 1} of ${currentMatches.length}`;
+                } else {
+                    // Keep focus in search box while typing
+                    searchInput.placeholder = `${currentMatches.length} found`;
+                }
             }
             
             function clearHighlights() {
@@ -800,15 +836,50 @@ function toggleDevice() {
     
     if (isMobile) {
         // Switch to mobile view
-        button.innerHTML = '🖥️ Desktop View';
-        button.style.background = 'rgba(99, 102, 241, 0.9)';
-        button.style.color = 'white';
-        button.style.borderColor = 'rgba(99, 102, 241, 0.2)';
+        button.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="4" width="20" height="16" rx="2" stroke="currentColor" stroke-width="2"/><path d="m8 21 8 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+        button.title = 'Switch to desktop view';
         
         previewPane.classList.add('mobile');
         previewPane.innerHTML = `
             <div class="pane-header" style="position: absolute; top: 0; left: 0; right: 0;">
-                Preview - iPhone 15 Pro (393×852)
+                <span>Preview - iPhone 15 Pro</span>
+                <div class="header-controls">
+                    <button id="exportBtn" onclick="exportOpenGraphImage()" title="Show OpenGraph screenshot overlay" style="
+                        background: rgba(34, 197, 94, 0.1);
+                        border: 1px solid rgba(34, 197, 94, 0.2);
+                        border-radius: 6px;
+                        padding: 4px 8px;
+                        cursor: pointer;
+                        font-size: 12px;
+                        color: #22c55e;
+                        transition: all 0.2s ease;
+                        margin-right: 8px;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                    " onmouseover="this.style.background='rgba(34, 197, 94, 0.2)'; this.style.transform='scale(1.05)'" onmouseout="this.style.background='rgba(34, 197, 94, 0.1)'; this.style.transform='scale(1)'">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M23 19C23 19.5304 22.7893 20.0391 22.4142 20.4142C22.0391 20.7893 21.5304 21 21 21H3C2.46957 21 1.96086 20.7893 1.58579 20.4142C1.21071 20.0391 1 19.5304 1 19V8C1 7.46957 1.21071 6.96086 1.58579 6.58579C1.96086 6.21071 2.46957 6 3 6H7L9 4H15L17 6H21C21.5304 6 22.0391 6.21071 22.4142 6.58579C22.7893 6.96086 23 7.46957 23 8V19Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <circle cx="12" cy="13" r="4" stroke="currentColor" stroke-width="2"/>
+                        </svg>
+                    </button>
+                    <button id="deviceToggle" onclick="toggleDevice()" style="
+                        background: transparent;
+                        border: none;
+                        color: #64748b;
+                        cursor: pointer;
+                        font-size: 14px;
+                        padding: 2px 4px;
+                        border-radius: 3px;
+                        transition: all 0.2s ease;
+                        opacity: 0.7;
+                    " onmouseover="this.style.opacity='1'; this.style.background='rgba(0,0,0,0.05)'" onmouseout="this.style.opacity='0.7'; this.style.background='transparent'" title="Switch to desktop view" style="display: flex; align-items: center; justify-content: center;">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <rect x="2" y="4" width="20" height="16" rx="2" stroke="currentColor" stroke-width="2"/>
+                            <path d="m8 21 8 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                    </button>
+                </div>
             </div>
             <div class="phone-frame">
                 <div class="phone-screen">
@@ -823,14 +894,51 @@ function toggleDevice() {
         
     } else {
         // Switch back to desktop view
-        button.innerHTML = '📱 Mobile View';
-        button.style.background = 'rgba(255, 255, 255, 0.9)';
-        button.style.color = '#4a5568';
-        button.style.borderColor = 'rgba(0, 0, 0, 0.08)';
+        button.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="5" y="2" width="14" height="20" rx="2" ry="2" stroke="currentColor" stroke-width="2"/><line x1="12" y1="18" x2="12.01" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+        button.title = 'Switch to mobile view';
         
         previewPane.classList.remove('mobile');
         previewPane.innerHTML = `
-            <div class="pane-header">Preview</div>
+            <div class="pane-header">
+                <span>Preview</span>
+                <div class="header-controls">
+                    <button id="exportBtn" onclick="exportOpenGraphImage()" title="Show OpenGraph screenshot overlay" style="
+                        background: rgba(34, 197, 94, 0.1);
+                        border: 1px solid rgba(34, 197, 94, 0.2);
+                        border-radius: 6px;
+                        padding: 4px 8px;
+                        cursor: pointer;
+                        font-size: 12px;
+                        color: #22c55e;
+                        transition: all 0.2s ease;
+                        margin-right: 8px;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                    " onmouseover="this.style.background='rgba(34, 197, 94, 0.2)'; this.style.transform='scale(1.05)'" onmouseout="this.style.background='rgba(34, 197, 94, 0.1)'; this.style.transform='scale(1)'">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M23 19C23 19.5304 22.7893 20.0391 22.4142 20.4142C22.0391 20.7893 21.5304 21 21 21H3C2.46957 21 1.96086 20.7893 1.58579 20.4142C1.21071 20.0391 1 19.5304 1 19V8C1 7.46957 1.21071 6.96086 1.58579 6.58579C1.96086 6.21071 2.46957 6 3 6H7L9 4H15L17 6H21C21.5304 6 22.0391 6.21071 22.4142 6.58579C22.7893 6.96086 23 7.46957 23 8V19Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <circle cx="12" cy="13" r="4" stroke="currentColor" stroke-width="2"/>
+                        </svg>
+                    </button>
+                    <button id="deviceToggle" onclick="toggleDevice()" style="
+                        background: transparent;
+                        border: none;
+                        color: #64748b;
+                        cursor: pointer;
+                        font-size: 14px;
+                        padding: 2px 4px;
+                        border-radius: 3px;
+                        transition: all 0.2s ease;
+                        opacity: 0.7;
+                    " onmouseover="this.style.opacity='1'; this.style.background='rgba(0,0,0,0.05)'" onmouseout="this.style.opacity='0.7'; this.style.background='transparent'" title="Switch to mobile view" style="display: flex; align-items: center; justify-content: center;">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <rect x="5" y="2" width="14" height="20" rx="2" ry="2" stroke="currentColor" stroke-width="2"/>
+                            <line x1="12" y1="18" x2="12.01" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
             <iframe id="preview"></iframe>
         `;
         
@@ -870,6 +978,129 @@ function updatePreview() {
         setupPreview(preview);
     }
 }
+
+// Toggle OpenGraph overlay for screenshot
+let ogOverlayVisible = false;
+let isDragging = false;
+let dragOffset = { x: 0, y: 0 };
+
+function exportOpenGraphImage() {
+    const exportBtn = document.getElementById('exportBtn');
+    const previewPane = document.querySelector('.preview-pane');
+    
+    if (!previewPane) {
+        alert('Preview pane not found');
+        return;
+    }
+    
+    ogOverlayVisible = !ogOverlayVisible;
+    
+    if (ogOverlayVisible) {
+        // Create overlay
+        const overlay = document.createElement('div');
+        overlay.id = 'og-overlay';
+        overlay.style.cssText = `
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 1200px;
+            height: 630px;
+            transform: translate(-50%, -50%);
+            border: 3px solid #22c55e;
+            border-radius: 8px;
+            cursor: move;
+            z-index: 1000;
+            box-shadow: 
+                0 0 0 2px rgba(34, 197, 94, 0.3),
+                0 0 20px rgba(34, 197, 94, 0.2);
+        `;
+        
+        // Add label
+        const label = document.createElement('div');
+        label.style.cssText = `
+            position: absolute;
+            top: -35px;
+            left: 0;
+            background: #22c55e;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            white-space: nowrap;
+            cursor: move;
+        `;
+        label.textContent = '1200×630px - Drag to position';
+        overlay.appendChild(label);
+        
+        // Make overlay draggable
+        setupDragging(overlay);
+        
+        // Make preview pane relative for positioning
+        previewPane.style.position = 'relative';
+        previewPane.appendChild(overlay);
+        
+        // Update button
+        exportBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" stroke-width="2"/><line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" stroke-width="2"/></svg>';
+        exportBtn.title = 'Hide OpenGraph overlay';
+        
+    } else {
+        // Remove overlay
+        const overlay = document.getElementById('og-overlay');
+        if (overlay) {
+            overlay.remove();
+        }
+        
+        // Update button
+        exportBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M23 19C23 19.5304 22.7893 20.0391 22.4142 20.4142C22.0391 20.7893 21.5304 21 21 21H3C2.46957 21 1.96086 20.7893 1.58579 20.4142C1.21071 20.0391 1 19.5304 1 19V8C1 7.46957 1.21071 6.96086 1.58579 6.58579C1.96086 6.21071 2.46957 6 3 6H7L9 4H15L17 6H21C21.5304 6 22.0391 6.21071 22.4142 6.58579C22.7893 6.96086 23 7.46957 23 8V19Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="13" r="4" stroke="currentColor" stroke-width="2"/></svg>';
+        exportBtn.title = 'Show OpenGraph screenshot overlay';
+    }
+}
+
+function setupDragging(overlay) {
+    overlay.addEventListener('mousedown', startDrag);
+    document.addEventListener('mousemove', drag);
+    document.addEventListener('mouseup', stopDrag);
+    
+    function startDrag(e) {
+        isDragging = true;
+        overlay.style.cursor = 'grabbing';
+        
+        const rect = overlay.getBoundingClientRect();
+        const previewRect = overlay.parentElement.getBoundingClientRect();
+        
+        dragOffset.x = e.clientX - rect.left;
+        dragOffset.y = e.clientY - rect.top;
+        
+        e.preventDefault();
+    }
+    
+    function drag(e) {
+        if (!isDragging) return;
+        
+        const previewRect = overlay.parentElement.getBoundingClientRect();
+        
+        let newX = e.clientX - previewRect.left - dragOffset.x;
+        let newY = e.clientY - previewRect.top - dragOffset.y;
+        
+        // Keep within bounds
+        newX = Math.max(0, Math.min(newX, previewRect.width - 1200));
+        newY = Math.max(0, Math.min(newY, previewRect.height - 630));
+        
+        overlay.style.left = newX + 'px';
+        overlay.style.top = newY + 'px';
+        overlay.style.transform = 'none';
+    }
+    
+    function stopDrag() {
+        if (isDragging) {
+            isDragging = false;
+            overlay.style.cursor = 'move';
+        }
+    }
+}
+
+
     </script>
 </body>
 </html>
