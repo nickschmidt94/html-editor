@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Learn HTML & CSS - HTML Editor & Learning Platform</title>
+    
+    <!-- Stylesheets -->
+    <link rel="stylesheet" href="shared/style.css">
+    <link rel="stylesheet" href="learn/learn.css">
+</head>
+<body>
+    <header>
+        <h1>HTML Editor & Learning Platform</h1>
+        <nav class="header-nav">
+            <a href="index.html" class="nav-link">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <polyline points="16,18 22,12 16,6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <polyline points="8,6 2,12 8,18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                Editor
+            </a>
+            <a href="learn.html" class="nav-link active">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 2L2 7V17C2 17.5304 2.21071 18.0391 2.58579 18.4142C2.96086 18.7893 3.46957 19 4 19H20C20.5304 19 21.0391 18.7893 21.4142 18.4142C21.7893 18.0391 22 17.5304 22 17V7L12 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <polyline points="9,10 12,13 15,10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                Learn
+            </a>
+        </nav>
+    </header>
+
+    <!-- Learn Content -->
+    <div class="learn-container">
+        <!-- Module Navigation -->
+        <nav class="module-nav">
+            <div class="module-list">
+                <button class="module-btn active" data-module="mental-models" title="Mental Models Lab">
+                    <div class="module-icon">MM</div>
+                </button>
+                <button class="module-btn coming-soon" data-module="fundamentals" title="HTML Fundamentals">
+                    <div class="module-icon">HF</div>
+                </button>
+                <button class="module-btn coming-soon" data-module="css-mastery" title="CSS Mastery">
+                    <div class="module-icon">CM</div>
+                </button>
+                <button class="module-btn coming-soon" data-module="responsive" title="Responsive Design">
+                    <div class="module-icon">RD</div>
+                </button>
+                <button class="module-btn coming-soon" data-module="projects" title="Projects & Practice">
+                    <div class="module-icon">PP</div>
+                </button>
+            </div>
+        </nav>
+
+        <!-- Module Content Area -->
+        <main class="module-content">
+            <!-- Mental Models Lab Module -->
+            <div id="mental-models-module" class="learning-module active">
+                <div class="module-header">
+                    <h1>Mental Models Lab</h1>
+                    <p>Interactive visualizations to understand how HTML and CSS really work under the hood.</p>
+                    <div class="module-progress">
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: 0%"></div>
+                        </div>
+                        <span class="progress-text">0% Complete</span>
+                    </div>
+                </div>
+
+                <!-- DOM Tree Visualization -->
+                <section class="lab-section">
+                    <div class="lab-header">
+                        <h2>DOM Tree Builder</h2>
+                        <p>Watch the DOM tree build as you type HTML. See parent-child relationships in real-time.</p>
+                    </div>
+                    <div class="lab-content">
+                        <div class="input-section">
+                            <label for="htmlInput">HTML Code:</label>
+                            <textarea id="htmlInput" placeholder="Type your HTML here...">
+<div class="container">
+    <h1>Hello World</h1>
+    <p>This is a <span>paragraph</span> with a span.
+    <ul>
+        <li class=item>Item 1</li>
+        <li>Item 2
+    </ul>
+    <img src="image.jpg" alt="Example">
+</div></textarea>
+                        </div>
+                        <div class="visualization-section">
+                            <h3>DOM Tree:</h3>
+                            <div class="tree-legend">
+                                <div class="legend-item">
+                                    <span class="legend-color" style="background: #eff6ff; border-color: #3b82f6;"></span>
+                                    <span>Elements (blue)</span>
+                                </div>
+                                <div class="legend-item">
+                                    <span class="legend-color" style="background: #f0fdf4; border-color: #22c55e;"></span>
+                                    <span>Text nodes (green)</span>
+                                </div>
+                                <div class="legend-item">
+                                    <span class="legend-color" style="background: #fff7ed; border-color: #f97316;"></span>
+                                    <span>Attributes (orange)</span>
+                                </div>
+                            </div>
+                            <div id="domTree" class="dom-tree"></div>
+                            <div class="tree-instructions">
+                                <p><strong>💡 Try this:</strong> Hover over any node to see parent-child relationships!</p>
+                                <p><strong>🔧 Error detection:</strong> Try removing closing tags or unquoting attributes to see how the browser fixes them.</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- CSS Battle Arena -->
+                <section class="lab-section">
+                    <div class="lab-header">
+                        <h2>CSS Battle Arena ⚔️</h2>
+                        <p>Write CSS rules and watch them battle for control! See specificity in action with real code.</p>
+                    </div>
+                    <div class="lab-content">
+                        <div class="battle-arena">
+                            <div class="arena-left">
+                                <div class="target-display">
+                                    <h3>The Battlefield</h3>
+                                    <div class="target-element" id="battleTarget">
+                                        <div class="element-label">div.hero#main</div>
+                                        Battle Target
+                                    </div>
+                                    <div class="current-styles" id="currentStyles">
+                                        <h4>Applied Styles:</h4>
+                                        <div class="style-list"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="arena-right">
+                                <div class="css-editor">
+                                    <h3>Write Your CSS Rules</h3>
+                                    <div class="editor-tabs">
+                                        <button class="tab-btn active" data-tab="rule1">Rule 1</button>
+                                        <button class="tab-btn" data-tab="rule2">Rule 2</button>
+                                        <button class="tab-btn" data-tab="rule3">Rule 3</button>
+                                        <button class="add-rule-btn" id="addRule">+ Add Rule</button>
+                                    </div>
+                                    
+                                    <div class="rule-editor active" data-rule="rule1">
+                                        <div class="selector-input">
+                                            <label>Selector:</label>
+                                            <input type="text" placeholder="div" class="selector" data-rule="rule1">
+                                            <div class="specificity-display" data-rule="rule1">0,0,0,1</div>
+                                        </div>
+                                        <div class="css-input">
+                                            <label>CSS Properties:</label>
+                                            <textarea placeholder="background: blue;&#10;color: white;&#10;padding: 20px;" class="css-props" data-rule="rule1"></textarea>
+                                        </div>
+                                        <div class="rule-controls">
+                                            <button class="apply-btn" data-rule="rule1">⚡ Apply Rule</button>
+                                            <button class="important-btn" data-rule="rule1">🔥 Add !important</button>
+                                            <button class="remove-btn" data-rule="rule1">🗑️ Remove</button>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="rule-editor" data-rule="rule2">
+                                        <div class="selector-input">
+                                            <label>Selector:</label>
+                                            <input type="text" placeholder=".hero" class="selector" data-rule="rule2">
+                                            <div class="specificity-display" data-rule="rule2">0,0,1,0</div>
+                                        </div>
+                                        <div class="css-input">
+                                            <label>CSS Properties:</label>
+                                            <textarea placeholder="background: red;&#10;font-size: 24px;" class="css-props" data-rule="rule2"></textarea>
+                                        </div>
+                                        <div class="rule-controls">
+                                            <button class="apply-btn" data-rule="rule2">⚡ Apply Rule</button>
+                                            <button class="important-btn" data-rule="rule2">🔥 Add !important</button>
+                                            <button class="remove-btn" data-rule="rule2">🗑️ Remove</button>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="rule-editor" data-rule="rule3">
+                                        <div class="selector-input">
+                                            <label>Selector:</label>
+                                            <input type="text" placeholder="#main" class="selector" data-rule="rule3">
+                                            <div class="specificity-display" data-rule="rule3">0,1,0,0</div>
+                                        </div>
+                                        <div class="css-input">
+                                            <label>CSS Properties:</label>
+                                            <textarea placeholder="background: green;&#10;border: 3px solid gold;" class="css-props" data-rule="rule3"></textarea>
+                                        </div>
+                                        <div class="rule-controls">
+                                            <button class="apply-btn" data-rule="rule3">⚡ Apply Rule</button>
+                                            <button class="important-btn" data-rule="rule3">🔥 Add !important</button>
+                                            <button class="remove-btn" data-rule="rule3">🗑️ Remove</button>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="battle-controls">
+                                    <button id="battleAll" class="battle-btn primary">⚔️ Start Battle!</button>
+                                    <button id="clearAll" class="battle-btn secondary">🔄 Clear All</button>
+                                    <button id="randomBattle" class="battle-btn">🎲 Random Battle</button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="battle-log" id="battleLog">
+                            <h3>⚔️ Battle Log</h3>
+                            <div class="log-content">
+                                <p>Write some CSS rules and click "Start Battle!" to see which rules win the specificity war!</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Box Model Interactive -->
+                <section class="lab-section">
+                    <div class="lab-header">
+                        <h2>Interactive Box Model</h2>
+                        <p>Manipulate padding, border, and margin with sliders to see live effects.</p>
+                    </div>
+                    <div class="lab-content">
+                        <div class="box-model-controls">
+                            <div class="control-group">
+                                <label>Margin:</label>
+                                <input type="range" id="marginSlider" min="0" max="50" value="20">
+                                <span id="marginValue">20px</span>
+                            </div>
+                            <div class="control-group">
+                                <label>Border:</label>
+                                <input type="range" id="borderSlider" min="0" max="20" value="5">
+                                <span id="borderValue">5px</span>
+                            </div>
+                            <div class="control-group">
+                                <label>Padding:</label>
+                                <input type="range" id="paddingSlider" min="0" max="50" value="15">
+                                <span id="paddingValue">15px</span>
+                            </div>
+                        </div>
+                        <div class="box-model-visualization">
+                            <div class="box-model-demo" id="boxModelDemo">
+                                <div class="margin-area">
+                                    <div class="margin-label">margin</div>
+                                    <div class="border-area">
+                                        <div class="border-label">border</div>
+                                        <div class="padding-area">
+                                            <div class="padding-label">padding</div>
+                                            <div class="content-area">
+                                                content
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Flexbox Axes Visualization -->
+                <section class="lab-section">
+                    <div class="lab-header">
+                        <h2>Flexbox Axes Visualizer</h2>
+                        <p>See how flexbox axes rotate when you change flex-direction.</p>
+                    </div>
+                    <div class="lab-content">
+                        <div class="flexbox-controls">
+                            <label for="flexDirection">Flex Direction:</label>
+                            <select id="flexDirection">
+                                <option value="row">row</option>
+                                <option value="row-reverse">row-reverse</option>
+                                <option value="column">column</option>
+                                <option value="column-reverse">column-reverse</option>
+                            </select>
+                        </div>
+                        <div class="flexbox-visualization">
+                            <div class="flexbox-container" id="flexboxContainer">
+                                <div class="flex-item">1</div>
+                                <div class="flex-item">2</div>
+                                <div class="flex-item">3</div>
+                                <div class="main-axis" id="mainAxis">
+                                    <span class="axis-label">Main Axis</span>
+                                    <div class="axis-arrow"></div>
+                                </div>
+                                <div class="cross-axis" id="crossAxis">
+                                    <span class="axis-label">Cross Axis</span>
+                                    <div class="axis-arrow"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Placeholder for future modules -->
+            <div id="fundamentals-module" class="learning-module">
+                <div class="module-header">
+                    <h1>HTML Fundamentals</h1>
+                    <p>Master the building blocks of web development.</p>
+                </div>
+                <div class="coming-soon-content">
+                    <div class="coming-soon-icon">HF</div>
+                    <h2>Coming Soon</h2>
+                    <p>This module is currently under development. Check back soon!</p>
+                </div>
+            </div>
+
+            <div id="css-mastery-module" class="learning-module">
+                <div class="module-header">
+                    <h1>CSS Mastery</h1>
+                    <p>Advanced styling techniques and modern CSS features.</p>
+                </div>
+                <div class="coming-soon-content">
+                    <div class="coming-soon-icon">CM</div>
+                    <h2>Coming Soon</h2>
+                    <p>This module is currently under development. Check back soon!</p>
+                </div>
+            </div>
+
+            <div id="responsive-module" class="learning-module">
+                <div class="module-header">
+                    <h1>Responsive Design</h1>
+                    <p>Create websites that work perfectly on all devices.</p>
+                </div>
+                <div class="coming-soon-content">
+                    <div class="coming-soon-icon">RD</div>
+                    <h2>Coming Soon</h2>
+                    <p>This module is currently under development. Check back soon!</p>
+                </div>
+            </div>
+
+            <div id="projects-module" class="learning-module">
+                <div class="module-header">
+                    <h1>Projects & Practice</h1>
+                    <p>Apply your skills with hands-on projects and challenges.</p>
+                </div>
+                <div class="coming-soon-content">
+                    <div class="coming-soon-icon">PP</div>
+                    <h2>Coming Soon</h2>
+                    <p>This module is currently under development. Check back soon!</p>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <!-- Scripts -->
+    <script src="learn/learn.js"></script>
+</body>
+</html>
