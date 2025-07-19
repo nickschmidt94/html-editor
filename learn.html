@@ -113,102 +113,98 @@
                     </div>
                 </section>
 
-                <!-- CSS Battle Arena -->
+                <!-- CSS Playground -->
                 <section class="lab-section">
                     <div class="lab-header">
-                        <h2>CSS Battle Arena ⚔️</h2>
-                        <p>Write CSS rules and watch them battle for control! See specificity in action with real code.</p>
+                        <h2>CSS Playground 🎨</h2>
+                        <p>Experiment with CSS properties and see instant results! The best way to learn is by doing.</p>
                     </div>
                     <div class="lab-content">
-                        <div class="battle-arena">
-                            <div class="arena-left">
-                                <div class="target-display">
-                                    <h3>The Battlefield</h3>
-                                    <div class="target-element" id="battleTarget">
-                                        <div class="element-label">div.hero#main</div>
-                                        Battle Target
+                        <div class="css-playground">
+                            <div class="playground-left">
+                                <h3>Live Preview</h3>
+                                <div class="preview-container">
+                                    <div class="demo-element" id="demoElement">
+                                        <h3>Hello World!</h3>
+                                        <p>I'm a demo element. Style me with CSS!</p>
+                                        <button>Click me</button>
                                     </div>
-                                    <div class="current-styles" id="currentStyles">
-                                        <h4>Applied Styles:</h4>
-                                        <div class="style-list"></div>
+                                </div>
+                                
+                                <div class="property-inspector">
+                                    <h4>Quick Properties</h4>
+                                    <div class="quick-controls">
+                                        <div class="control-row">
+                                            <label>Background:</label>
+                                            <input type="color" id="bgColor" value="#3b82f6">
+                                            <button class="preset-btn" data-property="background" data-value="linear-gradient(45deg, #ff6b6b, #4ecdc4)">Gradient</button>
+                                        </div>
+                                        <div class="control-row">
+                                            <label>Text Color:</label>
+                                            <input type="color" id="textColor" value="#ffffff">
+                                        </div>
+                                        <div class="control-row">
+                                            <label>Padding:</label>
+                                            <input type="range" id="paddingSlider" min="0" max="50" value="20">
+                                            <span id="paddingValue">20px</span>
+                                        </div>
+                                        <div class="control-row">
+                                            <label>Border Radius:</label>
+                                            <input type="range" id="radiusSlider" min="0" max="50" value="8">
+                                            <span id="radiusValue">8px</span>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                             
-                            <div class="arena-right">
-                                <div class="css-editor">
-                                    <h3>Write Your CSS Rules</h3>
-                                    <div class="editor-tabs">
-                                        <button class="tab-btn active" data-tab="rule1">Rule 1</button>
-                                        <button class="tab-btn" data-tab="rule2">Rule 2</button>
-                                        <button class="tab-btn" data-tab="rule3">Rule 3</button>
-                                        <button class="add-rule-btn" id="addRule">+ Add Rule</button>
-                                    </div>
-                                    
-                                    <div class="rule-editor active" data-rule="rule1">
-                                        <div class="selector-input">
-                                            <label>Selector:</label>
-                                            <input type="text" placeholder="div" class="selector" data-rule="rule1">
-                                            <div class="specificity-display" data-rule="rule1">0,0,0,1</div>
-                                        </div>
-                                        <div class="css-input">
-                                            <label>CSS Properties:</label>
-                                            <textarea placeholder="background: blue;&#10;color: white;&#10;padding: 20px;" class="css-props" data-rule="rule1"></textarea>
-                                        </div>
-                                        <div class="rule-controls">
-                                            <button class="apply-btn" data-rule="rule1">⚡ Apply Rule</button>
-                                            <button class="important-btn" data-rule="rule1">🔥 Add !important</button>
-                                            <button class="remove-btn" data-rule="rule1">🗑️ Remove</button>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="rule-editor" data-rule="rule2">
-                                        <div class="selector-input">
-                                            <label>Selector:</label>
-                                            <input type="text" placeholder=".hero" class="selector" data-rule="rule2">
-                                            <div class="specificity-display" data-rule="rule2">0,0,1,0</div>
-                                        </div>
-                                        <div class="css-input">
-                                            <label>CSS Properties:</label>
-                                            <textarea placeholder="background: red;&#10;font-size: 24px;" class="css-props" data-rule="rule2"></textarea>
-                                        </div>
-                                        <div class="rule-controls">
-                                            <button class="apply-btn" data-rule="rule2">⚡ Apply Rule</button>
-                                            <button class="important-btn" data-rule="rule2">🔥 Add !important</button>
-                                            <button class="remove-btn" data-rule="rule2">🗑️ Remove</button>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="rule-editor" data-rule="rule3">
-                                        <div class="selector-input">
-                                            <label>Selector:</label>
-                                            <input type="text" placeholder="#main" class="selector" data-rule="rule3">
-                                            <div class="specificity-display" data-rule="rule3">0,1,0,0</div>
-                                        </div>
-                                        <div class="css-input">
-                                            <label>CSS Properties:</label>
-                                            <textarea placeholder="background: green;&#10;border: 3px solid gold;" class="css-props" data-rule="rule3"></textarea>
-                                        </div>
-                                        <div class="rule-controls">
-                                            <button class="apply-btn" data-rule="rule3">⚡ Apply Rule</button>
-                                            <button class="important-btn" data-rule="rule3">🔥 Add !important</button>
-                                            <button class="remove-btn" data-rule="rule3">🗑️ Remove</button>
-                                        </div>
-                                    </div>
+                            <div class="playground-right">
+                                <h3>CSS Editor</h3>
+                                <div class="css-editor-container">
+                                    <textarea id="cssEditor" placeholder="/* Type your CSS here */
+.demo-element {
+  background: #3b82f6;
+  color: white;
+  padding: 20px;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.demo-element h3 {
+  margin: 0 0 10px 0;
+  font-size: 1.5rem;
+}
+
+.demo-element p {
+  margin: 0 0 15px 0;
+  opacity: 0.9;
+}
+
+.demo-element button {
+  background: white;
+  color: #3b82f6;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.demo-element button:hover {
+  background: #f1f5f9;
+}"></textarea>
                                 </div>
                                 
-                                <div class="battle-controls">
-                                    <button id="battleAll" class="battle-btn primary">⚔️ Start Battle!</button>
-                                    <button id="clearAll" class="battle-btn secondary">🔄 Clear All</button>
-                                    <button id="randomBattle" class="battle-btn">🎲 Random Battle</button>
+                                <div class="css-examples">
+                                    <h4>Try These Examples:</h4>
+                                    <div class="example-buttons">
+                                        <button class="example-btn" data-example="card">Card Style</button>
+                                        <button class="example-btn" data-example="button">Button Focus</button>
+                                        <button class="example-btn" data-example="gradient">Gradients</button>
+                                        <button class="example-btn" data-example="shadow">Shadows</button>
+                                        <button class="example-btn" data-example="animation">Animation</button>
+                                        <button class="reset-btn">Reset</button>
+                                    </div>
                                 </div>
-                            </div>
-                        </div>
-                        
-                        <div class="battle-log" id="battleLog">
-                            <h3>⚔️ Battle Log</h3>
-                            <div class="log-content">
-                                <p>Write some CSS rules and click "Start Battle!" to see which rules win the specificity war!</p>
                             </div>
                         </div>
                     </div>

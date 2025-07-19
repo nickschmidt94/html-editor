@@ -316,479 +316,383 @@ class DOMTreeBuilder {
 }
 
 // =============================================================================
-// CSS Battle Arena - Interactive CSS Rule Fighting
+// CSS Playground - Interactive CSS Learning
 // =============================================================================
 
-class BattleArena {
+class CSSPlayground {
     constructor() {
-        this.rules = [];
-        this.currentTab = 'rule1';
-        this.targetElement = document.getElementById('battleTarget');
-        this.battleLog = document.getElementById('battleLog');
-        this.appliedStyles = new Map();
+        this.demoElement = document.getElementById('demoElement');
+        this.cssEditor = document.getElementById('cssEditor');
+        this.updateTimeout = null;
+        
+        this.examples = {
+            card: `.demo-element {
+  background: white;
+  color: #2d3748;
+  padding: 30px;
+  border-radius: 12px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+  border: 1px solid #e2e8f0;
+  text-align: left;
+}
+
+.demo-element h3 {
+  color: #1a202c;
+  margin: 0 0 15px 0;
+  font-size: 1.8rem;
+}
+
+.demo-element p {
+  color: #4a5568;
+  margin: 0 0 20px 0;
+  line-height: 1.6;
+}
+
+.demo-element button {
+  background: #3b82f6;
+  color: white;
+  border: none;
+  padding: 12px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.demo-element button:hover {
+  background: #2563eb;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+}`,
+            button: `.demo-element {
+  background: #1a202c;
+  color: white;
+  padding: 40px;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.demo-element h3 {
+  margin: 0 0 20px 0;
+  font-size: 1.5rem;
+}
+
+.demo-element p {
+  margin: 0 0 25px 0;
+  opacity: 0.8;
+}
+
+.demo-element button {
+  background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+  color: white;
+  border: none;
+  padding: 15px 30px;
+  border-radius: 50px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 1.1rem;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.demo-element button:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 25px rgba(255, 107, 107, 0.4);
+}
+
+.demo-element button:active {
+  transform: translateY(0);
+}`,
+            gradient: `.demo-element {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 40px;
+  border-radius: 20px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.demo-element::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(45deg, rgba(255,255,255,0.1) 0%, transparent 100%);
+}
+
+.demo-element h3 {
+  margin: 0 0 15px 0;
+  font-size: 2rem;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+  position: relative;
+  z-index: 1;
+}
+
+.demo-element p {
+  margin: 0 0 20px 0;
+  opacity: 0.9;
+  position: relative;
+  z-index: 1;
+}
+
+.demo-element button {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  padding: 12px 24px;
+  border-radius: 30px;
+  cursor: pointer;
+  font-weight: 500;
+  backdrop-filter: blur(10px);
+  transition: all 0.3s ease;
+  position: relative;
+  z-index: 1;
+}
+
+.demo-element button:hover {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.5);
+  transform: translateY(-2px);
+}`,
+            shadow: `.demo-element {
+  background: #f7fafc;
+  color: #2d3748;
+  padding: 30px;
+  border-radius: 12px;
+  text-align: center;
+  box-shadow: 
+    0 1px 3px rgba(0, 0, 0, 0.1),
+    0 10px 30px rgba(0, 0, 0, 0.1),
+    0 20px 60px rgba(0, 0, 0, 0.1);
+}
+
+.demo-element h3 {
+  margin: 0 0 15px 0;
+  font-size: 1.8rem;
+  color: #1a202c;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.demo-element p {
+  margin: 0 0 20px 0;
+  color: #4a5568;
+}
+
+.demo-element button {
+  background: #4299e1;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  box-shadow: 
+    0 4px 14px rgba(66, 153, 225, 0.3),
+    0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.demo-element button:hover {
+  background: #3182ce;
+  transform: translateY(-2px);
+  box-shadow: 
+    0 8px 25px rgba(66, 153, 225, 0.4),
+    0 4px 8px rgba(0, 0, 0, 0.15);
+}`,
+            animation: `.demo-element {
+  background: #2d3748;
+  color: white;
+  padding: 30px;
+  border-radius: 15px;
+  text-align: center;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+.demo-element h3 {
+  margin: 0 0 15px 0;
+  font-size: 1.6rem;
+  animation: slideIn 1s ease-out;
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateY(-20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.demo-element p {
+  margin: 0 0 20px 0;
+  opacity: 0.9;
+  animation: fadeIn 1.5s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 0.9; }
+}
+
+.demo-element button {
+  background: #ed8936;
+  color: white;
+  border: none;
+  padding: 12px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  animation: bounce 1s ease-out 0.5s both;
+}
+
+@keyframes bounce {
+  0% { opacity: 0; transform: translateY(20px); }
+  50% { transform: translateY(-10px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+.demo-element button:hover {
+  background: #dd6b20;
+  transform: translateY(-3px) rotate(2deg);
+  box-shadow: 0 5px 15px rgba(237, 137, 54, 0.4);
+}`
+        };
         
         this.init();
     }
 
     init() {
-        this.setupTabs();
-        this.setupEventListeners();
-        this.setupInitialRules();
-        this.updateDisplay();
+        if (!this.demoElement || !this.cssEditor) return;
+        
+        this.setupEditor();
+        this.setupQuickControls();
+        this.setupExamples();
+        this.applyCSS();
     }
 
-    setupTabs() {
-        const tabBtns = document.querySelectorAll('.tab-btn');
-        const ruleEditors = document.querySelectorAll('.rule-editor');
-        
-        tabBtns.forEach(btn => {
-            btn.addEventListener('click', () => {
-                const tabId = btn.getAttribute('data-tab');
-                this.switchTab(tabId);
+    setupEditor() {
+        this.cssEditor.addEventListener('input', () => {
+            clearTimeout(this.updateTimeout);
+            this.updateTimeout = setTimeout(() => this.applyCSS(), 300);
+        });
+    }
+
+    setupQuickControls() {
+        // Background color
+        const bgColor = document.getElementById('bgColor');
+        if (bgColor) {
+            bgColor.addEventListener('input', (e) => {
+                this.updateProperty('background', e.target.value);
             });
-        });
-    }
+        }
 
-    switchTab(tabId) {
-        this.currentTab = tabId;
-        
-        // Update tab buttons
-        document.querySelectorAll('.tab-btn').forEach(btn => {
-            btn.classList.remove('active');
-            if (btn.getAttribute('data-tab') === tabId) {
-                btn.classList.add('active');
-            }
-        });
-        
-        // Update rule editors
-        document.querySelectorAll('.rule-editor').forEach(editor => {
-            editor.classList.remove('active');
-            if (editor.getAttribute('data-rule') === tabId) {
-                editor.classList.add('active');
-            }
-        });
-    }
+        // Text color
+        const textColor = document.getElementById('textColor');
+        if (textColor) {
+            textColor.addEventListener('input', (e) => {
+                this.updateProperty('color', e.target.value);
+            });
+        }
 
-    setupEventListeners() {
-        // Apply buttons
-        document.querySelectorAll('.apply-btn').forEach(btn => {
+        // Padding slider
+        const paddingSlider = document.getElementById('paddingSlider');
+        const paddingValue = document.getElementById('paddingValue');
+        if (paddingSlider && paddingValue) {
+            paddingSlider.addEventListener('input', (e) => {
+                const value = e.target.value + 'px';
+                paddingValue.textContent = value;
+                this.updateProperty('padding', value);
+            });
+        }
+
+        // Border radius slider
+        const radiusSlider = document.getElementById('radiusSlider');
+        const radiusValue = document.getElementById('radiusValue');
+        if (radiusSlider && radiusValue) {
+            radiusSlider.addEventListener('input', (e) => {
+                const value = e.target.value + 'px';
+                radiusValue.textContent = value;
+                this.updateProperty('border-radius', value);
+            });
+        }
+
+        // Preset buttons
+        document.querySelectorAll('.preset-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
-                const ruleId = btn.getAttribute('data-rule');
-                this.applyRule(ruleId);
+                const property = btn.getAttribute('data-property');
+                const value = btn.getAttribute('data-value');
+                this.updateProperty(property, value);
             });
         });
+    }
 
-        // Important buttons
-        document.querySelectorAll('.important-btn').forEach(btn => {
+    setupExamples() {
+        document.querySelectorAll('.example-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
-                const ruleId = btn.getAttribute('data-rule');
-                this.toggleImportant(ruleId);
+                const example = btn.getAttribute('data-example');
+                if (this.examples[example]) {
+                    this.cssEditor.value = this.examples[example];
+                    this.applyCSS();
+                }
             });
         });
 
-        // Remove buttons
-        document.querySelectorAll('.remove-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const ruleId = btn.getAttribute('data-rule');
-                this.removeRule(ruleId);
-            });
-        });
-
-        // Battle controls
-        document.getElementById('battleAll')?.addEventListener('click', () => this.startBattle());
-        document.getElementById('clearAll')?.addEventListener('click', () => this.clearAll());
-        document.getElementById('randomBattle')?.addEventListener('click', () => this.randomBattle());
-
-        // Real-time specificity calculation
-        document.querySelectorAll('.selector').forEach(input => {
-            input.addEventListener('input', (e) => {
-                const ruleId = input.getAttribute('data-rule');
-                this.updateSpecificity(ruleId);
-            });
+        document.querySelector('.reset-btn')?.addEventListener('click', () => {
+            this.cssEditor.value = this.cssEditor.getAttribute('placeholder');
+            this.applyCSS();
         });
     }
 
-    setupInitialRules() {
-        // Add some default CSS to get started
-        this.setRuleInput('rule1', 'div', 'background: #3b82f6;\ncolor: white;\npadding: 20px;');
-        this.setRuleInput('rule2', '.hero', 'background: #ef4444;\nfont-size: 24px;\nborder-radius: 8px;');
-        this.setRuleInput('rule3', '#main', 'background: #10b981;\nfont-weight: bold;\nborder: 3px solid gold;');
+    updateProperty(property, value) {
+        // Update the demo element directly for immediate feedback
+        this.demoElement.style.setProperty(property, value);
         
-        this.updateSpecificity('rule1');
-        this.updateSpecificity('rule2');
-        this.updateSpecificity('rule3');
+        // Also update the CSS editor
+        this.updateCSSEditor(property, value);
     }
 
-    setRuleInput(ruleId, selector, css) {
-        const selectorInput = document.querySelector(`.selector[data-rule="${ruleId}"]`);
-        const cssInput = document.querySelector(`.css-props[data-rule="${ruleId}"]`);
+    updateCSSEditor(property, value) {
+        let css = this.cssEditor.value;
+        const regex = new RegExp(`(\\s*${property}\\s*:\\s*)[^;\\n}]+`, 'i');
         
-        if (selectorInput) selectorInput.value = selector;
-        if (cssInput) cssInput.value = css;
-    }
-
-    updateSpecificity(ruleId) {
-        const selectorInput = document.querySelector(`.selector[data-rule="${ruleId}"]`);
-        const display = document.querySelector(`.specificity-display[data-rule="${ruleId}"]`);
-        
-        if (!selectorInput || !display) return;
-        
-        const selector = selectorInput.value.trim();
-        const specificity = this.calculateSpecificity(selector);
-        display.textContent = specificity.join(',');
-        
-        // Color code the display based on specificity level
-        const score = this.getSpecificityScore(specificity);
-        if (score >= 1000) {
-            display.style.background = '#ef4444'; // Inline/important
-        } else if (score >= 100) {
-            display.style.background = '#8b5cf6'; // ID
-        } else if (score >= 10) {
-            display.style.background = '#10b981'; // Class
+        if (regex.test(css)) {
+            // Property exists, update it
+            css = css.replace(regex, `$1${value}`);
         } else {
-            display.style.background = '#f59e0b'; // Element
-        }
-    }
-
-    calculateSpecificity(selector) {
-        if (!selector) return [0, 0, 0, 0];
-        
-        // Simple specificity calculation
-        let inline = 0;
-        let ids = 0;
-        let classes = 0;
-        let elements = 0;
-        
-        // Count IDs
-        const idMatches = selector.match(/#[\w-]+/g);
-        if (idMatches) ids = idMatches.length;
-        
-        // Count classes, attributes, pseudo-classes
-        const classMatches = selector.match(/\.[\w-]+|\[[\w-="']*\]|:[\w-]+(?:\([^)]*\))?/g);
-        if (classMatches) classes = classMatches.length;
-        
-        // Count elements and pseudo-elements
-        const elementMatches = selector.match(/(?:^|[\s>+~])(?![.#:])[a-zA-Z][a-zA-Z0-9-]*|::[\w-]+/g);
-        if (elementMatches) elements = elementMatches.length;
-        
-        return [inline, ids, classes, elements];
-    }
-
-    getSpecificityScore(specificity) {
-        return specificity[0] * 1000 + specificity[1] * 100 + specificity[2] * 10 + specificity[3];
-    }
-
-    applyRule(ruleId) {
-        const selectorInput = document.querySelector(`.selector[data-rule="${ruleId}"]`);
-        const cssInput = document.querySelector(`.css-props[data-rule="${ruleId}"]`);
-        
-        if (!selectorInput || !cssInput) return;
-        
-        const selector = selectorInput.value.trim();
-        const css = cssInput.value.trim();
-        
-        if (!selector || !css) {
-            this.addLogEntry('❌ Please enter both selector and CSS properties', 'error');
-            return;
-        }
-        
-        // Check if selector matches our target element
-        if (!this.selectorMatches(selector)) {
-            this.addLogEntry(`⚠️ Selector "${selector}" doesn't match div.hero#main`, 'warning');
-            return;
-        }
-        
-        const specificity = this.calculateSpecificity(selector);
-        const rule = {
-            id: ruleId,
-            selector: selector,
-            css: css,
-            specificity: specificity,
-            score: this.getSpecificityScore(specificity),
-            important: false
-        };
-        
-        // Remove existing rule with same ID
-        this.rules = this.rules.filter(r => r.id !== ruleId);
-        this.rules.push(rule);
-        
-        this.addLogEntry(`⚡ Applied rule: ${selector} (specificity: ${specificity.join(',')})`, 'info');
-        this.updateDisplay();
-    }
-
-    selectorMatches(selector) {
-        // Simple check if selector could match div.hero#main
-        // This is a simplified check for demo purposes
-        const target = 'div.hero#main';
-        
-        if (selector === '*') return true;
-        if (selector.includes('div') || selector.includes('.hero') || selector.includes('#main')) return true;
-        if (selector.match(/^[a-zA-Z]+$/)) return true; // Simple element selector
-        if (selector.match(/^\.[a-zA-Z][\w-]*$/)) return true; // Simple class selector
-        if (selector.match(/^#[a-zA-Z][\w-]*$/)) return true; // Simple ID selector
-        
-        return false;
-    }
-
-    toggleImportant(ruleId) {
-        const cssInput = document.querySelector(`.css-props[data-rule="${ruleId}"]`);
-        if (!cssInput) return;
-        
-        let css = cssInput.value;
-        
-        if (css.includes('!important')) {
-            // Remove !important
-            css = css.replace(/\s*!important/g, '');
-            this.addLogEntry(`🔥 Removed !important from ${ruleId}`, 'info');
-        } else {
-            // Add !important to first property
-            const lines = css.split('\n');
-            if (lines.length > 0 && lines[0].trim()) {
-                const firstLine = lines[0].trim();
-                if (firstLine.endsWith(';')) {
-                    lines[0] = firstLine.replace(';', ' !important;');
-                } else {
-                    lines[0] = firstLine + ' !important';
-                }
-                css = lines.join('\n');
-                this.addLogEntry(`🔥 Added !important to ${ruleId}`, 'info');
+            // Property doesn't exist, add it to .demo-element rule
+            const demoElementRule = css.match(/\.demo-element\s*\{[^}]*/);
+            if (demoElementRule) {
+                const insertPoint = demoElementRule[0].length;
+                const before = css.substring(0, css.indexOf(demoElementRule[0]) + insertPoint);
+                const after = css.substring(css.indexOf(demoElementRule[0]) + insertPoint);
+                css = before + `\n  ${property}: ${value};` + after;
             }
         }
         
-        cssInput.value = css;
+        this.cssEditor.value = css;
     }
 
-    removeRule(ruleId) {
-        this.rules = this.rules.filter(r => r.id !== ruleId);
+    applyCSS() {
+        const css = this.cssEditor.value;
         
-        // Clear inputs
-        const selectorInput = document.querySelector(`.selector[data-rule="${ruleId}"]`);
-        const cssInput = document.querySelector(`.css-props[data-rule="${ruleId}"]`);
-        
-        if (selectorInput) selectorInput.value = '';
-        if (cssInput) cssInput.value = '';
-        
-        this.addLogEntry(`🗑️ Removed rule ${ruleId}`, 'info');
-        this.updateDisplay();
-    }
-
-    startBattle() {
-        if (this.rules.length === 0) {
-            this.addLogEntry('❌ No rules to battle! Apply some rules first.', 'error');
-            return;
+        // Remove existing playground styles
+        const existingStyle = document.getElementById('playground-styles');
+        if (existingStyle) {
+            existingStyle.remove();
         }
         
-        this.addLogEntry('⚔️ BATTLE BEGINS! Rules competing for control...', 'info');
-        
-        // Group rules by property
-        const propertyBattles = new Map();
-        
-        this.rules.forEach(rule => {
-            const properties = this.parseCSS(rule.css);
-            Object.keys(properties).forEach(prop => {
-                if (!propertyBattles.has(prop)) {
-                    propertyBattles.set(prop, []);
-                }
-                propertyBattles.get(prop).push({
-                    rule: rule,
-                    value: properties[prop],
-                    hasImportant: properties[prop].includes('!important')
-                });
-            });
-        });
-        
-        // Battle for each property
-        const winners = new Map();
-        propertyBattles.forEach((competitors, property) => {
-            const winner = this.battleForProperty(property, competitors);
-            if (winner) {
-                winners.set(property, winner);
-            }
-        });
-        
-        // Apply winning styles
-        this.appliedStyles = winners;
-        this.updateTargetElement();
-        this.updateStylesList();
-        
-        this.addLogEntry(`🏆 Battle complete! ${winners.size} properties decided.`, 'info');
-    }
-
-    battleForProperty(property, competitors) {
-        if (competitors.length === 0) return null;
-        if (competitors.length === 1) {
-            this.addLogEntry(`🎯 ${property}: ${competitors[0].rule.selector} wins uncontested`, 'winner');
-            return competitors[0];
-        }
-        
-        // Sort by specificity and source order
-        competitors.sort((a, b) => {
-            // !important wins over everything
-            if (a.hasImportant && !b.hasImportant) return 1;
-            if (!a.hasImportant && b.hasImportant) return -1;
-            
-            // Compare specificity
-            const scoreA = this.getSpecificityScore(a.rule.specificity);
-            const scoreB = this.getSpecificityScore(b.rule.specificity);
-            
-            if (scoreA !== scoreB) return scoreA - scoreB;
-            
-            // Same specificity - source order (last wins)
-            const indexA = this.rules.findIndex(r => r.id === a.rule.id);
-            const indexB = this.rules.findIndex(r => r.id === b.rule.id);
-            return indexA - indexB;
-        });
-        
-        const winner = competitors[competitors.length - 1];
-        const loser = competitors[competitors.length - 2];
-        
-        this.addLogEntry(`🏆 ${property}: ${winner.rule.selector} beats ${loser.rule.selector}`, 'winner');
-        this.addLogEntry(`💥 ${loser.rule.selector} defeated for ${property}`, 'loser');
-        
-        return winner;
-    }
-
-    parseCSS(css) {
-        const properties = {};
-        const lines = css.split('\n');
-        
-        lines.forEach(line => {
-            const trimmed = line.trim();
-            if (trimmed && trimmed.includes(':')) {
-                const [prop, value] = trimmed.split(':').map(s => s.trim());
-                if (prop && value) {
-                    properties[prop] = value.replace(';', '');
-                }
-            }
-        });
-        
-        return properties;
-    }
-
-    updateTargetElement() {
-        if (!this.targetElement) return;
-        
-        let styles = '';
-        this.appliedStyles.forEach((winner, property) => {
-            const value = winner.value.replace('!important', '').trim();
-            styles += `${property}: ${value}; `;
-        });
-        
-        this.targetElement.style.cssText = styles + `
-            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-            position: relative;
-            z-index: 2;
-        `;
-    }
-
-    updateStylesList() {
-        const stylesList = document.querySelector('.style-list');
-        if (!stylesList) return;
-        
-        if (this.appliedStyles.size === 0) {
-            stylesList.innerHTML = '<em>No styles applied yet</em>';
-            return;
-        }
-        
-        let html = '';
-        this.appliedStyles.forEach((winner, property) => {
-            const cleanValue = winner.value.replace('!important', '').trim();
-            const important = winner.value.includes('!important') ? ' !important' : '';
-            html += `<div class="style-item">`;
-            html += `<span class="prop">${property}:</span> `;
-            html += `<span class="value">${cleanValue}${important}</span>`;
-            html += `<br><small>from ${winner.rule.selector}</small>`;
-            html += `</div>`;
-        });
-        
-        stylesList.innerHTML = html;
-    }
-
-    updateDisplay() {
-        this.updateStylesList();
-        if (this.rules.length === 0) {
-            this.resetTargetElement();
-        }
-    }
-
-    randomBattle() {
-        const randomSelectors = ['div', '.hero', '#main', 'div.hero', '#main.hero', 'div#main', '.hero.special'];
-        const randomProperties = [
-            'background: #ff6b6b;\ncolor: white;',
-            'background: linear-gradient(45deg, #667eea, #764ba2);\nborder-radius: 15px;',
-            'font-size: 28px;\nfont-weight: bold;\ntext-shadow: 2px 2px 4px rgba(0,0,0,0.3);',
-            'padding: 40px;\nborder: 5px solid gold;\nbox-shadow: 0 10px 20px rgba(0,0,0,0.2);'
-        ];
-        
-        // Clear existing rules
-        this.clearAll();
-        
-        // Add random rules
-        ['rule1', 'rule2', 'rule3'].forEach((ruleId, index) => {
-            const selector = randomSelectors[Math.floor(Math.random() * randomSelectors.length)];
-            const props = randomProperties[Math.floor(Math.random() * randomProperties.length)];
-            
-            this.setRuleInput(ruleId, selector, props);
-            this.updateSpecificity(ruleId);
-            this.applyRule(ruleId);
-        });
-        
-        this.addLogEntry('🎲 Random battle setup complete!', 'info');
-        setTimeout(() => this.startBattle(), 500);
-    }
-
-    clearAll() {
-        this.rules = [];
-        this.appliedStyles.clear();
-        
-        // Clear all inputs
-        document.querySelectorAll('.selector').forEach(input => input.value = '');
-        document.querySelectorAll('.css-props').forEach(input => input.value = '');
-        
-        this.resetTargetElement();
-        this.updateDisplay();
-        this.clearLog();
-        
-        this.addLogEntry('🔄 Arena cleared! Ready for new battle.', 'info');
-    }
-
-    resetTargetElement() {
-        if (this.targetElement) {
-            this.targetElement.style.cssText = `
-                background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
-                color: white;
-                padding: 30px;
-                border-radius: 12px;
-                font-weight: 600;
-                font-size: 1.2rem;
-                text-align: center;
-                margin-bottom: 20px;
-                position: relative;
-                border: 3px solid rgba(255, 255, 255, 0.2);
-                box-shadow: 0 8px 25px rgba(59, 130, 246, 0.4);
-                transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-                z-index: 2;
-            `;
-        }
-    }
-
-    addLogEntry(message, type = 'info') {
-        const logContent = this.battleLog?.querySelector('.log-content');
-        if (!logContent) return;
-        
-        const entry = document.createElement('div');
-        entry.className = `log-entry ${type}`;
-        entry.textContent = `${new Date().toLocaleTimeString()}: ${message}`;
-        
-        logContent.appendChild(entry);
-        logContent.scrollTop = logContent.scrollHeight;
-    }
-
-    clearLog() {
-        const logContent = this.battleLog?.querySelector('.log-content');
-        if (logContent) {
-            logContent.innerHTML = '';
-        }
+        // Create new style element
+        const styleElement = document.createElement('style');
+        styleElement.id = 'playground-styles';
+        styleElement.textContent = css;
+        document.head.appendChild(styleElement);
     }
 }
 
@@ -1024,7 +928,7 @@ class ModuleManager {
     initializeMentalModelsLab() {
         // Initialize Mental Models Lab components
         new DOMTreeBuilder();
-        new BattleArena();
+        new CSSPlayground();
         new BoxModelInteractive();
         new FlexboxAxesVisualizer();
         
