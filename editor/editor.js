@@ -1487,11 +1487,13 @@ class SupabaseDocumentStorage {
         this.showConnectionStatus();
     }
 
-    useDemoMode() {
+    useDemoMode(showNotification = false) {
         this.demoMode = true;
         this.localBackup.init();
         this.updateAuthUI();
-        this.showNotification('Running in demo mode - using local storage', 'info');
+        if (showNotification) {
+            this.showNotification('Running in demo mode - using local storage', 'info');
+        }
     }
 
     setupEventListeners() {
@@ -2142,6 +2144,15 @@ class SupabaseDocumentStorage {
         // TODO: Implement offline sync logic
         console.log('Syncing offline changes...');
     }
+
+    useDemoMode(showNotification = false) {
+        this.demoMode = true;
+        this.localBackup.init();
+        this.updateAuthUI();
+        if (showNotification) {
+            this.showNotification('Running in demo mode - using local storage', 'info');
+        }
+    }
 }
 
 // Modal Functions
@@ -2416,5 +2427,5 @@ async function handleAuth(event) {
 
 function useDemoMode() {
     closeAuthModal();
-    documentStorage.useDemoMode();
+    documentStorage.useDemoMode(true);
 } 
