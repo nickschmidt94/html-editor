@@ -589,9 +589,6 @@ class DocumentStorage {
         // Save button
         document.getElementById('saveBtn').addEventListener('click', this.showSaveModal.bind(this));
         
-        // Sidebar toggle
-        document.getElementById('sidebarToggle').addEventListener('click', this.toggleSidebar.bind(this));
-        
         // New category button
         document.getElementById('newCategoryBtn').addEventListener('click', this.showCategoryModal.bind(this));
         
@@ -812,16 +809,6 @@ class DocumentStorage {
         });
     }
 
-    toggleSidebar() {
-        const sidebar = document.getElementById('documentsSidebar');
-        sidebar.classList.toggle('collapsed');
-        
-        // Trigger Monaco layout update
-        if (editor) {
-            setTimeout(() => editor.layout(), 300);
-        }
-    }
-
     renderSidebar() {
         const container = document.getElementById('categoriesList');
         const documents = this.getDocuments();
@@ -1034,9 +1021,6 @@ class SupabaseDocumentStorage {
             }
             this.showSaveModal();
         });
-        
-        // Sidebar toggle
-        document.getElementById('sidebarToggle').addEventListener('click', this.toggleSidebar.bind(this));
         
         // New category button
         document.getElementById('newCategoryBtn').addEventListener('click', () => {
@@ -1523,16 +1507,6 @@ class SupabaseDocumentStorage {
         });
     }
 
-    toggleSidebar() {
-        const sidebar = document.getElementById('documentsSidebar');
-        sidebar.classList.toggle('collapsed');
-        
-        // Trigger Monaco layout update
-        if (editor) {
-            setTimeout(() => editor.layout(), 300);
-        }
-    }
-
     renderSidebar() {
         if (this.demoMode) {
             return this.localBackup.renderSidebar();
@@ -1761,6 +1735,30 @@ notificationStyles.textContent = `
 `;
 document.head.appendChild(notificationStyles);
 
+// Global sidebar toggle function - independent of storage system
+function toggleSidebar() {
+    const sidebar = document.getElementById('documentsSidebar');
+    if (sidebar) {
+        sidebar.classList.toggle('collapsed');
+        
+        // Trigger Monaco layout update
+        if (editor) {
+            setTimeout(() => editor.layout(), 300);
+        }
+    }
+}
+
+// Set up sidebar toggle immediately when DOM is ready
+function setupSidebarToggle() {
+    const sidebarToggle = document.getElementById('sidebarToggle');
+    if (sidebarToggle) {
+        sidebarToggle.addEventListener('click', toggleSidebar);
+        console.log('✅ Sidebar toggle event listener set up');
+    } else {
+        console.warn('❌ Sidebar toggle button not found');
+    }
+}
+
 // Initialize storage system with better debugging
 let documentStorage;
 let storageInitialized = false;
@@ -1819,6 +1817,9 @@ window.addEventListener('supabaseFailed', () => {
 // Initialize when DOM is ready - but wait for Supabase decision
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
+        // Set up sidebar toggle immediately
+        setupSidebarToggle();
+        
         // Wait longer for Supabase to potentially load and expose globals
         setTimeout(() => {
             if (!storageInitialized) {
@@ -1836,6 +1837,9 @@ if (document.readyState === 'loading') {
         }, 6000);
     });
 } else {
+    // Set up sidebar toggle immediately
+    setupSidebarToggle();
+    
     // Wait longer for Supabase to potentially load and expose globals
     setTimeout(() => {
         if (!storageInitialized) {
