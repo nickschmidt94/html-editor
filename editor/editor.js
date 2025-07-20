@@ -744,6 +744,30 @@ class DocumentStorage {
         nameInput.focus();
     }
 
+    showAuthModal() {
+        // For basic localStorage mode, show a simple modal explaining the limitations
+        const modal = document.getElementById('authModal');
+        modal.classList.add('show');
+        document.getElementById('authEmail').focus();
+        
+        // Update modal title to indicate this is demo mode
+        const modalTitle = document.getElementById('authModalTitle');
+        if (modalTitle) {
+            modalTitle.textContent = 'Demo Mode - Local Storage Only';
+        }
+    }
+
+    updateAuthUI() {
+        const authBtn = document.getElementById('authBtn');
+        const userEmail = document.getElementById('userEmail');
+        
+        // For basic localStorage mode, always show demo mode
+        authBtn.textContent = 'Demo Mode';
+        authBtn.className = 'auth-btn demo';
+        userEmail.textContent = '';
+        authBtn.onclick = () => this.showAuthModal();
+    }
+
     populateCategorySelect() {
         const select = document.getElementById('documentCategory');
         const categories = this.getCategories();
@@ -906,8 +930,25 @@ class SupabaseDocumentStorage {
         }
 
         try {
+            // Check multiple ways Supabase might be available
+            let supabaseLib = null;
+            
+            if (typeof window.supabase !== 'undefined') {
+                supabaseLib = window.supabase;
+                console.log('Found Supabase at window.supabase');
+            } else if (typeof window.createClient !== 'undefined') {
+                supabaseLib = { createClient: window.createClient };
+                console.log('Found Supabase createClient at window.createClient');
+            } else {
+                console.error('Supabase library not found. Available window keys:', Object.keys(window).filter(key => key.toLowerCase().includes('supabase')));
+                this.useDemoMode();
+                return;
+            }
+
             // Initialize Supabase client
-            this.supabase = window.supabase.createClient(this.supabaseUrl, this.supabaseKey);
+            console.log('Creating Supabase client...');
+            this.supabase = supabaseLib.createClient(this.supabaseUrl, this.supabaseKey);
+            console.log('Supabase client created successfully');
             
             // Check existing session
             const { data: { session } } = await this.supabase.auth.getSession();
@@ -931,6 +972,8 @@ class SupabaseDocumentStorage {
 
             // Setup real-time subscriptions
             this.setupRealtimeSync();
+            
+            console.log('Supabase initialized successfully!');
             
         } catch (error) {
             console.error('Failed to initialize Supabase:', error);
@@ -1048,6 +1091,7 @@ class SupabaseDocumentStorage {
             if (error) throw error;
             
             this.showNotification('Check your email to confirm your account!', 'success');
+            // Note: For sign-up, user won't be signed in until email is confirmed
             return { data, error: null };
         } catch (error) {
             console.error('Sign up error:', error);
@@ -1066,7 +1110,11 @@ class SupabaseDocumentStorage {
             
             if (error) throw error;
             
+            // Update current user immediately
+            this.currentUser = data.user;
+            this.updateAuthUI();
             this.showNotification('Successfully signed in!', 'success');
+            
             return { data, error: null };
         } catch (error) {
             console.error('Sign in error:', error);
@@ -1682,11 +1730,82 @@ notificationStyles.textContent = `
 `;
 document.head.appendChild(notificationStyles);
 
-// Initialize storage system
+// Initialize storage system with better debugging
 let documentStorage;
-document.addEventListener('DOMContentLoaded', () => {
-    documentStorage = new SupabaseDocumentStorage();
-}); 
+let storageInitialized = false;
+
+function initializeStorage() {
+    if (storageInitialized) return;
+    
+    console.log('=== Starting Storage Initialization ===');
+    console.log('supabaseLoaded flag:', window.supabaseLoaded);
+    console.log('window.supabase:', typeof window.supabase);
+    console.log('window.createClient:', typeof window.createClient);
+    
+    try {
+        // Check if Supabase is available and properly loaded
+        if (window.supabaseLoaded && window.supabase && typeof window.supabase.createClient === 'function') {
+            console.log('✅ Supabase is available, initializing SupabaseDocumentStorage...');
+            documentStorage = new SupabaseDocumentStorage();
+        } else {
+            console.log('⚠️ Supabase not available, falling back to localStorage...');
+            documentStorage = new DocumentStorage();
+        }
+        storageInitialized = true;
+        console.log('✅ Storage initialized successfully');
+    } catch (error) {
+        console.error('Failed to initialize Supabase storage:', error);
+        console.log('Falling back to localStorage...');
+        documentStorage = new DocumentStorage();
+        storageInitialized = true;
+    }
+}
+
+// Listen for Supabase events
+window.addEventListener('supabaseReady', () => {
+    console.log('🎉 Supabase ready event received, initializing storage...');
+    initializeStorage();
+});
+
+window.addEventListener('supabaseFailed', () => {
+    console.log('⚠️ Supabase failed event received, using demo mode...');
+    initializeStorage();
+});
+
+// Initialize when DOM is ready - but wait for Supabase decision
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        // Wait a moment for Supabase to potentially load
+        setTimeout(() => {
+            if (!storageInitialized) {
+                initializeStorage();
+            }
+        }, 500);
+        
+        // Final fallback timer
+        setTimeout(() => {
+            if (!storageInitialized) {
+                console.log('⏰ Final fallback initialization after 5 seconds...');
+                initializeStorage();
+            }
+        }, 5000);
+    });
+} else {
+    // Wait a moment for Supabase to potentially load
+    setTimeout(() => {
+        if (!storageInitialized) {
+            initializeStorage();
+        }
+    }, 500);
+    
+    // Final fallback timer
+    setTimeout(() => {
+        if (!storageInitialized) {
+            console.log('⏰ Final fallback initialization after 5 seconds...');
+            initializeStorage();
+        }
+    }, 5000);
+}
 
 // Authentication Functions
 function toggleAuth() {
@@ -1740,12 +1859,25 @@ async function handleAuth(event) {
             result = await documentStorage.signIn(email, password);
         }
         
-        if (result.error) {
+        if (result && result.error) {
             alert(result.error.message);
         } else {
+            // Success!
             closeAuthModal();
             // Clear form
             document.getElementById('authForm').reset();
+            
+            // For sign-up, show a different message since they need to confirm email
+            if (isSignUp) {
+                alert('Account created! Please check your email to confirm your account before signing in.');
+            } else {
+                // For sign-in, give a moment for the auth state to update
+                setTimeout(() => {
+                    if (documentStorage.updateAuthUI) {
+                        documentStorage.updateAuthUI();
+                    }
+                }, 100);
+            }
         }
     } catch (error) {
         alert('Authentication failed: ' + error.message);

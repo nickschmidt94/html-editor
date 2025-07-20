@@ -9,7 +9,113 @@
     <script src="https://unpkg.com/monaco-editor@0.44.0/min/vs/loader.js"></script>
     
     <!-- Supabase Client -->
-    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script>
+        // Function to check if Supabase is available and properly expose it
+        function verifySupabase() {
+            console.log('=== Supabase Verification ===');
+            
+            // Check various possible locations where Supabase might be available
+            const locations = [
+                { name: 'window.supabase', obj: window.supabase },
+                { name: 'window.createClient', obj: window.createClient },
+                { name: 'window.Supabase', obj: window.Supabase },
+                { name: 'window.SUPABASE', obj: window.SUPABASE }
+            ];
+            
+            // Try to find Supabase
+            for (const loc of locations) {
+                if (loc.obj && typeof loc.obj === 'object' && loc.obj.createClient) {
+                    console.log(`✅ Found Supabase at ${loc.name}`);
+                    window.supabase = loc.obj;
+                    window.supabaseLoaded = true;
+                    return true;
+                } else if (loc.obj && typeof loc.obj === 'function' && loc.name === 'window.createClient') {
+                    console.log(`✅ Found createClient function at ${loc.name}`);
+                    window.supabase = { createClient: loc.obj };
+                    window.supabaseLoaded = true;
+                    return true;
+                }
+            }
+            
+            return false;
+        }
+        
+        // Load Supabase from CDN
+        function loadSupabase() {
+            console.log('Attempting to load Supabase...');
+            
+            // Method 1: Try the correct UMD path for Supabase
+            const script1 = document.createElement('script');
+            script1.src = 'https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js';
+            script1.onload = () => {
+                console.log('✅ Supabase script loaded from unpkg');
+                setTimeout(() => {
+                    if (verifySupabase()) {
+                        console.log('✅ Supabase is ready!');
+                    } else {
+                        console.log('⏳ Waiting for Supabase to initialize...');
+                        // Try alternative method
+                        loadSupabaseAlternative();
+                    }
+                }, 100);
+            };
+            script1.onerror = () => {
+                console.warn('❌ Failed to load from unpkg, trying alternative...');
+                loadSupabaseAlternative();
+            };
+            document.head.appendChild(script1);
+        }
+        
+        // Alternative loading method
+        function loadSupabaseAlternative() {
+            console.log('Trying alternative Supabase loading...');
+            
+            // Method 2: Try ES module with manual window assignment
+            const script = document.createElement('script');
+            script.type = 'module';
+            script.innerHTML = `
+                try {
+                    const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
+                    window.supabase = { createClient };
+                    window.supabaseLoaded = true;
+                    console.log('✅ Supabase loaded via ES modules');
+                    
+                    // Dispatch custom event to notify listeners
+                    window.dispatchEvent(new CustomEvent('supabaseReady'));
+                } catch (error) {
+                    console.error('❌ ES module loading failed:', error);
+                    window.supabaseLoaded = false;
+                    window.dispatchEvent(new CustomEvent('supabaseFailed'));
+                }
+            `;
+            document.head.appendChild(script);
+        }
+        
+        // Start loading immediately
+        loadSupabase();
+        
+        // Set up event listeners for when Supabase is ready
+        window.addEventListener('supabaseReady', () => {
+            console.log('🎉 Supabase ready event fired!');
+        });
+        
+        window.addEventListener('supabaseFailed', () => {
+            console.warn('⚠️ Supabase loading failed, will use demo mode');
+        });
+        
+        // Fallback check after delay
+        setTimeout(() => {
+            if (!window.supabaseLoaded) {
+                console.log('Final verification after 3 seconds...');
+                if (verifySupabase()) {
+                    console.log('✅ Supabase found in final check!');
+                } else {
+                    console.warn('⚠️ Supabase loading failed, will use demo mode');
+                    window.supabaseLoaded = false;
+                }
+            }
+        }, 3000);
+    </script>
     
     <!-- Stylesheets -->
     <link rel="stylesheet" href="shared/style.css">
