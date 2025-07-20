@@ -761,11 +761,42 @@ class DocumentStorage {
         const authBtn = document.getElementById('authBtn');
         const userEmail = document.getElementById('userEmail');
         
-        // For basic localStorage mode, always show demo mode
-        authBtn.textContent = 'Demo Mode';
-        authBtn.className = 'auth-btn demo';
-        userEmail.textContent = '';
-        authBtn.onclick = () => this.showAuthModal();
+        if (this.currentUser) {
+            // Demo mode - signed in
+            authBtn.textContent = 'Sign Out (Demo)';
+            authBtn.className = 'auth-btn signed-in demo';
+            userEmail.textContent = this.currentUser.email + ' (Demo)';
+            authBtn.onclick = () => this.signOut();
+        } else {
+            // Demo mode - not signed in
+            authBtn.textContent = 'Demo Mode';
+            authBtn.className = 'auth-btn demo';
+            userEmail.textContent = '';
+            authBtn.onclick = () => this.showAuthModal();
+        }
+    }
+
+    // Auth methods for localStorage mode (demo/fallback)
+    async signUp(email, password) {
+        // For demo mode, just simulate successful signup
+        alert('Demo Mode: Account created successfully! In demo mode, your data is stored locally only.');
+        return { data: { user: { email } }, error: null };
+    }
+
+    async signIn(email, password) {
+        // For demo mode, just simulate successful signin
+        alert('Demo Mode: Signed in successfully! In demo mode, your data is stored locally only.');
+        this.currentUser = { email };
+        this.updateAuthUI();
+        return { data: { user: { email } }, error: null };
+    }
+
+    async signOut() {
+        // For demo mode, just simulate signout
+        this.currentUser = null;
+        this.updateAuthUI();
+        alert('Demo Mode: Signed out successfully!');
+        return { error: null };
     }
 
     populateCategorySelect() {
@@ -1744,15 +1775,24 @@ function initializeStorage() {
     
     try {
         // Check if Supabase is available and properly loaded
+        console.log('Checking Supabase availability:');
+        console.log('- window.supabaseLoaded:', window.supabaseLoaded);
+        console.log('- window.supabase:', typeof window.supabase);
+        console.log('- window.supabase.createClient:', typeof window.supabase?.createClient);
+        
         if (window.supabaseLoaded && window.supabase && typeof window.supabase.createClient === 'function') {
             console.log('✅ Supabase is available, initializing SupabaseDocumentStorage...');
             documentStorage = new SupabaseDocumentStorage();
         } else {
             console.log('⚠️ Supabase not available, falling back to localStorage...');
+            console.log('Supabase check details:');
+            console.log('- supabaseLoaded:', window.supabaseLoaded);
+            console.log('- supabase exists:', !!window.supabase);
+            console.log('- createClient function:', typeof window.supabase?.createClient);
             documentStorage = new DocumentStorage();
         }
         storageInitialized = true;
-        console.log('✅ Storage initialized successfully');
+        console.log('✅ Storage initialized successfully as:', documentStorage.constructor.name);
     } catch (error) {
         console.error('Failed to initialize Supabase storage:', error);
         console.log('Falling back to localStorage...');
@@ -1763,48 +1803,54 @@ function initializeStorage() {
 
 // Listen for Supabase events
 window.addEventListener('supabaseReady', () => {
-    console.log('🎉 Supabase ready event received, initializing storage...');
+    console.log('🎉 Supabase ready event received, re-initializing storage...');
+    // Force re-initialization with Supabase
+    storageInitialized = false;
     initializeStorage();
 });
 
 window.addEventListener('supabaseFailed', () => {
     console.log('⚠️ Supabase failed event received, using demo mode...');
-    initializeStorage();
+    if (!storageInitialized) {
+        initializeStorage();
+    }
 });
 
 // Initialize when DOM is ready - but wait for Supabase decision
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
-        // Wait a moment for Supabase to potentially load
+        // Wait longer for Supabase to potentially load and expose globals
         setTimeout(() => {
             if (!storageInitialized) {
+                console.log('⏰ Initial storage check after 2 seconds...');
                 initializeStorage();
             }
-        }, 500);
+        }, 2000);
         
         // Final fallback timer
         setTimeout(() => {
             if (!storageInitialized) {
-                console.log('⏰ Final fallback initialization after 5 seconds...');
+                console.log('⏰ Final fallback initialization after 6 seconds...');
                 initializeStorage();
             }
-        }, 5000);
+        }, 6000);
     });
 } else {
-    // Wait a moment for Supabase to potentially load
+    // Wait longer for Supabase to potentially load and expose globals
     setTimeout(() => {
         if (!storageInitialized) {
+            console.log('⏰ Initial storage check after 2 seconds...');
             initializeStorage();
         }
-    }, 500);
+    }, 2000);
     
     // Final fallback timer
     setTimeout(() => {
         if (!storageInitialized) {
-            console.log('⏰ Final fallback initialization after 5 seconds...');
+            console.log('⏰ Final fallback initialization after 6 seconds...');
             initializeStorage();
         }
-    }, 5000);
+    }, 6000);
 }
 
 // Authentication Functions
