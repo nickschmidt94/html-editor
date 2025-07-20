@@ -89,7 +89,6 @@
     padding: 8px 20px;
     font-size: 13px;
     color: #4b5563;
-    cursor: pointer;
     transition: all 0.2s ease;
     display: flex;
     justify-content: space-between;
@@ -99,8 +98,23 @@
 
 .document-item:hover {
     background: rgba(99, 102, 241, 0.1);
-    color: #6366f1;
     padding-left: 24px;
+}
+
+.document-name {
+    cursor: pointer;
+    color: #4b5563;
+    transition: all 0.2s ease;
+    flex: 1;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-weight: 500;
+}
+
+.document-name:hover {
+    background: rgba(99, 102, 241, 0.15);
+    color: #6366f1;
+    transform: translateX(2px);
 }
 
 .document-actions {

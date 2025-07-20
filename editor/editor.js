@@ -859,7 +859,7 @@ class DocumentStorage {
                 const docItem = document.createElement('div');
                 docItem.className = 'document-item';
                 docItem.innerHTML = `
-                    <span onclick="documentStorage.loadDocument('${doc.id}')">${doc.name}</span>
+                    <span class="document-name" onclick="documentStorage.loadDocument('${doc.id}')" title="Click to open document">${doc.name}</span>
                     <div class="document-actions">
                         <button class="document-action" onclick="documentStorage.duplicateDocument('${doc.id}')" title="Duplicate">
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -1561,12 +1561,12 @@ class SupabaseDocumentStorage {
                 const docItem = document.createElement('div');
                 docItem.className = 'document-item';
                 docItem.innerHTML = `
-                    <span onclick="documentStorage.loadDocument('${doc.id}')">${doc.name}</span>
+                    <span class="document-name" onclick="documentStorage.loadDocument('${doc.id}')" title="Click to open document">${doc.name}</span>
                     <div class="document-actions">
                         <button class="document-action" onclick="documentStorage.duplicateDocument('${doc.id}')" title="Duplicate">
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                 <rect x="9" y="9" width="13" height="13" rx="2" ry="2" stroke="currentColor" stroke-width="2"/>
-                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke="currentColor" stroke-width="2"/>
+                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2 2v1" stroke="currentColor" stroke-width="2"/>
                             </svg>
                         </button>
                         <button class="document-action" onclick="documentStorage.deleteDocument('${doc.id}')" title="Delete">
