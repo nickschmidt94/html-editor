@@ -564,3 +564,1199 @@ window.addEventListener('resize', () => {
         setTimeout(() => editor.layout(), 0);
     }
 }); 
+
+// Document Storage System
+class DocumentStorage {
+    constructor() {
+        this.storageKey = 'html-editor-documents';
+        this.categoriesKey = 'html-editor-categories';
+        this.currentDocument = null;
+        this.init();
+    }
+
+    init() {
+        // Initialize default categories if none exist
+        if (!this.getCategories().length) {
+            this.addCategory('Personal');
+            this.addCategory('Work');
+            this.addCategory('Learning');
+        }
+        this.renderSidebar();
+        this.setupEventListeners();
+    }
+
+    setupEventListeners() {
+        // Save button
+        document.getElementById('saveBtn').addEventListener('click', this.showSaveModal.bind(this));
+        
+        // Sidebar toggle
+        document.getElementById('sidebarToggle').addEventListener('click', this.toggleSidebar.bind(this));
+        
+        // New category button
+        document.getElementById('newCategoryBtn').addEventListener('click', this.showCategoryModal.bind(this));
+        
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                e.preventDefault();
+                this.showSaveModal();
+            }
+        });
+    }
+
+    getDocuments() {
+        const stored = localStorage.getItem(this.storageKey);
+        return stored ? JSON.parse(stored) : [];
+    }
+
+    getCategories() {
+        const stored = localStorage.getItem(this.categoriesKey);
+        return stored ? JSON.parse(stored) : [];
+    }
+
+    saveDocument(name, category, content) {
+        const documents = this.getDocuments();
+        const now = new Date().toISOString();
+        
+        const document = {
+            id: Date.now().toString(),
+            name: name,
+            category: category || 'Uncategorized',
+            content: content,
+            createdAt: now,
+            updatedAt: now
+        };
+
+        // Check if document with same name exists in category
+        const existingIndex = documents.findIndex(doc => 
+            doc.name === name && doc.category === category
+        );
+
+        if (existingIndex >= 0) {
+            // Update existing document
+            documents[existingIndex] = { ...documents[existingIndex], ...document, id: documents[existingIndex].id };
+        } else {
+            // Add new document
+            documents.push(document);
+        }
+
+        localStorage.setItem(this.storageKey, JSON.stringify(documents));
+        this.renderSidebar();
+        this.currentDocument = document;
+        
+        // Show success feedback
+        this.showNotification('Document saved successfully!', 'success');
+    }
+
+    loadDocument(id) {
+        const documents = this.getDocuments();
+        const document = documents.find(doc => doc.id === id);
+        
+        if (document && editor) {
+            editor.setValue(document.content);
+            this.currentDocument = document;
+            this.showNotification(`Loaded "${document.name}"`, 'success');
+        }
+    }
+
+    deleteDocument(id) {
+        const documents = this.getDocuments();
+        const filtered = documents.filter(doc => doc.id !== id);
+        localStorage.setItem(this.storageKey, JSON.stringify(filtered));
+        this.renderSidebar();
+        this.showNotification('Document deleted', 'success');
+    }
+
+    duplicateDocument(id) {
+        const documents = this.getDocuments();
+        const original = documents.find(doc => doc.id === id);
+        
+        if (original) {
+            const copy = {
+                ...original,
+                id: Date.now().toString(),
+                name: `${original.name} (Copy)`,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+            };
+            
+            documents.push(copy);
+            localStorage.setItem(this.storageKey, JSON.stringify(documents));
+            this.renderSidebar();
+            this.showNotification('Document duplicated', 'success');
+        }
+    }
+
+    addCategory(name) {
+        const categories = this.getCategories();
+        if (!categories.includes(name)) {
+            categories.push(name);
+            localStorage.setItem(this.categoriesKey, JSON.stringify(categories));
+            this.renderSidebar();
+            this.populateCategorySelect();
+        }
+    }
+
+    deleteCategory(name) {
+        const categories = this.getCategories().filter(cat => cat !== name);
+        localStorage.setItem(this.categoriesKey, JSON.stringify(categories));
+        
+        // Move documents from deleted category to 'Uncategorized'
+        const documents = this.getDocuments();
+        documents.forEach(doc => {
+            if (doc.category === name) {
+                doc.category = 'Uncategorized';
+            }
+        });
+        localStorage.setItem(this.storageKey, JSON.stringify(documents));
+        
+        this.renderSidebar();
+        this.populateCategorySelect();
+    }
+
+    showSaveModal() {
+        const modal = document.getElementById('saveModal');
+        const nameInput = document.getElementById('documentName');
+        const categorySelect = document.getElementById('documentCategory');
+        
+        // Populate categories
+        this.populateCategorySelect();
+        
+        // Pre-fill if editing current document
+        if (this.currentDocument) {
+            nameInput.value = this.currentDocument.name;
+            categorySelect.value = this.currentDocument.category;
+        } else {
+            nameInput.value = '';
+            categorySelect.value = '';
+        }
+        
+        modal.classList.add('show');
+        nameInput.focus();
+    }
+
+    showCategoryModal() {
+        const modal = document.getElementById('categoryModal');
+        const nameInput = document.getElementById('categoryName');
+        
+        nameInput.value = '';
+        modal.classList.add('show');
+        nameInput.focus();
+    }
+
+    populateCategorySelect() {
+        const select = document.getElementById('documentCategory');
+        const categories = this.getCategories();
+        
+        select.innerHTML = '<option value="">Select category...</option>';
+        categories.forEach(category => {
+            const option = document.createElement('option');
+            option.value = category;
+            option.textContent = category;
+            select.appendChild(option);
+        });
+    }
+
+    toggleSidebar() {
+        const sidebar = document.getElementById('documentsSidebar');
+        sidebar.classList.toggle('collapsed');
+        
+        // Trigger Monaco layout update
+        if (editor) {
+            setTimeout(() => editor.layout(), 300);
+        }
+    }
+
+    renderSidebar() {
+        const container = document.getElementById('categoriesList');
+        const documents = this.getDocuments();
+        const categories = this.getCategories();
+        
+        // Group documents by category
+        const groupedDocs = {};
+        categories.forEach(cat => groupedDocs[cat] = []);
+        
+        documents.forEach(doc => {
+            const category = doc.category || 'Uncategorized';
+            if (!groupedDocs[category]) {
+                groupedDocs[category] = [];
+            }
+            groupedDocs[category].push(doc);
+        });
+
+        container.innerHTML = '';
+
+        Object.entries(groupedDocs).forEach(([category, docs]) => {
+            if (docs.length === 0) return;
+
+            const categoryGroup = document.createElement('div');
+            categoryGroup.className = 'category-group';
+
+            const categoryHeader = document.createElement('div');
+            categoryHeader.className = 'category-header';
+            categoryHeader.innerHTML = `
+                <span>${category} (${docs.length})</span>
+                <div style="display: flex; align-items: center; gap: 4px;">
+                    ${category !== 'Uncategorized' ? `
+                        <button class="document-action" onclick="documentStorage.deleteCategory('${category}')" title="Delete category">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" stroke="currentColor" stroke-width="2"/>
+                            </svg>
+                        </button>
+                    ` : ''}
+                    <svg class="category-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <polyline points="6,9 12,15 18,9" stroke="currentColor" stroke-width="2"/>
+                    </svg>
+                </div>
+            `;
+
+            const categoryDocuments = document.createElement('div');
+            categoryDocuments.className = 'category-documents';
+
+            docs.forEach(doc => {
+                const docItem = document.createElement('div');
+                docItem.className = 'document-item';
+                docItem.innerHTML = `
+                    <span onclick="documentStorage.loadDocument('${doc.id}')">${doc.name}</span>
+                    <div class="document-actions">
+                        <button class="document-action" onclick="documentStorage.duplicateDocument('${doc.id}')" title="Duplicate">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2" stroke="currentColor" stroke-width="2"/>
+                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke="currentColor" stroke-width="2"/>
+                            </svg>
+                        </button>
+                        <button class="document-action" onclick="documentStorage.deleteDocument('${doc.id}')" title="Delete">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" stroke="currentColor" stroke-width="2"/>
+                            </svg>
+                        </button>
+                    </div>
+                `;
+                categoryDocuments.appendChild(docItem);
+            });
+
+            // Toggle category collapse
+            categoryHeader.addEventListener('click', () => {
+                categoryHeader.classList.toggle('collapsed');
+                categoryDocuments.classList.toggle('collapsed');
+            });
+
+            categoryGroup.appendChild(categoryHeader);
+            categoryGroup.appendChild(categoryDocuments);
+            container.appendChild(categoryGroup);
+        });
+    }
+
+    showNotification(message, type = 'info') {
+        // Create notification element
+        const notification = document.createElement('div');
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: ${type === 'success' ? '#10b981' : '#6366f1'};
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            z-index: 2000;
+            animation: slideInRight 0.3s ease;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        `;
+        notification.textContent = message;
+
+        document.body.appendChild(notification);
+
+        // Remove after delay
+        setTimeout(() => {
+            notification.style.animation = 'slideOutRight 0.3s ease';
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+            }, 300);
+        }, 3000);
+    }
+}
+
+// Supabase Configuration and Storage System
+class SupabaseDocumentStorage {
+    constructor() {
+        // ⚠️ IMPORTANT: Replace these with your actual Supabase credentials
+        this.supabaseUrl = 'https://tpeotxhvlhijpboqtxzr.supabase.co'; // e.g., 'https://abcdefghijklmnop.supabase.co'
+        this.supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRwZW90eGh2bGhpanBib3F0eHpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMwMDg4OTYsImV4cCI6MjA2ODU4NDg5Nn0.yOWHk5mlwJSBJ2_BxBCwErZuyS5zmO0StyRyJvbfJGY'; // Your anon/public key
+        
+        this.supabase = null;
+        this.currentUser = null;
+        this.currentDocument = null;
+        this.isOnline = navigator.onLine;
+        this.demoMode = false;
+        this.localBackup = new DocumentStorage(); // Fallback to localStorage
+        
+        this.init();
+    }
+
+    async init() {
+        // Check if Supabase credentials are configured
+        if (this.supabaseUrl === 'YOUR_SUPABASE_URL' || this.supabaseKey === 'YOUR_SUPABASE_ANON_KEY') {
+            console.warn('Supabase not configured, falling back to demo mode');
+            this.useDemoMode();
+            return;
+        }
+
+        try {
+            // Initialize Supabase client
+            this.supabase = window.supabase.createClient(this.supabaseUrl, this.supabaseKey);
+            
+            // Check existing session
+            const { data: { session } } = await this.supabase.auth.getSession();
+            if (session) {
+                this.currentUser = session.user;
+                this.updateAuthUI();
+                await this.loadUserData();
+            }
+
+            // Listen to auth changes
+            this.supabase.auth.onAuthStateChange((event, session) => {
+                this.currentUser = session?.user || null;
+                this.updateAuthUI();
+                
+                if (event === 'SIGNED_IN') {
+                    this.loadUserData();
+                } else if (event === 'SIGNED_OUT') {
+                    this.renderSidebar();
+                }
+            });
+
+            // Setup real-time subscriptions
+            this.setupRealtimeSync();
+            
+        } catch (error) {
+            console.error('Failed to initialize Supabase:', error);
+            this.useDemoMode();
+        }
+
+        this.setupEventListeners();
+        this.setupConnectionMonitoring();
+        this.showConnectionStatus();
+    }
+
+    useDemoMode() {
+        this.demoMode = true;
+        this.localBackup.init();
+        this.updateAuthUI();
+        this.showNotification('Running in demo mode - using local storage', 'info');
+    }
+
+    setupEventListeners() {
+        // Save button
+        document.getElementById('saveBtn').addEventListener('click', () => {
+            if (this.demoMode || !this.currentUser) {
+                if (!this.demoMode) {
+                    this.showAuthModal();
+                    return;
+                }
+            }
+            this.showSaveModal();
+        });
+        
+        // Sidebar toggle
+        document.getElementById('sidebarToggle').addEventListener('click', this.toggleSidebar.bind(this));
+        
+        // New category button
+        document.getElementById('newCategoryBtn').addEventListener('click', () => {
+            if (this.demoMode) {
+                this.localBackup.showCategoryModal();
+            } else if (this.currentUser) {
+                this.showCategoryModal();
+            } else {
+                this.showAuthModal();
+            }
+        });
+        
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                e.preventDefault();
+                if (this.demoMode || this.currentUser) {
+                    this.showSaveModal();
+                } else {
+                    this.showAuthModal();
+                }
+            }
+        });
+    }
+
+    setupConnectionMonitoring() {
+        window.addEventListener('online', () => {
+            this.isOnline = true;
+            this.showConnectionStatus();
+            if (!this.demoMode && this.currentUser) {
+                this.syncOfflineChanges();
+            }
+        });
+
+        window.addEventListener('offline', () => {
+            this.isOnline = false;
+            this.showConnectionStatus();
+        });
+    }
+
+    setupRealtimeSync() {
+        if (this.demoMode || !this.supabase || !this.currentUser) return;
+
+        // Subscribe to document changes
+        this.supabase
+            .channel('documents')
+            .on('postgres_changes', 
+                { event: '*', schema: 'public', table: 'documents', filter: `user_id=eq.${this.currentUser.id}` },
+                (payload) => {
+                    console.log('Document change received:', payload);
+                    this.handleRealtimeUpdate(payload);
+                }
+            )
+            .subscribe();
+    }
+
+    handleRealtimeUpdate(payload) {
+        const { eventType, new: newRecord, old: oldRecord } = payload;
+        
+        switch (eventType) {
+            case 'INSERT':
+            case 'UPDATE':
+                this.showNotification(`Document "${newRecord.name}" updated`, 'info');
+                break;
+            case 'DELETE':
+                this.showNotification(`Document deleted`, 'info');
+                break;
+        }
+        
+        // Refresh sidebar
+        this.loadUserData();
+    }
+
+    async signUp(email, password) {
+        if (this.demoMode) return;
+        
+        try {
+            const { data, error } = await this.supabase.auth.signUp({
+                email,
+                password
+            });
+            
+            if (error) throw error;
+            
+            this.showNotification('Check your email to confirm your account!', 'success');
+            return { data, error: null };
+        } catch (error) {
+            console.error('Sign up error:', error);
+            return { data: null, error };
+        }
+    }
+
+    async signIn(email, password) {
+        if (this.demoMode) return;
+        
+        try {
+            const { data, error } = await this.supabase.auth.signInWithPassword({
+                email,
+                password
+            });
+            
+            if (error) throw error;
+            
+            this.showNotification('Successfully signed in!', 'success');
+            return { data, error: null };
+        } catch (error) {
+            console.error('Sign in error:', error);
+            return { data: null, error };
+        }
+    }
+
+    async signOut() {
+        if (this.demoMode) return;
+        
+        try {
+            const { error } = await this.supabase.auth.signOut();
+            if (error) throw error;
+            
+            this.showNotification('Signed out successfully', 'success');
+        } catch (error) {
+            console.error('Sign out error:', error);
+        }
+    }
+
+    async loadUserData() {
+        if (this.demoMode || !this.currentUser) return;
+        
+        try {
+            // Load documents and categories
+            await Promise.all([
+                this.loadDocuments(),
+                this.loadCategories()
+            ]);
+            
+            this.renderSidebar();
+        } catch (error) {
+            console.error('Failed to load user data:', error);
+            this.showNotification('Failed to load documents', 'error');
+        }
+    }
+
+    async loadDocuments() {
+        if (this.demoMode) return this.localBackup.getDocuments();
+        if (!this.currentUser) return [];
+        
+        try {
+            const { data, error } = await this.supabase
+                .from('documents')
+                .select('*')
+                .eq('user_id', this.currentUser.id)
+                .order('updated_at', { ascending: false });
+            
+            if (error) throw error;
+            
+            this.documents = data || [];
+            return this.documents;
+        } catch (error) {
+            console.error('Failed to load documents:', error);
+            return [];
+        }
+    }
+
+    async loadCategories() {
+        if (this.demoMode) return this.localBackup.getCategories();
+        if (!this.currentUser) return [];
+        
+        try {
+            const { data, error } = await this.supabase
+                .from('categories')
+                .select('*')
+                .eq('user_id', this.currentUser.id)
+                .order('name');
+            
+            if (error) throw error;
+            
+            this.categories = data?.map(cat => cat.name) || [];
+            
+            // Ensure default categories exist
+            const defaults = ['Personal', 'Work', 'Learning'];
+            for (const defaultCat of defaults) {
+                if (!this.categories.includes(defaultCat)) {
+                    await this.addCategory(defaultCat);
+                }
+            }
+            
+            return this.categories;
+        } catch (error) {
+            console.error('Failed to load categories:', error);
+            return [];
+        }
+    }
+
+    async saveDocument(name, category, content) {
+        if (this.demoMode) {
+            return this.localBackup.saveDocument(name, category, content);
+        }
+        
+        if (!this.currentUser) {
+            this.showAuthModal();
+            return;
+        }
+
+        try {
+            this.showConnectionStatus('syncing');
+            
+            const documentData = {
+                name,
+                category: category || 'Uncategorized',
+                content,
+                user_id: this.currentUser.id,
+                updated_at: new Date().toISOString()
+            };
+
+            // Check if document exists
+            const { data: existing } = await this.supabase
+                .from('documents')
+                .select('id')
+                .eq('user_id', this.currentUser.id)
+                .eq('name', name)
+                .eq('category', category || 'Uncategorized')
+                .single();
+
+            let result;
+            if (existing) {
+                // Update existing document
+                result = await this.supabase
+                    .from('documents')
+                    .update(documentData)
+                    .eq('id', existing.id)
+                    .select()
+                    .single();
+            } else {
+                // Create new document
+                documentData.created_at = new Date().toISOString();
+                result = await this.supabase
+                    .from('documents')
+                    .insert(documentData)
+                    .select()
+                    .single();
+            }
+
+            if (result.error) throw result.error;
+
+            this.currentDocument = result.data;
+            this.showNotification('Document saved to cloud!', 'success');
+            this.showConnectionStatus('online');
+            
+            // Refresh documents list
+            await this.loadDocuments();
+            this.renderSidebar();
+            
+        } catch (error) {
+            console.error('Failed to save document:', error);
+            this.showNotification('Failed to save document', 'error');
+            this.showConnectionStatus('offline');
+            
+            // TODO: Store for offline sync
+        }
+    }
+
+    async loadDocument(id) {
+        if (this.demoMode) {
+            return this.localBackup.loadDocument(id);
+        }
+        
+        try {
+            const { data, error } = await this.supabase
+                .from('documents')
+                .select('*')
+                .eq('id', id)
+                .single();
+            
+            if (error) throw error;
+            
+            if (data && editor) {
+                editor.setValue(data.content);
+                this.currentDocument = data;
+                this.showNotification(`Loaded "${data.name}"`, 'success');
+            }
+        } catch (error) {
+            console.error('Failed to load document:', error);
+            this.showNotification('Failed to load document', 'error');
+        }
+    }
+
+    async deleteDocument(id) {
+        if (this.demoMode) {
+            return this.localBackup.deleteDocument(id);
+        }
+        
+        try {
+            const { error } = await this.supabase
+                .from('documents')
+                .delete()
+                .eq('id', id);
+            
+            if (error) throw error;
+            
+            this.showNotification('Document deleted', 'success');
+            await this.loadDocuments();
+            this.renderSidebar();
+            
+        } catch (error) {
+            console.error('Failed to delete document:', error);
+            this.showNotification('Failed to delete document', 'error');
+        }
+    }
+
+    async duplicateDocument(id) {
+        if (this.demoMode) {
+            return this.localBackup.duplicateDocument(id);
+        }
+        
+        try {
+            const { data: original, error } = await this.supabase
+                .from('documents')
+                .select('*')
+                .eq('id', id)
+                .single();
+            
+            if (error) throw error;
+            
+            const copy = {
+                name: `${original.name} (Copy)`,
+                category: original.category,
+                content: original.content,
+                user_id: this.currentUser.id,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+            };
+            
+            const { error: insertError } = await this.supabase
+                .from('documents')
+                .insert(copy);
+            
+            if (insertError) throw insertError;
+            
+            this.showNotification('Document duplicated', 'success');
+            await this.loadDocuments();
+            this.renderSidebar();
+            
+        } catch (error) {
+            console.error('Failed to duplicate document:', error);
+            this.showNotification('Failed to duplicate document', 'error');
+        }
+    }
+
+    async addCategory(name) {
+        if (this.demoMode) {
+            return this.localBackup.addCategory(name);
+        }
+        
+        if (!this.currentUser) return;
+        
+        try {
+            const { error } = await this.supabase
+                .from('categories')
+                .insert({
+                    name,
+                    user_id: this.currentUser.id,
+                    created_at: new Date().toISOString()
+                });
+            
+            if (error && error.code !== '23505') { // Ignore duplicate key errors
+                throw error;
+            }
+            
+            await this.loadCategories();
+            this.renderSidebar();
+            this.populateCategorySelect();
+            
+        } catch (error) {
+            console.error('Failed to add category:', error);
+        }
+    }
+
+    async deleteCategory(name) {
+        if (this.demoMode) {
+            return this.localBackup.deleteCategory(name);
+        }
+        
+        try {
+            // Delete category
+            await this.supabase
+                .from('categories')
+                .delete()
+                .eq('user_id', this.currentUser.id)
+                .eq('name', name);
+            
+            // Move documents to 'Uncategorized'
+            await this.supabase
+                .from('documents')
+                .update({ category: 'Uncategorized' })
+                .eq('user_id', this.currentUser.id)
+                .eq('category', name);
+            
+            await this.loadCategories();
+            await this.loadDocuments();
+            this.renderSidebar();
+            this.populateCategorySelect();
+            
+        } catch (error) {
+            console.error('Failed to delete category:', error);
+        }
+    }
+
+    updateAuthUI() {
+        const authBtn = document.getElementById('authBtn');
+        const userEmail = document.getElementById('userEmail');
+        
+        if (this.demoMode) {
+            authBtn.textContent = 'Demo Mode';
+            authBtn.className = 'auth-btn';
+            userEmail.textContent = '';
+            authBtn.onclick = () => this.showAuthModal();
+        } else if (this.currentUser) {
+            authBtn.textContent = 'Sign Out';
+            authBtn.className = 'auth-btn signed-in';
+            userEmail.textContent = this.currentUser.email;
+            authBtn.onclick = () => this.signOut();
+        } else {
+            authBtn.textContent = 'Sign In';
+            authBtn.className = 'auth-btn';
+            userEmail.textContent = '';
+            authBtn.onclick = () => this.showAuthModal();
+        }
+    }
+
+    showAuthModal() {
+        const modal = document.getElementById('authModal');
+        modal.classList.add('show');
+        document.getElementById('authEmail').focus();
+    }
+
+    showSaveModal() {
+        if (this.demoMode) {
+            return this.localBackup.showSaveModal();
+        }
+        
+        const modal = document.getElementById('saveModal');
+        const nameInput = document.getElementById('documentName');
+        const categorySelect = document.getElementById('documentCategory');
+        
+        // Populate categories
+        this.populateCategorySelect();
+        
+        // Pre-fill if editing current document
+        if (this.currentDocument) {
+            nameInput.value = this.currentDocument.name;
+            categorySelect.value = this.currentDocument.category;
+        } else {
+            nameInput.value = '';
+            categorySelect.value = '';
+        }
+        
+        modal.classList.add('show');
+        nameInput.focus();
+    }
+
+    showCategoryModal() {
+        const modal = document.getElementById('categoryModal');
+        const nameInput = document.getElementById('categoryName');
+        
+        nameInput.value = '';
+        modal.classList.add('show');
+        nameInput.focus();
+    }
+
+    populateCategorySelect() {
+        const select = document.getElementById('documentCategory');
+        const categories = this.demoMode ? this.localBackup.getCategories() : (this.categories || []);
+        
+        select.innerHTML = '<option value="">Select category...</option>';
+        categories.forEach(category => {
+            const option = document.createElement('option');
+            option.value = category;
+            option.textContent = category;
+            select.appendChild(option);
+        });
+    }
+
+    toggleSidebar() {
+        const sidebar = document.getElementById('documentsSidebar');
+        sidebar.classList.toggle('collapsed');
+        
+        // Trigger Monaco layout update
+        if (editor) {
+            setTimeout(() => editor.layout(), 300);
+        }
+    }
+
+    renderSidebar() {
+        if (this.demoMode) {
+            return this.localBackup.renderSidebar();
+        }
+        
+        const container = document.getElementById('categoriesList');
+        const documents = this.documents || [];
+        const categories = this.categories || [];
+        
+        // Group documents by category
+        const groupedDocs = {};
+        categories.forEach(cat => groupedDocs[cat] = []);
+        
+        documents.forEach(doc => {
+            const category = doc.category || 'Uncategorized';
+            if (!groupedDocs[category]) {
+                groupedDocs[category] = [];
+            }
+            groupedDocs[category].push(doc);
+        });
+
+        container.innerHTML = '';
+
+        Object.entries(groupedDocs).forEach(([category, docs]) => {
+            if (docs.length === 0) return;
+
+            const categoryGroup = document.createElement('div');
+            categoryGroup.className = 'category-group';
+
+            const categoryHeader = document.createElement('div');
+            categoryHeader.className = 'category-header';
+            categoryHeader.innerHTML = `
+                <span>${category} (${docs.length})</span>
+                <div style="display: flex; align-items: center; gap: 4px;">
+                    ${category !== 'Uncategorized' ? `
+                        <button class="document-action" onclick="documentStorage.deleteCategory('${category}')" title="Delete category">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" stroke="currentColor" stroke-width="2"/>
+                            </svg>
+                        </button>
+                    ` : ''}
+                    <svg class="category-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <polyline points="6,9 12,15 18,9" stroke="currentColor" stroke-width="2"/>
+                    </svg>
+                </div>
+            `;
+
+            const categoryDocuments = document.createElement('div');
+            categoryDocuments.className = 'category-documents';
+
+            docs.forEach(doc => {
+                const docItem = document.createElement('div');
+                docItem.className = 'document-item';
+                docItem.innerHTML = `
+                    <span onclick="documentStorage.loadDocument('${doc.id}')">${doc.name}</span>
+                    <div class="document-actions">
+                        <button class="document-action" onclick="documentStorage.duplicateDocument('${doc.id}')" title="Duplicate">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2" stroke="currentColor" stroke-width="2"/>
+                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke="currentColor" stroke-width="2"/>
+                            </svg>
+                        </button>
+                        <button class="document-action" onclick="documentStorage.deleteDocument('${doc.id}')" title="Delete">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" stroke="currentColor" stroke-width="2"/>
+                            </svg>
+                        </button>
+                    </div>
+                `;
+                categoryDocuments.appendChild(docItem);
+            });
+
+            // Toggle category collapse
+            categoryHeader.addEventListener('click', () => {
+                categoryHeader.classList.toggle('collapsed');
+                categoryDocuments.classList.toggle('collapsed');
+            });
+
+            categoryGroup.appendChild(categoryHeader);
+            categoryGroup.appendChild(categoryDocuments);
+            container.appendChild(categoryGroup);
+        });
+    }
+
+    showConnectionStatus(status) {
+        let existingStatus = document.querySelector('.connection-status');
+        if (existingStatus) {
+            existingStatus.remove();
+        }
+
+        if (!status) {
+            status = this.isOnline ? 'online' : 'offline';
+        }
+
+        if (this.demoMode) return; // Don't show connection status in demo mode
+
+        const statusEl = document.createElement('div');
+        statusEl.className = `connection-status ${status}`;
+        
+        const messages = {
+            online: { text: 'Connected', icon: '●' },
+            offline: { text: 'Offline', icon: '●' },
+            syncing: { text: 'Syncing...', icon: '◐' }
+        };
+        
+        const message = messages[status] || messages.offline;
+        statusEl.innerHTML = `
+            <span class="status-dot"></span>
+            ${message.text}
+        `;
+        
+        document.body.appendChild(statusEl);
+        
+        // Auto-hide after 3 seconds unless it's offline
+        if (status !== 'offline') {
+            setTimeout(() => {
+                if (statusEl.parentNode) {
+                    statusEl.remove();
+                }
+            }, 3000);
+        }
+    }
+
+    showNotification(message, type = 'info') {
+        // Create notification element
+        const notification = document.createElement('div');
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: ${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#6366f1'};
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            z-index: 2000;
+            animation: slideInRight 0.3s ease;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        `;
+        notification.textContent = message;
+
+        document.body.appendChild(notification);
+
+        // Remove after delay
+        setTimeout(() => {
+            notification.style.animation = 'slideOutRight 0.3s ease';
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+            }, 300);
+        }, 3000);
+    }
+
+    async syncOfflineChanges() {
+        // TODO: Implement offline sync logic
+        console.log('Syncing offline changes...');
+    }
+}
+
+// Modal Functions
+function closeSaveModal() {
+    document.getElementById('saveModal').classList.remove('show');
+}
+
+function closeCategoryModal() {
+    document.getElementById('categoryModal').classList.remove('show');
+}
+
+function saveDocument() {
+    const name = document.getElementById('documentName').value.trim();
+    const category = document.getElementById('documentCategory').value;
+    
+    if (!name) {
+        alert('Please enter a document name');
+        return;
+    }
+    
+    if (!editor) {
+        alert('Editor not ready');
+        return;
+    }
+    
+    const content = editor.getValue();
+    documentStorage.saveDocument(name, category, content);
+    closeSaveModal();
+}
+
+function addCategory() {
+    const name = document.getElementById('categoryName').value.trim();
+    
+    if (!name) {
+        alert('Please enter a category name');
+        return;
+    }
+    
+    documentStorage.addCategory(name);
+    closeCategoryModal();
+}
+
+// Add notification styles to head
+const notificationStyles = document.createElement('style');
+notificationStyles.textContent = `
+    @keyframes slideInRight {
+        from {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+    
+    @keyframes slideOutRight {
+        from {
+            transform: translateX(0);
+            opacity: 1;
+        }
+        to {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+    }
+`;
+document.head.appendChild(notificationStyles);
+
+// Initialize storage system
+let documentStorage;
+document.addEventListener('DOMContentLoaded', () => {
+    documentStorage = new SupabaseDocumentStorage();
+}); 
+
+// Authentication Functions
+function toggleAuth() {
+    if (documentStorage.demoMode) {
+        documentStorage.showAuthModal();
+    } else if (documentStorage.currentUser) {
+        documentStorage.signOut();
+    } else {
+        documentStorage.showAuthModal();
+    }
+}
+
+function closeAuthModal() {
+    document.getElementById('authModal').classList.remove('show');
+}
+
+function switchAuthTab(tab) {
+    const tabs = document.querySelectorAll('.auth-tab');
+    const title = document.getElementById('authModalTitle');
+    const submitBtn = document.getElementById('authSubmitBtn');
+    
+    tabs.forEach(t => t.classList.remove('active'));
+    document.querySelector(`[onclick="switchAuthTab('${tab}')"]`).classList.add('active');
+    
+    if (tab === 'signin') {
+        title.textContent = 'Sign In to Save Your Work';
+        submitBtn.textContent = 'Sign In';
+    } else {
+        title.textContent = 'Create Your Account';
+        submitBtn.textContent = 'Sign Up';
+    }
+}
+
+async function handleAuth(event) {
+    event.preventDefault();
+    
+    const email = document.getElementById('authEmail').value;
+    const password = document.getElementById('authPassword').value;
+    const isSignUp = document.getElementById('authSubmitBtn').textContent === 'Sign Up';
+    const submitBtn = document.getElementById('authSubmitBtn');
+    
+    // Disable button during request
+    submitBtn.disabled = true;
+    submitBtn.textContent = isSignUp ? 'Creating Account...' : 'Signing In...';
+    
+    try {
+        let result;
+        if (isSignUp) {
+            result = await documentStorage.signUp(email, password);
+        } else {
+            result = await documentStorage.signIn(email, password);
+        }
+        
+        if (result.error) {
+            alert(result.error.message);
+        } else {
+            closeAuthModal();
+            // Clear form
+            document.getElementById('authForm').reset();
+        }
+    } catch (error) {
+        alert('Authentication failed: ' + error.message);
+    } finally {
+        // Re-enable button
+        submitBtn.disabled = false;
+        submitBtn.textContent = isSignUp ? 'Sign Up' : 'Sign In';
+    }
+}
+
+function useDemoMode() {
+    closeAuthModal();
+    documentStorage.useDemoMode();
+} 

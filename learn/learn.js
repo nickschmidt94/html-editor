@@ -860,7 +860,7 @@ class FlexboxAxesVisualizer {
 class ModuleManager {
     constructor() {
         this.currentModule = 'mental-models';
-        this.modules = ['mental-models', 'fundamentals', 'css-mastery', 'responsive', 'projects'];
+        this.modules = ['mental-models', 'why-lab', 'css-mastery', 'responsive', 'projects'];
         this.progressData = this.loadProgress();
         this.init();
     }

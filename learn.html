@@ -38,8 +38,8 @@
                 <button class="module-btn active" data-module="mental-models" title="Mental Models Lab">
                     <div class="module-icon">MM</div>
                 </button>
-                <button class="module-btn coming-soon" data-module="fundamentals" title="HTML Fundamentals">
-                    <div class="module-icon">HF</div>
+                <button class="module-btn" data-module="why-lab" title="The Why Lab">
+                    <div class="module-icon">WL</div>
                 </button>
                 <button class="module-btn coming-soon" data-module="css-mastery" title="CSS Mastery">
                     <div class="module-icon">CM</div>
@@ -288,17 +288,234 @@
                 </section>
             </div>
 
-            <!-- Placeholder for future modules -->
-            <div id="fundamentals-module" class="learning-module">
+            <!-- Why Lab Module -->
+            <div id="why-lab-module" class="learning-module">
                 <div class="module-header">
-                    <h1>HTML Fundamentals</h1>
-                    <p>Master the building blocks of web development.</p>
+                    <h1>The Why Lab</h1>
+                    <p>Understand Design Decisions - See how web technologies evolved and why they were created.</p>
+                    <div class="module-progress">
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: 0%"></div>
+                        </div>
+                        <span class="progress-text">0% Complete</span>
+                    </div>
                 </div>
-                <div class="coming-soon-content">
-                    <div class="coming-soon-icon">HF</div>
-                    <h2>Coming Soon</h2>
-                    <p>This module is currently under development. Check back soon!</p>
-                </div>
+
+                <!-- Historical Timeline View -->
+                <section class="lab-section">
+                    <div class="lab-header">
+                        <h2>Historical Timeline View</h2>
+                        <p>Explore the evolution of web technologies and understand why each innovation was necessary. Click on timeline events to learn more!</p>
+                    </div>
+                    <div class="lab-content">
+                        <div class="timeline-container">
+                            <div class="timeline-header">
+                                <h3>The Evolution of Web Technologies</h3>
+                                <p>From simple text documents to modern interactive experiences</p>
+                            </div>
+                            
+                            <div class="timeline">
+                                <!-- 1990 - Just Text -->
+                                <div class="timeline-item" data-year="1990">
+                                    <div class="timeline-marker"></div>
+                                    <div class="timeline-content">
+                                        <div class="timeline-year">1990</div>
+                                        <div class="timeline-title">Just Text</div>
+                                        <div class="timeline-description">
+                                            The web started as simple text documents connected by links
+                                        </div>
+                                        <div class="timeline-problem">
+                                            <strong>Problem:</strong> Pages were just text documents - no images, styling, or layout
+                                        </div>
+                                        <div class="timeline-example">
+                                            <div class="code-block">
+                                                <pre>Welcome to my website
+This is a paragraph
+Here is a link to another page</pre>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Arrow pointing to next -->
+                                <div class="timeline-arrow">
+                                    <div class="arrow-line"></div>
+                                    <div class="arrow-head"></div>
+                                    <div class="arrow-label">"Need images!"</div>
+                                </div>
+
+                                <!-- 1993 - IMG Tag -->
+                                <div class="timeline-item" data-year="1993">
+                                    <div class="timeline-marker"></div>
+                                    <div class="timeline-content">
+                                        <div class="timeline-year">1993</div>
+                                        <div class="timeline-title">&lt;img&gt; tag invented</div>
+                                        <div class="timeline-description">
+                                            The first way to display images on web pages
+                                        </div>
+                                        <div class="timeline-problem">
+                                            <strong>Problem:</strong> Still no control over layout - everything stacked vertically
+                                        </div>
+                                        <div class="timeline-example">
+                                            <div class="code-block">
+                                                <pre>&lt;h1&gt;Welcome to my website&lt;/h1&gt;
+&lt;img src="photo.jpg" alt="My photo"&gt;
+&lt;p&gt;This is a paragraph&lt;/p&gt;</pre>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Arrow pointing to next -->
+                                <div class="timeline-arrow">
+                                    <div class="arrow-line"></div>
+                                    <div class="arrow-head"></div>
+                                    <div class="arrow-label">"This is hacky!"</div>
+                                </div>
+
+                                <!-- 1995 - Tables for Layout -->
+                                <div class="timeline-item" data-year="1995">
+                                    <div class="timeline-marker"></div>
+                                    <div class="timeline-content">
+                                        <div class="timeline-year">1995</div>
+                                        <div class="timeline-title">Tables for Layout</div>
+                                        <div class="timeline-description">
+                                            Developers hacked table elements to create complex layouts
+                                        </div>
+                                        <div class="timeline-problem">
+                                            <strong>Problem:</strong> Mixing structure with presentation - HTML became messy and hard to maintain
+                                        </div>
+                                        <div class="timeline-example">
+                                            <div class="code-block">
+                                                <pre>&lt;table&gt;
+  &lt;tr&gt;
+    &lt;td width="200"&gt;Sidebar&lt;/td&gt;
+    &lt;td&gt;Main content here&lt;/td&gt;
+  &lt;/tr&gt;
+&lt;/table&gt;</pre>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Arrow pointing to next -->
+                                <div class="timeline-arrow">
+                                    <div class="arrow-line"></div>
+                                    <div class="arrow-head"></div>
+                                    <div class="arrow-label">"Separate presentation!"</div>
+                                </div>
+
+                                <!-- 1996 - CSS invented -->
+                                <div class="timeline-item" data-year="1996">
+                                    <div class="timeline-marker"></div>
+                                    <div class="timeline-content">
+                                        <div class="timeline-year">1996</div>
+                                        <div class="timeline-title">CSS invented</div>
+                                        <div class="timeline-description">
+                                            Cascading Style Sheets separated presentation from structure
+                                        </div>
+                                        <div class="timeline-problem">
+                                            <strong>Problem:</strong> CSS layout was still limited - mostly positioning with floats (meant for text wrapping)
+                                        </div>
+                                        <div class="timeline-example">
+                                            <div class="code-block">
+                                                <pre>.sidebar {
+  float: left;
+  width: 200px;
+}
+.main {
+  margin-left: 220px;
+}</pre>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Arrow pointing to next -->
+                                <div class="timeline-arrow">
+                                    <div class="arrow-line"></div>
+                                    <div class="arrow-head"></div>
+                                    <div class="arrow-label">"So hard to center!"</div>
+                                </div>
+
+                                <!-- 2009 - Flexbox created -->
+                                <div class="timeline-item" data-year="2009">
+                                    <div class="timeline-marker"></div>
+                                    <div class="timeline-content">
+                                        <div class="timeline-year">2009</div>
+                                        <div class="timeline-title">Flexbox created</div>
+                                        <div class="timeline-description">
+                                            Finally, a proper 1-dimensional layout system designed for UI
+                                        </div>
+                                        <div class="timeline-problem">
+                                            <strong>Problem:</strong> Flexbox is 1-dimensional - great for components, but complex 2D layouts still tricky
+                                        </div>
+                                        <div class="timeline-example">
+                                            <div class="code-block">
+                                                <pre>.container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}</pre>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Arrow pointing to next -->
+                                <div class="timeline-arrow">
+                                    <div class="arrow-line"></div>
+                                    <div class="arrow-head"></div>
+                                    <div class="arrow-label">"Need 2D layouts!"</div>
+                                </div>
+
+                                <!-- 2017 - CSS Grid -->
+                                <div class="timeline-item" data-year="2017">
+                                    <div class="timeline-marker"></div>
+                                    <div class="timeline-content">
+                                        <div class="timeline-year">2017</div>
+                                        <div class="timeline-title">CSS Grid arrives</div>
+                                        <div class="timeline-description">
+                                            True 2-dimensional layout system - the layout method we always needed
+                                        </div>
+                                        <div class="timeline-problem">
+                                            <strong>Current state:</strong> We now have the right tools for the job! Grid for page layouts, Flexbox for components.
+                                        </div>
+                                        <div class="timeline-example">
+                                            <div class="code-block">
+                                                <pre>.layout {
+  display: grid;
+  grid-template:
+    "header header" auto
+    "sidebar main" 1fr
+    "footer footer" auto;
+}</pre>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="timeline-insights">
+                                <h3>Key Insights</h3>
+                                <div class="insight-cards">
+                                    <div class="insight-card">
+                                        <h4>Pattern Recognition</h4>
+                                        <p>Each new technology solved a specific pain point from the previous era. Understanding these problems helps you choose the right tool today.</p>
+                                    </div>
+                                    <div class="insight-card">
+                                        <h4>Why Not Just Grid?</h4>
+                                        <p>Grid is perfect for page layouts, but Flexbox excels at component-level alignment. They work together, not against each other.</p>
+                                    </div>
+                                    <div class="insight-card">
+                                        <h4>Historical Context</h4>
+                                        <p>Many "weird" CSS behaviors make sense when you understand they were designed for different use cases than what we use them for today.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
             </div>
 
             <div id="css-mastery-module" class="learning-module">

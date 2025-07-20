@@ -1134,3 +1134,352 @@
         margin: 0 5px;
     }
 } 
+
+/* =============================================================================
+   Timeline Styles for Why Lab
+   ============================================================================= */
+
+.timeline-container {
+    width: 100%;
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.timeline-header {
+    text-align: center;
+    margin-bottom: 40px;
+    padding: 30px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 12px;
+}
+
+.timeline-header h3 {
+    font-size: 1.8rem;
+    font-weight: 700;
+    margin-bottom: 10px;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+
+.timeline-header p {
+    font-size: 1.1rem;
+    opacity: 0.9;
+    margin: 0;
+}
+
+.timeline {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding: 20px 0;
+}
+
+.timeline-item {
+    position: relative;
+    background: white;
+    border: 2px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 25px;
+    margin-left: 40px;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+}
+
+.timeline-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+    border-color: #6366f1;
+}
+
+.timeline-marker {
+    position: absolute;
+    left: -52px;
+    top: 25px;
+    width: 24px;
+    height: 24px;
+    background: #6366f1;
+    border: 4px solid white;
+    border-radius: 50%;
+    box-shadow: 0 0 0 3px #6366f1;
+    z-index: 2;
+}
+
+.timeline-marker::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 8px;
+    height: 8px;
+    background: white;
+    border-radius: 50%;
+}
+
+.timeline-year {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: #6366f1;
+    margin-bottom: 8px;
+}
+
+.timeline-title {
+    font-size: 1.4rem;
+    font-weight: 600;
+    color: #1e293b;
+    margin-bottom: 10px;
+}
+
+.timeline-description {
+    color: #64748b;
+    font-size: 1rem;
+    line-height: 1.5;
+    margin-bottom: 15px;
+}
+
+.timeline-problem {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 15px;
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+.timeline-problem strong {
+    color: #dc2626;
+}
+
+.timeline-example {
+    margin-top: 15px;
+}
+
+.code-block {
+    background: #1e293b;
+    border-radius: 8px;
+    padding: 15px;
+    margin: 10px 0;
+}
+
+.code-block pre {
+    color: #e2e8f0;
+    font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace;
+    font-size: 14px;
+    line-height: 1.5;
+    margin: 0;
+    white-space: pre-wrap;
+}
+
+.timeline-arrow {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    margin-left: 40px;
+    padding: 15px 0;
+    position: relative;
+}
+
+.arrow-line {
+    width: 60px;
+    height: 3px;
+    background: linear-gradient(90deg, #6366f1, #8b5cf6);
+    border-radius: 2px;
+    position: relative;
+}
+
+.arrow-head {
+    width: 0;
+    height: 0;
+    border-top: 8px solid transparent;
+    border-bottom: 8px solid transparent;
+    border-left: 12px solid #8b5cf6;
+    margin-left: -2px;
+}
+
+.arrow-label {
+    background: #fef3c7;
+    color: #d97706;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-left: 15px;
+    border: 1px solid #fbbf24;
+    white-space: nowrap;
+}
+
+.timeline-insights {
+    margin-top: 50px;
+    padding: 30px;
+    background: #f8fafc;
+    border-radius: 12px;
+    border: 2px solid #e2e8f0;
+}
+
+.timeline-insights h3 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #1e293b;
+    margin-bottom: 25px;
+    text-align: center;
+}
+
+.insight-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
+}
+
+.insight-card {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    transition: all 0.3s ease;
+}
+
+.insight-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+    border-color: #6366f1;
+}
+
+.insight-card h4 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #1e293b;
+    margin-bottom: 10px;
+}
+
+.insight-card p {
+    color: #64748b;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    margin: 0;
+}
+
+/* Timeline connecting line */
+.timeline::before {
+    content: '';
+    position: absolute;
+    left: 28px;
+    top: 40px;
+    bottom: 40px;
+    width: 3px;
+    background: linear-gradient(180deg, #6366f1, #8b5cf6, #6366f1);
+    border-radius: 2px;
+    z-index: 1;
+}
+
+/* Responsive Timeline Styles */
+@media (max-width: 768px) {
+    .timeline-container {
+        padding: 0 10px;
+    }
+    
+    .timeline-header {
+        padding: 20px 15px;
+    }
+    
+    .timeline-header h3 {
+        font-size: 1.5rem;
+    }
+    
+    .timeline-header p {
+        font-size: 1rem;
+    }
+    
+    .timeline-item {
+        margin-left: 30px;
+        padding: 20px 15px;
+    }
+    
+    .timeline-marker {
+        left: -42px;
+        width: 20px;
+        height: 20px;
+    }
+    
+    .timeline-marker::before {
+        width: 6px;
+        height: 6px;
+    }
+    
+    .timeline::before {
+        left: 23px;
+    }
+    
+    .timeline-arrow {
+        margin-left: 30px;
+        padding: 10px 0;
+    }
+    
+    .arrow-line {
+        width: 40px;
+    }
+    
+    .arrow-label {
+        font-size: 0.8rem;
+        padding: 4px 8px;
+        margin-left: 10px;
+    }
+    
+    .code-block {
+        padding: 12px;
+    }
+    
+    .code-block pre {
+        font-size: 12px;
+    }
+    
+    .insight-cards {
+        grid-template-columns: 1fr;
+        gap: 15px;
+    }
+    
+    .insight-card {
+        padding: 15px;
+    }
+}
+
+@media (max-width: 480px) {
+    .timeline-item {
+        margin-left: 25px;
+        padding: 15px 12px;
+    }
+    
+    .timeline-marker {
+        left: -37px;
+        width: 16px;
+        height: 16px;
+    }
+    
+    .timeline-marker::before {
+        width: 4px;
+        height: 4px;
+    }
+    
+    .timeline::before {
+        left: 21px;
+        width: 2px;
+    }
+    
+    .timeline-arrow {
+        margin-left: 25px;
+    }
+    
+    .timeline-title {
+        font-size: 1.2rem;
+    }
+    
+    .timeline-year {
+        font-size: 1.1rem;
+    }
+    
+    .arrow-label {
+        font-size: 0.75rem;
+        padding: 3px 6px;
+    }
+} 

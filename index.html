@@ -8,6 +8,9 @@
     <!-- Monaco Editor CDN -->
     <script src="https://unpkg.com/monaco-editor@0.44.0/min/vs/loader.js"></script>
     
+    <!-- Supabase Client -->
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    
     <!-- Stylesheets -->
     <link rel="stylesheet" href="shared/style.css">
     <link rel="stylesheet" href="editor/editor.css">
@@ -30,14 +33,50 @@
                 </svg>
                 Learn
             </a>
+            <div class="auth-section">
+                <div id="authStatus" class="auth-status">
+                    <span id="userEmail" class="user-email"></span>
+                    <button id="authBtn" class="auth-btn" onclick="toggleAuth()">Sign In</button>
+                </div>
+            </div>
         </nav>
     </header>
     <!-- Editor Content -->
     <div class="container">
+        <!-- Saved Documents Sidebar -->
+        <div id="documentsSidebar" class="documents-sidebar collapsed">
+            <div class="sidebar-header">
+                <h3>Saved Documents</h3>
+                <button id="newCategoryBtn" class="action-btn secondary" title="Add Category">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <line x1="12" y1="5" x2="12" y2="19" stroke="currentColor" stroke-width="2"/>
+                        <line x1="5" y1="12" x2="19" y2="12" stroke="currentColor" stroke-width="2"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="sidebar-content">
+                <div id="categoriesList"></div>
+            </div>
+        </div>
+        
         <div class="editor-pane">
             <div class="pane-header">
-                <span>HTML</span>
+                <div class="header-left">
+                    <button id="sidebarToggle" class="action-btn" title="Toggle Saved Documents">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M3 4H21V6H3V4ZM3 11H21V13H3V11ZM3 18H21V20H3V18Z" fill="currentColor"/>
+                        </svg>
+                    </button>
+                    <span>HTML</span>
+                </div>
                 <div class="header-controls">
+                    <button id="saveBtn" class="action-btn save" title="Save Document">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H16L21 8V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <polyline points="9,21 9,13 15,13 15,21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <polyline points="9,3 9,8 14,8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </button>
                     <button 
                         id="formatCodeBtn" 
                         onclick="formatHtmlCode()" 
@@ -139,6 +178,94 @@
                 </div>
             </div>
             <iframe id="preview"></iframe>
+        </div>
+    </div>
+
+    <!-- Authentication Modal -->
+    <div id="authModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="authModalTitle">Sign In to Save Your Work</h3>
+                <button class="modal-close" onclick="closeAuthModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="auth-tabs">
+                    <button class="auth-tab active" onclick="switchAuthTab('signin')">Sign In</button>
+                    <button class="auth-tab" onclick="switchAuthTab('signup')">Sign Up</button>
+                </div>
+                
+                <form id="authForm" onsubmit="handleAuth(event)">
+                    <div class="form-group">
+                        <label for="authEmail">Email</label>
+                        <input type="email" id="authEmail" placeholder="your@email.com" required />
+                    </div>
+                    <div class="form-group">
+                        <label for="authPassword">Password</label>
+                        <input type="password" id="authPassword" placeholder="Your password" required />
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn secondary" onclick="closeAuthModal()">Cancel</button>
+                        <button type="submit" class="btn primary" id="authSubmitBtn">Sign In</button>
+                    </div>
+                </form>
+                
+                <div class="auth-divider">
+                    <span>or</span>
+                </div>
+                
+                <button class="btn-demo" onclick="useDemoMode()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    Try Demo Mode (Local Storage)
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Save Document Modal -->
+    <div id="saveModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Save Document</h3>
+                <button class="modal-close" onclick="closeSaveModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="documentName">Document Name</label>
+                    <input type="text" id="documentName" placeholder="Enter document name..." />
+                </div>
+                <div class="form-group">
+                    <label for="documentCategory">Category</label>
+                    <select id="documentCategory">
+                        <option value="">Select category...</option>
+                    </select>
+                </div>
+                <div class="form-actions">
+                    <button class="btn secondary" onclick="closeSaveModal()">Cancel</button>
+                    <button class="btn primary" onclick="saveDocument()">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Category Modal -->
+    <div id="categoryModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Add Category</h3>
+                <button class="modal-close" onclick="closeCategoryModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="categoryName">Category Name</label>
+                    <input type="text" id="categoryName" placeholder="Enter category name..." />
+                </div>
+                <div class="form-actions">
+                    <button class="btn secondary" onclick="closeCategoryModal()">Cancel</button>
+                    <button class="btn primary" onclick="addCategory()">Add Category</button>
+                </div>
+            </div>
         </div>
     </div>
 
