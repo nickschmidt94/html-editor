@@ -902,10 +902,150 @@ function downloadHtml() {
     URL.revokeObjectURL(link.href);
 }
 
+// Copy HTML code to clipboard
+function copyCode() {
+    if (!editor) return;
+    
+    const htmlContent = editor.getValue();
+    
+    // Use the modern clipboard API if available
+    if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(htmlContent).then(() => {
+            showCopyNotification('Code copied to clipboard!');
+        }).catch(err => {
+            console.error('Failed to copy code:', err);
+            fallbackCopyToClipboard(htmlContent);
+        });
+    } else {
+        // Fallback for older browsers or non-secure contexts
+        fallbackCopyToClipboard(htmlContent);
+    }
+}
+
+// Fallback copy method for older browsers
+function fallbackCopyToClipboard(text) {
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+    textArea.style.position = 'fixed';
+    textArea.style.left = '-999999px';
+    textArea.style.top = '-999999px';
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    
+    try {
+        document.execCommand('copy');
+        showCopyNotification('Code copied to clipboard!');
+    } catch (err) {
+        console.error('Fallback copy failed:', err);
+        showCopyNotification('Failed to copy code', 'error');
+    }
+    
+    document.body.removeChild(textArea);
+}
+
+// Show copy notification
+function showCopyNotification(message, type = 'success') {
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: ${type === 'success' ? '#10b981' : '#ef4444'};
+        color: white;
+        padding: 12px 20px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 500;
+        z-index: 2001;
+        animation: slideInRight 0.3s ease;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    `;
+    
+    const icon = type === 'success' 
+        ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><polyline points="20,6 9,17 4,12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+        : '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/><line x1="15" y1="9" x2="9" y2="15" stroke="currentColor" stroke-width="2"/><line x1="9" y1="9" x2="15" y2="15" stroke="currentColor" stroke-width="2"/></svg>';
+    
+    notification.innerHTML = `${icon}${message}`;
+    document.body.appendChild(notification);
+    
+    // Remove after delay
+    setTimeout(() => {
+        notification.style.animation = 'slideOutRight 0.3s ease';
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 300);
+    }, 2000);
+}
+
+// Toggle save dropdown
+function toggleSaveDropdown() {
+    const dropdown = document.getElementById('saveDropdown');
+    const isVisible = dropdown.classList.contains('show');
+    
+    if (isVisible) {
+        dropdown.classList.remove('show');
+        document.removeEventListener('click', closeSaveDropdownOnClickOutside);
+    } else {
+        dropdown.classList.add('show');
+        setTimeout(() => {
+            document.addEventListener('click', closeSaveDropdownOnClickOutside);
+        }, 0);
+    }
+}
+
+// Close dropdown when clicking outside
+function closeSaveDropdownOnClickOutside(event) {
+    const dropdown = document.getElementById('saveDropdown');
+    const saveButton = document.getElementById('saveDropdownBtn');
+    
+    if (!dropdown.contains(event.target) && !saveButton.contains(event.target)) {
+        dropdown.classList.remove('show');
+        document.removeEventListener('click', closeSaveDropdownOnClickOutside);
+    }
+}
+
+// Handle save dropdown menu clicks
+function handleSaveDropdownAction(action) {
+    const dropdown = document.getElementById('saveDropdown');
+    dropdown.classList.remove('show');
+    document.removeEventListener('click', closeSaveDropdownOnClickOutside);
+    
+    if (action === 'save') {
+        // Use existing save logic
+        const saveEvent = new Event('click');
+        if (window.documentStorage) {
+            window.documentStorage.showSaveModal();
+        } else if (window.supabaseStorage) {
+            window.supabaseStorage.showSaveModal();
+        } else {
+            alert('Save functionality not initialized');
+        }
+    } else if (action === 'download') {
+        downloadHtml();
+    }
+}
+
 // Handle window resize for Monaco layout
 window.addEventListener('resize', () => {
     if (editor) {
         setTimeout(() => editor.layout(), 0);
+    }
+});
+
+// Initialize storage systems when page loads
+window.addEventListener('DOMContentLoaded', () => {
+    // Try to initialize Supabase storage first, falls back to local storage
+    try {
+        window.documentStorage = new SupabaseDocumentStorage();
+    } catch (error) {
+        console.warn('Failed to initialize Supabase storage, using local storage:', error);
+        window.documentStorage = new DocumentStorage();
     }
 }); 
 
@@ -930,8 +1070,8 @@ class DocumentStorage {
     }
 
     setupEventListeners() {
-        // Save button
-        document.getElementById('saveBtn').addEventListener('click', this.showSaveModal.bind(this));
+        // The save functionality is now handled through the dropdown menu
+        // via handleSaveDropdownAction() function
         
         // New category button
         document.getElementById('newCategoryBtn').addEventListener('click', this.showCategoryModal.bind(this));
@@ -1355,16 +1495,8 @@ class SupabaseDocumentStorage {
     }
 
     setupEventListeners() {
-        // Save button
-        document.getElementById('saveBtn').addEventListener('click', () => {
-            if (this.demoMode || !this.currentUser) {
-                if (!this.demoMode) {
-                    this.showAuthModal();
-                    return;
-                }
-            }
-            this.showSaveModal();
-        });
+        // The save functionality is now handled through the dropdown menu
+        // via handleSaveDropdownAction() function
         
         // New category button
         document.getElementById('newCategoryBtn').addEventListener('click', () => {
