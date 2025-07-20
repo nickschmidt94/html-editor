@@ -373,6 +373,7 @@
 .dropdown-container {
     position: relative;
     display: inline-block;
+    z-index: 9999;
 }
 
 .dropdown-toggle {
@@ -398,7 +399,7 @@
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
     backdrop-filter: blur(10px);
     min-width: 180px;
-    z-index: 2000;
+    z-index: 999999;
     opacity: 0;
     visibility: hidden;
     transform: translateY(-8px) scale(0.95);
@@ -463,6 +464,8 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
+    position: relative;
+    z-index: 10000;
 }
 
 .header-left {
@@ -475,6 +478,8 @@
     display: flex;
     align-items: center;
     gap: 8px;
+    position: relative;
+    z-index: 9999;
 }
 
 /* Authentication Styles */
