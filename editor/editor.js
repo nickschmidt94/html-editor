@@ -136,6 +136,346 @@ function updatePreview() {
     previewDoc.open();
     previewDoc.write(html);
     previewDoc.close();
+    
+    // Add interactivity after content loads
+    setTimeout(() => setupPreviewInteractivity(), 100);
+}
+
+// === CLICK-TO-HIGHLIGHT FUNCTIONALITY ===
+
+// Global variable to store element-to-position mapping
+let elementPositionMap = new WeakMap();
+let sourceElementMap = [];
+
+function setupPreviewInteractivity() {
+    const preview = document.getElementById('preview');
+    if (!preview) return;
+    
+    const previewDoc = preview.contentDocument || preview.contentWindow.document;
+    if (!previewDoc || !previewDoc.body) return;
+    
+    try {
+        // Parse the HTML and build position mapping
+        buildElementPositionMap();
+        
+        // Add click listeners to all elements
+        addClickListeners(previewDoc);
+        
+        // Add visual feedback styles
+        addInteractivityStyles(previewDoc);
+        
+        console.log('✅ Preview interactivity enabled');
+    } catch (error) {
+        console.error('Failed to setup preview interactivity:', error);
+    }
+}
+
+function buildElementPositionMap() {
+    if (!editor) return;
+    
+    const htmlContent = editor.getValue();
+    const lines = htmlContent.split('\n');
+    
+    // Clear previous mappings
+    elementPositionMap = new WeakMap();
+    sourceElementMap = [];
+    
+    // Parse HTML and create element mappings
+    const tagRegex = /<\/?([a-zA-Z][a-zA-Z0-9]*)\b[^>]*>/g;
+    let match;
+    let elementStack = [];
+    
+    while ((match = tagRegex.exec(htmlContent)) !== null) {
+        const fullMatch = match[0];
+        const tagName = match[1].toLowerCase();
+        const startPos = match.index;
+        const endPos = match.index + fullMatch.length;
+        
+        // Calculate line and column numbers
+        const beforeMatch = htmlContent.substring(0, startPos);
+        const linesBefore = beforeMatch.split('\n');
+        const lineNumber = linesBefore.length;
+        const columnNumber = linesBefore[linesBefore.length - 1].length + 1;
+        
+        const isClosingTag = fullMatch.startsWith('</');
+        const isSelfClosing = fullMatch.endsWith('/>') || ['img', 'br', 'hr', 'input', 'meta', 'link'].includes(tagName);
+        
+        if (isClosingTag) {
+            // Find matching opening tag
+            for (let i = elementStack.length - 1; i >= 0; i--) {
+                if (elementStack[i].tagName === tagName) {
+                    const openTag = elementStack.splice(i, 1)[0];
+                    // Store complete element info
+                    sourceElementMap.push({
+                        tagName: tagName,
+                        startLine: openTag.lineNumber,
+                        startColumn: openTag.columnNumber,
+                        endLine: lineNumber,
+                        endColumn: columnNumber + fullMatch.length,
+                        fullStartPos: openTag.startPos,
+                        fullEndPos: endPos,
+                        attributes: openTag.attributes
+                    });
+                    break;
+                }
+            }
+        } else {
+            // Extract attributes
+            const attributeRegex = /\s+([a-zA-Z-]+)(?:=["']([^"']*)["'])?/g;
+            const attributes = {};
+            let attrMatch;
+            while ((attrMatch = attributeRegex.exec(fullMatch)) !== null) {
+                attributes[attrMatch[1]] = attrMatch[2] || '';
+            }
+            
+            const elementInfo = {
+                tagName: tagName,
+                lineNumber: lineNumber,
+                columnNumber: columnNumber,
+                startPos: startPos,
+                attributes: attributes
+            };
+            
+            if (isSelfClosing) {
+                // Self-closing tags are complete
+                sourceElementMap.push({
+                    tagName: tagName,
+                    startLine: lineNumber,
+                    startColumn: columnNumber,
+                    endLine: lineNumber,
+                    endColumn: columnNumber + fullMatch.length,
+                    fullStartPos: startPos,
+                    fullEndPos: endPos,
+                    attributes: attributes
+                });
+            } else {
+                // Add to stack for later matching
+                elementStack.push(elementInfo);
+            }
+        }
+    }
+    
+    console.log(`📍 Mapped ${sourceElementMap.length} elements`);
+}
+
+function addClickListeners(previewDoc) {
+    // Remove existing listeners
+    previewDoc.removeEventListener('click', handlePreviewClick);
+    previewDoc.removeEventListener('mouseover', handlePreviewHover);
+    previewDoc.removeEventListener('mouseout', handlePreviewHoverOut);
+    
+    // Add new listeners
+    previewDoc.addEventListener('click', handlePreviewClick, true);
+    previewDoc.addEventListener('mouseover', handlePreviewHover, true);
+    previewDoc.addEventListener('mouseout', handlePreviewHoverOut, true);
+}
+
+function handlePreviewClick(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    
+    const element = event.target;
+    const position = findElementPosition(element);
+    
+    if (position) {
+        highlightInEditor(position);
+        showElementInfo(element, position);
+    }
+}
+
+function handlePreviewHover(event) {
+    const element = event.target;
+    if (element && element.tagName) {
+        element.style.outline = '2px solid rgba(99, 102, 241, 0.5)';
+        element.style.outlineOffset = '1px';
+        element.style.cursor = 'pointer';
+    }
+}
+
+function handlePreviewHoverOut(event) {
+    const element = event.target;
+    if (element && element.tagName) {
+        element.style.outline = '';
+        element.style.outlineOffset = '';
+        element.style.cursor = '';
+    }
+}
+
+function findElementPosition(clickedElement) {
+    if (!clickedElement || !clickedElement.tagName) return null;
+    
+    const tagName = clickedElement.tagName.toLowerCase();
+    const elementAttributes = {};
+    
+    // Get element attributes
+    for (let attr of clickedElement.attributes || []) {
+        elementAttributes[attr.name] = attr.value;
+    }
+    
+    // Find matching element in source map
+    // We'll use a scoring system to find the best match
+    let bestMatch = null;
+    let bestScore = 0;
+    
+    for (const sourceElement of sourceElementMap) {
+        if (sourceElement.tagName !== tagName) continue;
+        
+        let score = 1; // Base score for tag name match
+        
+        // Score based on matching attributes
+        const sourceAttrs = sourceElement.attributes || {};
+        const sourceAttrCount = Object.keys(sourceAttrs).length;
+        const elementAttrCount = Object.keys(elementAttributes).length;
+        
+        if (sourceAttrCount === 0 && elementAttrCount === 0) {
+            score += 2; // Both have no attributes
+        } else {
+            let attrMatches = 0;
+            for (const [key, value] of Object.entries(elementAttributes)) {
+                if (sourceAttrs[key] === value) {
+                    attrMatches++;
+                    score += 3; // High score for exact attribute match
+                }
+            }
+            
+            // Prefer elements with similar attribute counts
+            const attrCountDiff = Math.abs(sourceAttrCount - elementAttrCount);
+            score += Math.max(0, 3 - attrCountDiff);
+        }
+        
+        // Special scoring for unique identifiers
+        if (elementAttributes.id && sourceAttrs.id === elementAttributes.id) {
+            score += 10; // Very high score for ID match
+        }
+        
+        if (elementAttributes.class && sourceAttrs.class === elementAttributes.class) {
+            score += 5; // High score for class match
+        }
+        
+        if (score > bestScore) {
+            bestScore = score;
+            bestMatch = sourceElement;
+        }
+    }
+    
+    return bestMatch;
+}
+
+function highlightInEditor(position) {
+    if (!editor || !position) return;
+    
+    try {
+        // Create selection range
+        const selection = {
+            startLineNumber: position.startLine,
+            startColumn: position.startColumn,
+            endLineNumber: position.endLine,
+            endColumn: position.endColumn
+        };
+        
+        // Set selection and reveal
+        editor.setSelection(selection);
+        editor.revealLineInCenter(position.startLine);
+        
+        // Add temporary highlight decoration
+        const decorations = editor.deltaDecorations([], [{
+            range: selection,
+            options: {
+                className: 'element-highlight',
+                stickiness: 1
+            }
+        }]);
+        
+        // Remove highlight after 3 seconds
+        setTimeout(() => {
+            editor.deltaDecorations(decorations, []);
+        }, 3000);
+        
+        console.log(`🎯 Highlighted ${position.tagName} at line ${position.startLine}`);
+    } catch (error) {
+        console.error('Failed to highlight in editor:', error);
+    }
+}
+
+function showElementInfo(element, position) {
+    // Create a temporary notification showing element info
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(99, 102, 241, 0.95);
+        color: white;
+        padding: 8px 16px;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 500;
+        z-index: 2001;
+        animation: slideInDown 0.3s ease;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        backdrop-filter: blur(10px);
+    `;
+    
+    const tagInfo = `<${position.tagName}>`;
+    const lineInfo = `Line ${position.startLine}`;
+    const attrInfo = Object.keys(position.attributes || {}).length > 0 
+        ? ` • ${Object.keys(position.attributes).length} attributes`
+        : '';
+    
+    notification.innerHTML = `${tagInfo} ${lineInfo}${attrInfo}`;
+    
+    document.body.appendChild(notification);
+    
+    // Remove after delay
+    setTimeout(() => {
+        notification.style.animation = 'slideOutUp 0.3s ease';
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 300);
+    }, 2000);
+}
+
+function addInteractivityStyles(previewDoc) {
+    // Add CSS for hover effects and highlighting
+    const styleElement = previewDoc.createElement('style');
+    styleElement.textContent = `
+        .preview-interactive-element {
+            transition: outline 0.2s ease !important;
+        }
+        
+        .preview-interactive-element:hover {
+            outline: 2px solid rgba(99, 102, 241, 0.5) !important;
+            outline-offset: 1px !important;
+            cursor: pointer !important;
+        }
+        
+        @keyframes slideInDown {
+            from {
+                transform: translateX(-50%) translateY(-20px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(-50%) translateY(0);
+                opacity: 1;
+            }
+        }
+        
+        @keyframes slideOutUp {
+            from {
+                transform: translateX(-50%) translateY(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(-50%) translateY(-20px);
+                opacity: 0;
+            }
+        }
+    `;
+    
+    previewDoc.head.appendChild(styleElement);
 }
 
 function setupPreview(previewElement) {
@@ -343,6 +683,8 @@ function toggleDevice() {
         // Re-establish preview and update
         const newPreview = document.getElementById('preview');
         setupPreview(newPreview);
+        // Re-enable interactivity after content loads
+        setTimeout(() => setupPreviewInteractivity(), 100);
         
     } else {
         // Switch back to desktop view
@@ -397,6 +739,8 @@ function toggleDevice() {
         // Re-establish preview and update
         const newPreview = document.getElementById('preview');
         setupPreview(newPreview);
+        // Re-enable interactivity after content loads
+        setTimeout(() => setupPreviewInteractivity(), 100);
     }
     
     // Update pane references after DOM changes
