@@ -493,27 +493,205 @@
     gap: 12px;
 }
 
+/* User Profile Styles */
+.user-profile {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 12px;
+    padding: 8px 12px;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.user-profile:hover {
+    background: rgba(255, 255, 255, 0.95);
+    border-color: rgba(0, 0, 0, 0.12);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.user-avatar {
+    width: 32px;
+    height: 32px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    flex-shrink: 0;
+}
+
+.user-details {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
 .user-email {
     font-size: 13px;
+    color: #374151;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 140px;
+}
+
+.user-status {
+    font-size: 11px;
+    color: #22c55e;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.user-actions {
+    position: relative;
+}
+
+.user-menu-btn {
+    background: transparent;
+    border: none;
     color: #64748b;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.user-menu-btn:hover {
+    background: rgba(0, 0, 0, 0.05);
+    color: #374151;
+}
+
+/* User Menu Dropdown */
+.user-menu {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    background: white;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+    backdrop-filter: blur(10px);
+    min-width: 240px;
+    z-index: 999999;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-8px) scale(0.95);
+    transition: all 0.2s ease;
+    overflow: hidden;
+}
+
+.user-menu.show {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0) scale(1);
+}
+
+.user-menu-header {
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+}
+
+.user-menu-avatar {
+    width: 40px;
+    height: 40px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    flex-shrink: 0;
+}
+
+.user-menu-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.user-menu-email {
+    font-size: 14px;
+    color: #374151;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.user-menu-status {
+    font-size: 12px;
+    color: #22c55e;
     font-weight: 500;
 }
 
+.user-menu-divider {
+    height: 1px;
+    background: rgba(0, 0, 0, 0.08);
+    margin: 0;
+}
+
+.user-menu-item {
+    width: 100%;
+    padding: 12px 16px;
+    border: none;
+    background: transparent;
+    color: #374151;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-align: left;
+}
+
+.user-menu-item:hover {
+    background: rgba(0, 0, 0, 0.04);
+}
+
+.user-menu-item.sign-out {
+    color: #ef4444;
+}
+
+.user-menu-item.sign-out:hover {
+    background: rgba(239, 68, 68, 0.1);
+    color: #dc2626;
+}
+
+/* Original Auth Button Styles */
 .auth-btn {
     background: rgba(99, 102, 241, 0.1);
     border: 1px solid rgba(99, 102, 241, 0.2);
-    border-radius: 6px;
-    padding: 6px 12px;
+    border-radius: 8px;
+    padding: 8px 16px;
     cursor: pointer;
-    font-size: 12px;
+    font-size: 13px;
     color: #6366f1;
     transition: all 0.2s ease;
-    font-weight: 500;
+    font-weight: 600;
 }
 
 .auth-btn:hover {
     background: rgba(99, 102, 241, 0.2);
     transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
 }
 
 .auth-btn.signed-in {
@@ -524,6 +702,51 @@
 
 .auth-btn.signed-in:hover {
     background: rgba(239, 68, 68, 0.2);
+}
+
+/* Responsive Styles for Auth */
+@media (max-width: 768px) {
+    .user-profile {
+        padding: 6px 10px;
+        gap: 8px;
+    }
+    
+    .user-avatar {
+        width: 28px;
+        height: 28px;
+    }
+    
+    .user-email {
+        font-size: 12px;
+        max-width: 100px;
+    }
+    
+    .user-status {
+        font-size: 10px;
+    }
+    
+    .user-menu {
+        min-width: 200px;
+        right: -10px;
+    }
+    
+    .user-menu-header {
+        padding: 12px;
+    }
+    
+    .user-menu-avatar {
+        width: 36px;
+        height: 36px;
+    }
+    
+    .user-menu-email {
+        font-size: 13px;
+    }
+    
+    .auth-btn {
+        padding: 6px 12px;
+        font-size: 12px;
+    }
 }
 
 .auth-tabs {

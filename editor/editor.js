@@ -1240,19 +1240,22 @@ class DocumentStorage {
 
     updateAuthUI() {
         const authBtn = document.getElementById('authBtn');
+        const userProfile = document.getElementById('userProfile');
         const userEmail = document.getElementById('userEmail');
+        const userMenuEmail = document.getElementById('userMenuEmail');
         
         if (this.currentUser) {
             // Demo mode - signed in
-            authBtn.textContent = 'Sign Out (Demo)';
-            authBtn.className = 'auth-btn signed-in demo';
-            userEmail.textContent = this.currentUser.email + ' (Demo)';
-            authBtn.onclick = () => this.signOut();
+            authBtn.style.display = 'none';
+            userProfile.style.display = 'flex';
+            userEmail.textContent = this.currentUser.email;
+            if (userMenuEmail) userMenuEmail.textContent = this.currentUser.email;
         } else {
             // Demo mode - not signed in
+            authBtn.style.display = 'block';
+            userProfile.style.display = 'none';
             authBtn.textContent = 'Demo Mode';
             authBtn.className = 'auth-btn demo';
-            userEmail.textContent = '';
             authBtn.onclick = () => this.showAuthModal();
         }
     }
@@ -1912,22 +1915,26 @@ class SupabaseDocumentStorage {
 
     updateAuthUI() {
         const authBtn = document.getElementById('authBtn');
+        const userProfile = document.getElementById('userProfile');
         const userEmail = document.getElementById('userEmail');
+        const userMenuEmail = document.getElementById('userMenuEmail');
         
         if (this.demoMode) {
+            authBtn.style.display = 'block';
+            userProfile.style.display = 'none';
             authBtn.textContent = 'Demo Mode';
             authBtn.className = 'auth-btn';
-            userEmail.textContent = '';
             authBtn.onclick = () => this.showAuthModal();
         } else if (this.currentUser) {
-            authBtn.textContent = 'Sign Out';
-            authBtn.className = 'auth-btn signed-in';
+            authBtn.style.display = 'none';
+            userProfile.style.display = 'flex';
             userEmail.textContent = this.currentUser.email;
-            authBtn.onclick = () => this.signOut();
+            if (userMenuEmail) userMenuEmail.textContent = this.currentUser.email;
         } else {
+            authBtn.style.display = 'block';
+            userProfile.style.display = 'none';
             authBtn.textContent = 'Sign In';
             authBtn.className = 'auth-btn';
-            userEmail.textContent = '';
             authBtn.onclick = () => this.showAuthModal();
         }
     }
@@ -2354,6 +2361,25 @@ function toggleAuth() {
         documentStorage.showAuthModal();
     }
 }
+
+// User menu functions
+function toggleUserMenu() {
+    const userMenu = document.getElementById('userMenu');
+    userMenu.classList.toggle('show');
+}
+
+// Close user menu when clicking outside
+document.addEventListener('click', (e) => {
+    const userMenu = document.getElementById('userMenu');
+    const userMenuBtn = document.querySelector('.user-menu-btn');
+    const userProfile = document.getElementById('userProfile');
+    
+    if (userMenu && userMenu.classList.contains('show')) {
+        if (!userProfile.contains(e.target)) {
+            userMenu.classList.remove('show');
+        }
+    }
+});
 
 function closeAuthModal() {
     document.getElementById('authModal').classList.remove('show');
