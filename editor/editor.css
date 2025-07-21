@@ -330,6 +330,19 @@
     border-color: rgba(16, 185, 129, 0.3);
 }
 
+.action-btn.clear {
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(220, 38, 38, 0.08) 100%);
+    border-color: rgba(239, 68, 68, 0.2);
+    color: #dc2626;
+    box-shadow: 0 1px 3px rgba(239, 68, 68, 0.1);
+}
+
+.action-btn.clear:hover {
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(220, 38, 38, 0.12) 100%);
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
+    border-color: rgba(239, 68, 68, 0.3);
+}
+
 .action-btn.copy {
     background: linear-gradient(135deg, rgba(168, 85, 247, 0.1) 0%, rgba(147, 51, 234, 0.08) 100%);
     border-color: rgba(168, 85, 247, 0.2);
@@ -343,18 +356,7 @@
     border-color: rgba(168, 85, 247, 0.3);
 }
 
-.action-btn.format {
-    background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(37, 99, 235, 0.08) 100%);
-    border-color: rgba(59, 130, 246, 0.2);
-    color: #2563eb;
-    box-shadow: 0 1px 3px rgba(59, 130, 246, 0.1);
-}
 
-.action-btn.format:hover {
-    background: linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(37, 99, 235, 0.12) 100%);
-    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
-    border-color: rgba(59, 130, 246, 0.3);
-}
 
 .action-btn.secondary {
     background: linear-gradient(135deg, rgba(107, 114, 128, 0.1) 0%, rgba(75, 85, 99, 0.08) 100%);
@@ -1186,10 +1188,6 @@
 }
 
 /* Button hover effects */
-#formatCodeBtn:hover {
-    background: rgba(99, 102, 241, 0.2) !important;
-    transform: scale(1.05);
-}
 
 /* Responsive Design */
 @media (max-width: 768px) {

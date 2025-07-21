@@ -902,6 +902,27 @@ function downloadHtml() {
     URL.revokeObjectURL(link.href);
 }
 
+// Clear editor content
+function clearEditor() {
+    if (!editor) return;
+    
+    // Show confirmation dialog to prevent accidental clearing
+    const confirmed = confirm('Are you sure you want to clear all code? This action cannot be undone.');
+    
+    if (confirmed) {
+        editor.setValue('');
+        showCopyNotification('Editor cleared!', 'success');
+        
+        // Update preview to reflect empty editor
+        updatePreview();
+        
+        // Reset current document reference
+        if (window.documentStorage) {
+            window.documentStorage.currentDocument = null;
+        }
+    }
+}
+
 // Copy HTML code to clipboard
 function copyCode() {
     if (!editor) return;
