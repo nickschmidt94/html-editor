@@ -1434,38 +1434,71 @@ class SupabaseDocumentStorage {
             return;
         }
 
-        try {
-            // Check multiple ways Supabase might be available
-            let supabaseLib = null;
+        // Wait for Supabase to be available - retry for up to 10 seconds
+        let supabaseLib = null;
+        let attempts = 0;
+        const maxAttempts = 20; // 10 seconds with 500ms intervals
+        
+        while (!supabaseLib && attempts < maxAttempts) {
+            attempts++;
             
-            if (typeof window.supabase !== 'undefined') {
+            if (window.supabaseLoaded && window.supabase && typeof window.supabase.createClient === 'function') {
                 supabaseLib = window.supabase;
-                console.log('Found Supabase at window.supabase');
-            } else if (typeof window.createClient !== 'undefined') {
+                console.log('✅ Found Supabase at window.supabase');
+                break;
+            } else if (typeof window.createClient === 'function') {
                 supabaseLib = { createClient: window.createClient };
-                console.log('Found Supabase createClient at window.createClient');
-            } else {
-                console.error('Supabase library not found. Available window keys:', Object.keys(window).filter(key => key.toLowerCase().includes('supabase')));
-                this.useDemoMode();
-                return;
+                console.log('✅ Found Supabase createClient at window.createClient');
+                break;
             }
-
-            // Initialize Supabase client
-            console.log('Creating Supabase client...');
-            this.supabase = supabaseLib.createClient(this.supabaseUrl, this.supabaseKey);
-            console.log('Supabase client created successfully');
             
-            // Check existing session
-            const { data: { session } } = await this.supabase.auth.getSession();
-            if (session) {
-                this.currentUser = session.user;
+            if (attempts < maxAttempts) {
+                console.log(`⏳ Waiting for Supabase to load... attempt ${attempts}/${maxAttempts}`);
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+        }
+
+        if (!supabaseLib) {
+            console.warn('⚠️ Supabase library failed to load after waiting, falling back to demo mode');
+            this.useDemoMode();
+            this.setupEventListeners();
+            return;
+        }
+
+        try {
+            // Initialize Supabase client
+            console.log('🚀 Creating Supabase client...');
+            this.supabase = supabaseLib.createClient(this.supabaseUrl, this.supabaseKey);
+            console.log('✅ Supabase client created successfully');
+            
+            // Test the connection with a simple call
+            const { data, error } = await this.supabase.auth.getSession();
+            if (error) {
+                throw error;
+            }
+            
+            // If we have a session, set up the user
+            if (data.session) {
+                this.currentUser = data.session.user;
+                console.log('✅ Found existing session for:', this.currentUser.email);
                 this.updateAuthUI();
                 await this.loadUserData();
+            } else {
+                console.log('ℹ️ No existing session found');
+                this.updateAuthUI();
             }
 
             // Listen to auth changes
             this.supabase.auth.onAuthStateChange((event, session) => {
+                console.log('🔑 Auth state changed:', event, session?.user?.email);
                 this.currentUser = session?.user || null;
+                
+                // IMPORTANT: Clear demo mode when user successfully signs in
+                if (event === 'SIGNED_IN' && this.currentUser) {
+                    this.demoMode = false;
+                    console.log('✅ User signed in, disabled demo mode');
+                }
+                
                 this.updateAuthUI();
                 
                 if (event === 'SIGNED_IN') {
@@ -1478,10 +1511,10 @@ class SupabaseDocumentStorage {
             // Setup real-time subscriptions
             this.setupRealtimeSync();
             
-            console.log('Supabase initialized successfully!');
+            console.log('🎉 Supabase initialized successfully!');
             
         } catch (error) {
-            console.error('Failed to initialize Supabase:', error);
+            console.error('❌ Failed to initialize Supabase:', error);
             this.useDemoMode();
         }
 
@@ -1491,12 +1524,19 @@ class SupabaseDocumentStorage {
     }
 
     useDemoMode(showNotification = false) {
+        console.log('⚠️ Switching to demo mode, showNotification:', showNotification);
         this.demoMode = true;
         this.localBackup.init();
         this.updateAuthUI();
         if (showNotification) {
             this.showNotification('Running in demo mode - using local storage', 'info');
         }
+    }
+
+    disableDemoMode() {
+        console.log('✅ Disabling demo mode - Supabase is available');
+        this.demoMode = false;
+        this.updateAuthUI();
     }
 
     setupEventListeners() {
@@ -1596,9 +1636,13 @@ class SupabaseDocumentStorage {
     }
 
     async signIn(email, password) {
-        if (this.demoMode) return;
+        if (this.demoMode) {
+            console.log('⚠️ Currently in demo mode, cannot sign in with Supabase');
+            return;
+        }
         
         try {
+            console.log('🔑 Attempting to sign in with Supabase...');
             const { data, error } = await this.supabase.auth.signInWithPassword({
                 email,
                 password
@@ -1606,14 +1650,17 @@ class SupabaseDocumentStorage {
             
             if (error) throw error;
             
-            // Update current user immediately
+            // Update current user immediately and disable demo mode
             this.currentUser = data.user;
+            this.demoMode = false;
+            console.log('✅ Sign in successful, disabled demo mode for user:', data.user.email);
+            
             this.updateAuthUI();
             this.showNotification('Successfully signed in!', 'success');
             
             return { data, error: null };
         } catch (error) {
-            console.error('Sign in error:', error);
+            console.error('❌ Sign in error:', error);
             return { data: null, error };
         }
     }
@@ -1919,18 +1966,23 @@ class SupabaseDocumentStorage {
         const userEmail = document.getElementById('userEmail');
         const userMenuEmail = document.getElementById('userMenuEmail');
         
-        if (this.demoMode) {
+        // If user is signed in with Supabase, prioritize that over demo mode
+        if (this.currentUser && !this.demoMode) {
+            // Real Supabase user signed in
+            authBtn.style.display = 'none';
+            userProfile.style.display = 'flex';
+            userEmail.textContent = this.currentUser.email;
+            if (userMenuEmail) userMenuEmail.textContent = this.currentUser.email;
+            console.log('🎯 UI updated for signed-in user:', this.currentUser.email);
+        } else if (this.demoMode) {
+            // Demo mode
             authBtn.style.display = 'block';
             userProfile.style.display = 'none';
             authBtn.textContent = 'Demo Mode';
             authBtn.className = 'auth-btn';
             authBtn.onclick = () => this.showAuthModal();
-        } else if (this.currentUser) {
-            authBtn.style.display = 'none';
-            userProfile.style.display = 'flex';
-            userEmail.textContent = this.currentUser.email;
-            if (userMenuEmail) userMenuEmail.textContent = this.currentUser.email;
         } else {
+            // Not signed in
             authBtn.style.display = 'block';
             userProfile.style.display = 'none';
             authBtn.textContent = 'Sign In';
@@ -2151,15 +2203,6 @@ class SupabaseDocumentStorage {
         // TODO: Implement offline sync logic
         console.log('Syncing offline changes...');
     }
-
-    useDemoMode(showNotification = false) {
-        this.demoMode = true;
-        this.localBackup.init();
-        this.updateAuthUI();
-        if (showNotification) {
-            this.showNotification('Running in demo mode - using local storage', 'info');
-        }
-    }
 }
 
 // Modal Functions
@@ -2258,7 +2301,10 @@ let documentStorage;
 let storageInitialized = false;
 
 function initializeStorage() {
-    if (storageInitialized) return;
+    if (storageInitialized) {
+        console.log('⏩ Storage already initialized as:', documentStorage?.constructor.name);
+        return;
+    }
     
     console.log('=== Starting Storage Initialization ===');
     console.log('supabaseLoaded flag:', window.supabaseLoaded);
@@ -2267,11 +2313,6 @@ function initializeStorage() {
     
     try {
         // Check if Supabase is available and properly loaded
-        console.log('Checking Supabase availability:');
-        console.log('- window.supabaseLoaded:', window.supabaseLoaded);
-        console.log('- window.supabase:', typeof window.supabase);
-        console.log('- window.supabase.createClient:', typeof window.supabase?.createClient);
-        
         if (window.supabaseLoaded && window.supabase && typeof window.supabase.createClient === 'function') {
             console.log('✅ Supabase is available, initializing SupabaseDocumentStorage...');
             documentStorage = new SupabaseDocumentStorage();
@@ -2286,8 +2327,8 @@ function initializeStorage() {
         storageInitialized = true;
         console.log('✅ Storage initialized successfully as:', documentStorage.constructor.name);
     } catch (error) {
-        console.error('Failed to initialize Supabase storage:', error);
-        console.log('Falling back to localStorage...');
+        console.error('❌ Failed to initialize Supabase storage:', error);
+        console.log('🔄 Falling back to localStorage...');
         documentStorage = new DocumentStorage();
         storageInitialized = true;
     }
@@ -2296,9 +2337,12 @@ function initializeStorage() {
 // Listen for Supabase events
 window.addEventListener('supabaseReady', () => {
     console.log('🎉 Supabase ready event received, re-initializing storage...');
-    // Force re-initialization with Supabase
-    storageInitialized = false;
-    initializeStorage();
+    // If we're currently in demo mode, try to switch to Supabase
+    if (documentStorage && documentStorage.demoMode) {
+        console.log('🔄 Attempting to switch from demo mode to Supabase...');
+        storageInitialized = false;
+        initializeStorage();
+    }
 });
 
 window.addEventListener('supabaseFailed', () => {
@@ -2453,5 +2497,6 @@ async function handleAuth(event) {
 
 function useDemoMode() {
     closeAuthModal();
+    // Only show notification when user explicitly chooses demo mode
     documentStorage.useDemoMode(true);
 } 
