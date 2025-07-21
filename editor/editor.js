@@ -1766,12 +1766,19 @@ class SupabaseDocumentStorage {
             
             this.categories = data?.map(cat => cat.name) || [];
             
-            // Ensure default categories exist
-            const defaults = ['Personal', 'Work', 'Learning'];
-            for (const defaultCat of defaults) {
-                if (!this.categories.includes(defaultCat)) {
+            // Ensure default categories exist (only on first load)
+            if (this.categories.length === 0) {
+                const defaults = ['Personal', 'Work', 'Learning'];
+                for (const defaultCat of defaults) {
                     await this.addCategory(defaultCat);
                 }
+                // Reload categories after adding defaults
+                const { data: updatedData } = await this.supabase
+                    .from('categories')
+                    .select('*')
+                    .eq('user_id', this.currentUser.id)
+                    .order('name');
+                this.categories = updatedData?.map(cat => cat.name) || [];
             }
             
             return this.categories;
@@ -1952,7 +1959,8 @@ class SupabaseDocumentStorage {
                     created_at: new Date().toISOString()
                 });
             
-            if (error && error.code !== '23505') { // Ignore duplicate key errors
+            // Ignore duplicate key errors (PostgreSQL code 23505 or Supabase conflict)
+            if (error && error.code !== '23505' && !error.message?.includes('duplicate') && !error.message?.includes('already exists')) {
                 throw error;
             }
             
@@ -1961,6 +1969,11 @@ class SupabaseDocumentStorage {
             this.populateCategorySelect();
             
         } catch (error) {
+            // Handle HTTP 409 conflicts and other duplicate-related errors silently
+            if (error.status === 409 || error.code === 409 || error.message?.includes('duplicate') || error.message?.includes('already exists')) {
+                console.log(`Category "${name}" already exists, skipping...`);
+                return;
+            }
             console.error('Failed to add category:', error);
         }
     }
