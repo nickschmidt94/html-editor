@@ -497,14 +497,15 @@
 .user-profile {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 8px;
     background: rgba(255, 255, 255, 0.8);
     backdrop-filter: blur(10px);
     border: 1px solid rgba(0, 0, 0, 0.08);
-    border-radius: 12px;
-    padding: 8px 12px;
+    border-radius: 8px;
+    padding: 6px 12px;
     transition: all 0.2s ease;
     position: relative;
+    height: auto;
 }
 
 .user-profile:hover {
@@ -515,8 +516,8 @@
 }
 
 .user-avatar {
-    width: 32px;
-    height: 32px;
+    width: 28px;
+    height: 28px;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     border-radius: 50%;
     display: flex;
@@ -529,7 +530,7 @@
 .user-details {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 1px;
     min-width: 0;
 }
 
@@ -540,15 +541,17 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 140px;
+    max-width: 120px;
+    line-height: 1.2;
 }
 
 .user-status {
-    font-size: 11px;
+    font-size: 10px;
     color: #22c55e;
     font-weight: 500;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    line-height: 1;
 }
 
 .user-actions {
@@ -625,10 +628,19 @@
     min-width: 0;
 }
 
-.user-menu-email {
+.user-menu-name {
     font-size: 14px;
     color: #374151;
     font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.user-menu-email {
+    font-size: 12px;
+    color: #6b7280;
+    font-weight: 500;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;

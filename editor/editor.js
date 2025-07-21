@@ -1242,13 +1242,18 @@ class DocumentStorage {
         const authBtn = document.getElementById('authBtn');
         const userProfile = document.getElementById('userProfile');
         const userEmail = document.getElementById('userEmail');
+        const userMenuName = document.getElementById('userMenuName');
         const userMenuEmail = document.getElementById('userMenuEmail');
         
         if (this.currentUser) {
             // Demo mode - signed in
             authBtn.style.display = 'none';
             userProfile.style.display = 'flex';
-            userEmail.textContent = this.currentUser.email;
+            
+            // Use the full name if available, otherwise extract username from email
+            const displayName = this.currentUser.user_metadata?.full_name || this.currentUser.email.split('@')[0];
+            userEmail.textContent = displayName;
+            if (userMenuName) userMenuName.textContent = displayName;
             if (userMenuEmail) userMenuEmail.textContent = this.currentUser.email;
         } else {
             // Demo mode - not signed in
@@ -1261,18 +1266,18 @@ class DocumentStorage {
     }
 
     // Auth methods for localStorage mode (demo/fallback)
-    async signUp(email, password) {
+    async signUp(email, password, name) {
         // For demo mode, just simulate successful signup
         alert('Demo Mode: Account created successfully! In demo mode, your data is stored locally only.');
-        return { data: { user: { email } }, error: null };
+        return { data: { user: { email, user_metadata: { full_name: name } } }, error: null };
     }
 
     async signIn(email, password) {
         // For demo mode, just simulate successful signin
         alert('Demo Mode: Signed in successfully! In demo mode, your data is stored locally only.');
-        this.currentUser = { email };
+        this.currentUser = { email, user_metadata: { full_name: 'Demo User' } };
         this.updateAuthUI();
-        return { data: { user: { email } }, error: null };
+        return { data: { user: { email, user_metadata: { full_name: 'Demo User' } } }, error: null };
     }
 
     async signOut() {
@@ -1615,13 +1620,18 @@ class SupabaseDocumentStorage {
         this.loadUserData();
     }
 
-    async signUp(email, password) {
+    async signUp(email, password, name) {
         if (this.demoMode) return;
         
         try {
             const { data, error } = await this.supabase.auth.signUp({
                 email,
-                password
+                password,
+                options: {
+                    data: {
+                        full_name: name
+                    }
+                }
             });
             
             if (error) throw error;
@@ -1675,6 +1685,31 @@ class SupabaseDocumentStorage {
             this.showNotification('Signed out successfully', 'success');
         } catch (error) {
             console.error('Sign out error:', error);
+        }
+    }
+
+    async updateUserProfile(name) {
+        if (this.demoMode || !this.currentUser) return;
+        
+        try {
+            const { data, error } = await this.supabase.auth.updateUser({
+                data: {
+                    full_name: name
+                }
+            });
+            
+            if (error) throw error;
+            
+            // Update the current user object
+            this.currentUser = data.user;
+            this.updateAuthUI();
+            this.showNotification('Profile updated successfully!', 'success');
+            
+            return { data, error: null };
+        } catch (error) {
+            console.error('Profile update error:', error);
+            this.showNotification('Failed to update profile', 'error');
+            return { data: null, error };
         }
     }
 
@@ -1964,6 +1999,7 @@ class SupabaseDocumentStorage {
         const authBtn = document.getElementById('authBtn');
         const userProfile = document.getElementById('userProfile');
         const userEmail = document.getElementById('userEmail');
+        const userMenuName = document.getElementById('userMenuName');
         const userMenuEmail = document.getElementById('userMenuEmail');
         
         // If user is signed in with Supabase, prioritize that over demo mode
@@ -1971,7 +2007,11 @@ class SupabaseDocumentStorage {
             // Real Supabase user signed in
             authBtn.style.display = 'none';
             userProfile.style.display = 'flex';
-            userEmail.textContent = this.currentUser.email;
+            
+            // Use the full name if available, otherwise extract username from email
+            const displayName = this.currentUser.user_metadata?.full_name || this.currentUser.email.split('@')[0];
+            userEmail.textContent = displayName;
+            if (userMenuName) userMenuName.textContent = displayName;
             if (userMenuEmail) userMenuEmail.textContent = this.currentUser.email;
             console.log('🎯 UI updated for signed-in user:', this.currentUser.email);
         } else if (this.demoMode) {
@@ -2395,6 +2435,15 @@ if (document.readyState === 'loading') {
     }, 6000);
 }
 
+// Quick function to update your name for existing account
+function updateMyName() {
+    if (documentStorage && documentStorage.currentUser) {
+        documentStorage.updateUserProfile('Nick');
+    } else {
+        alert('Please sign in first');
+    }
+}
+
 // Authentication Functions
 function toggleAuth() {
     if (documentStorage.demoMode) {
@@ -2433,6 +2482,8 @@ function switchAuthTab(tab) {
     const tabs = document.querySelectorAll('.auth-tab');
     const title = document.getElementById('authModalTitle');
     const submitBtn = document.getElementById('authSubmitBtn');
+    const nameGroup = document.getElementById('nameGroup');
+    const nameInput = document.getElementById('authName');
     
     tabs.forEach(t => t.classList.remove('active'));
     document.querySelector(`[onclick="switchAuthTab('${tab}')"]`).classList.add('active');
@@ -2440,9 +2491,13 @@ function switchAuthTab(tab) {
     if (tab === 'signin') {
         title.textContent = 'Sign In to Save Your Work';
         submitBtn.textContent = 'Sign In';
+        nameGroup.style.display = 'none';
+        nameInput.required = false;
     } else {
         title.textContent = 'Create Your Account';
         submitBtn.textContent = 'Sign Up';
+        nameGroup.style.display = 'block';
+        nameInput.required = true;
     }
 }
 
@@ -2451,6 +2506,7 @@ async function handleAuth(event) {
     
     const email = document.getElementById('authEmail').value;
     const password = document.getElementById('authPassword').value;
+    const name = document.getElementById('authName').value;
     const isSignUp = document.getElementById('authSubmitBtn').textContent === 'Sign Up';
     const submitBtn = document.getElementById('authSubmitBtn');
     
@@ -2461,7 +2517,7 @@ async function handleAuth(event) {
     try {
         let result;
         if (isSignUp) {
-            result = await documentStorage.signUp(email, password);
+            result = await documentStorage.signUp(email, password, name);
         } else {
             result = await documentStorage.signIn(email, password);
         }
