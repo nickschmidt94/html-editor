@@ -1105,6 +1105,11 @@
     height: 100%;
     border: none;
     border-radius: 39px;
+    transition: background-color 0.3s ease;
+}
+
+.phone-screen iframe.dark-background {
+    background: #1a1a1a;
 }
 
 /* Dynamic Island */
@@ -1134,6 +1139,11 @@
     width: 100%;
     border: none;
     background: #fff;
+    transition: background-color 0.3s ease;
+}
+
+#preview.dark-background {
+    background: #1a1a1a;
 }
 
 /* Resizer Divider */

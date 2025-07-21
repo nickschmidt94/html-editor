@@ -636,6 +636,25 @@ function toggleDevice() {
             <div class="pane-header" style="position: absolute; top: 0; left: 0; right: 0;">
                 <span>Preview - iPhone 15 Pro</span>
                 <div class="header-controls">
+                    <button id="backgroundToggle" onclick="togglePreviewBackground()" title="Toggle background (light/dark)" style="
+                        background: transparent;
+                        border: none;
+                        color: #64748b;
+                        cursor: pointer;
+                        font-size: 14px;
+                        padding: 2px 4px;
+                        border-radius: 3px;
+                        transition: all 0.2s ease;
+                        opacity: 0.7;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                    " onmouseover="this.style.opacity='1'; this.style.background='rgba(0,0,0,0.05)'" onmouseout="this.style.opacity='0.7'; this.style.background='transparent'">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="12" cy="12" r="5" stroke="currentColor" stroke-width="2"/>
+                            <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" stroke="currentColor" stroke-width="2"/>
+                        </svg>
+                    </button>
                     <button id="exportBtn" onclick="exportOpenGraphImage()" title="Show OpenGraph screenshot overlay" style="
                         background: rgba(34, 197, 94, 0.1);
                         border: 1px solid rgba(34, 197, 94, 0.2);
@@ -696,6 +715,25 @@ function toggleDevice() {
             <div class="pane-header">
                 <span>Preview</span>
                 <div class="header-controls">
+                    <button id="backgroundToggle" onclick="togglePreviewBackground()" title="Toggle background (light/dark)" style="
+                        background: transparent;
+                        border: none;
+                        color: #64748b;
+                        cursor: pointer;
+                        font-size: 14px;
+                        padding: 2px 4px;
+                        border-radius: 3px;
+                        transition: all 0.2s ease;
+                        opacity: 0.7;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                    " onmouseover="this.style.opacity='1'; this.style.background='rgba(0,0,0,0.05)'" onmouseout="this.style.opacity='0.7'; this.style.background='transparent'">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="12" cy="12" r="5" stroke="currentColor" stroke-width="2"/>
+                            <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" stroke="currentColor" stroke-width="2"/>
+                        </svg>
+                    </button>
                     <button id="exportBtn" onclick="exportOpenGraphImage()" title="Show OpenGraph screenshot overlay" style="
                         background: rgba(34, 197, 94, 0.1);
                         border: 1px solid rgba(34, 197, 94, 0.2);
@@ -920,6 +958,39 @@ function clearEditor() {
         if (window.documentStorage) {
             window.documentStorage.currentDocument = null;
         }
+    }
+}
+
+// Toggle preview background between light and dark
+function togglePreviewBackground() {
+    const preview = document.getElementById('preview');
+    const button = document.getElementById('backgroundToggle');
+    
+    if (!preview) return;
+    
+    // Toggle dark background class
+    preview.classList.toggle('dark-background');
+    
+    const isDark = preview.classList.contains('dark-background');
+    
+    // Update button icon and tooltip
+    if (isDark) {
+        button.innerHTML = `
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" stroke="currentColor" stroke-width="2"/>
+            </svg>
+        `;
+        button.title = 'Switch to light background';
+        showCopyNotification('Dark background enabled', 'success');
+    } else {
+        button.innerHTML = `
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="12" cy="12" r="5" stroke="currentColor" stroke-width="2"/>
+                <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" stroke="currentColor" stroke-width="2"/>
+            </svg>
+        `;
+        button.title = 'Switch to dark background';
+        showCopyNotification('Light background enabled', 'success');
     }
 }
 
