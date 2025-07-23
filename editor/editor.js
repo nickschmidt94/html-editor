@@ -1421,16 +1421,19 @@ class DocumentStorage {
             const categoryHeader = document.createElement('div');
             categoryHeader.className = 'category-header';
             categoryHeader.innerHTML = `
-                <span>${category} (${docs.length})</span>
-                <div style="display: flex; align-items: center; gap: 4px;">
+                <div class="category-title">
+                    <span>${category}</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span class="category-count">${docs.length}</span>
                     ${category !== 'Uncategorized' ? `
-                        <button class="document-action" onclick="documentStorage.deleteCategory('${category}')" title="Delete category">
+                        <button class="document-action" onclick="documentStorage.deleteCategory('${category}')" title="Delete category" style="opacity: 0.6; transition: opacity 0.2s;">
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                 <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" stroke="currentColor" stroke-width="2"/>
                             </svg>
                         </button>
                     ` : ''}
-                    <svg class="category-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <svg class="category-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <polyline points="6,9 12,15 18,9" stroke="currentColor" stroke-width="2"/>
                     </svg>
                 </div>
@@ -2221,16 +2224,19 @@ class SupabaseDocumentStorage {
             const categoryHeader = document.createElement('div');
             categoryHeader.className = 'category-header';
             categoryHeader.innerHTML = `
-                <span>${category} (${docs.length})</span>
-                <div style="display: flex; align-items: center; gap: 4px;">
+                <div class="category-title">
+                    <span>${category}</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span class="category-count">${docs.length}</span>
                     ${category !== 'Uncategorized' ? `
-                        <button class="document-action" onclick="documentStorage.deleteCategory('${category}')" title="Delete category">
+                        <button class="document-action" onclick="documentStorage.deleteCategory('${category}')" title="Delete category" style="opacity: 0.6; transition: opacity 0.2s;">
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                 <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" stroke="currentColor" stroke-width="2"/>
                             </svg>
                         </button>
                     ` : ''}
-                    <svg class="category-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <svg class="category-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <polyline points="6,9 12,15 18,9" stroke="currentColor" stroke-width="2"/>
                     </svg>
                 </div>
