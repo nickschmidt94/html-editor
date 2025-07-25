@@ -374,6 +374,68 @@ class HTMLValidator {
 // Initialize validation system
 const htmlValidator = new HTMLValidator();
 
+// Clear editor content - moved outside Monaco require block to be available immediately
+function clearEditor() {
+    console.log('clearEditor function called');
+    console.log('editor variable:', editor);
+    console.log('typeof editor:', typeof editor);
+    
+    // Check if editor is available and properly initialized
+    if (!editor) {
+        console.error('Editor not initialized!');
+        alert('Editor not initialized yet. Please wait a moment and try again.');
+        return;
+    }
+    
+    // Additional check to ensure editor has the setValue method
+    if (typeof editor.setValue !== 'function') {
+        console.error('Editor setValue method not available!');
+        alert('Editor not properly initialized. Please refresh the page and try again.');
+        return;
+    }
+    
+    // Clear immediately without confirmation
+    try {
+        console.log('Attempting to clear editor...');
+        editor.setValue('');
+        console.log('Editor cleared successfully');
+        
+        // Show success notification
+        if (typeof showCopyNotification === 'function') {
+            showCopyNotification('Editor cleared!', 'success');
+        }
+        
+        // Update preview to reflect empty editor
+        if (typeof updatePreview === 'function') {
+            updatePreview();
+        }
+        
+        // Reset current document reference
+        if (window.documentStorage && window.documentStorage.currentDocument) {
+            window.documentStorage.currentDocument = null;
+            console.log('Current document reference cleared');
+        }
+    } catch (error) {
+        console.error('Error clearing editor:', error);
+        alert('Error clearing editor: ' + error.message);
+    }
+}
+
+// Make clearEditor globally available
+window.clearEditor = clearEditor;
+
+// Set up the clear button event listener 
+document.addEventListener('DOMContentLoaded', function() {
+    const clearBtn = document.getElementById('clearBtn');
+    if (clearBtn) {
+        console.log('Setting up clear button event listener');
+        clearBtn.addEventListener('click', clearEditor);
+        console.log('Clear button event listener attached successfully');
+    } else {
+        console.warn('Clear button not found in DOM');
+    }
+});
+
 // Initialize Monaco Editor
 require.config({ paths: { vs: 'https://unpkg.com/monaco-editor@0.44.0/min/vs' } });
 require(['vs/editor/editor.main'], function () {
@@ -487,8 +549,10 @@ require(['vs/editor/editor.main'], function () {
         domReadOnly: false
     });
 
-    // Set up HTML validation
-    setupHTMLValidation();
+    // Set up HTML validation - delay to ensure DOM is ready
+    setTimeout(() => {
+        setupHTMLValidation();
+    }, 100);
 
     // Update preview when content changes
     editor.onDidChangeModelContent(() => {
@@ -522,9 +586,15 @@ function setupHTMLValidation() {
         `;
         validationToggle.onclick = toggleValidation;
         
-        // Insert before the clear button
+        // Insert before the clear button - with error handling
         const clearBtn = document.getElementById('clearBtn');
-        headerControls.insertBefore(validationToggle, clearBtn);
+        if (clearBtn) {
+            headerControls.insertBefore(validationToggle, clearBtn);
+        } else {
+            // Fallback: append to the end if clear button not found
+            console.warn('Clear button not found, appending validation toggle to header controls');
+            headerControls.appendChild(validationToggle);
+        }
     }
 }
 
@@ -640,14 +710,14 @@ function updateValidationStatus(errors) {
             }
         }, 3000);
     } else {
-        // Show error count
+        // Show error count with click functionality
         const errorCount = errors.filter(e => e.severity === 'error').length;
         const warningCount = errors.filter(e => e.severity === 'warning').length;
         const infoCount = errors.filter(e => e.severity === 'info').length;
         
-        if (errorCount > 0 || warningCount > 0) {
+        if (errorCount > 0 || warningCount > 0 || infoCount > 0) {
             const statusEl = document.createElement('div');
-            statusEl.className = `validation-status validation-${errorCount > 0 ? 'error' : 'warning'}`;
+            statusEl.className = `validation-status validation-${errorCount > 0 ? 'error' : (warningCount > 0 ? 'warning' : 'info')} clickable`;
             
             let message = '';
             if (errorCount > 0) message += `${errorCount} error${errorCount > 1 ? 's' : ''}`;
@@ -667,11 +737,236 @@ function updateValidationStatus(errors) {
                     <path d="M12 16h.01" stroke="currentColor" stroke-width="2"/>
                 </svg>
                 <span>${message}</span>
+                <span class="click-hint">Click for details</span>
             `;
+            
+            statusEl.addEventListener('click', () => showValidationDetails(errors));
+            statusEl.style.cursor = 'pointer';
             
             document.body.appendChild(statusEl);
         }
     }
+}
+
+function showValidationDetails(errors) {
+    // Remove existing validation panel
+    const existingPanel = document.querySelector('.validation-panel');
+    if (existingPanel) {
+        existingPanel.remove();
+        return; // Toggle behavior
+    }
+    
+    // Create validation details panel
+    const panel = document.createElement('div');
+    panel.className = 'validation-panel';
+    
+    const header = document.createElement('div');
+    header.className = 'validation-panel-header';
+    header.innerHTML = `
+        <h3>Validation Issues</h3>
+        <button class="validation-panel-close" onclick="this.parentElement.parentElement.remove()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" stroke-width="2"/>
+                <line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" stroke-width="2"/>
+            </svg>
+        </button>
+    `;
+    
+    const content = document.createElement('div');
+    content.className = 'validation-panel-content';
+    
+    // Group errors by severity
+    const groupedErrors = {
+        error: errors.filter(e => e.severity === 'error'),
+        warning: errors.filter(e => e.severity === 'warning'),
+        info: errors.filter(e => e.severity === 'info')
+    };
+    
+    Object.entries(groupedErrors).forEach(([severity, severityErrors]) => {
+        if (severityErrors.length === 0) return;
+        
+        const severitySection = document.createElement('div');
+        severitySection.className = `validation-section validation-section-${severity}`;
+        
+        const severityHeader = document.createElement('div');
+        severityHeader.className = 'validation-section-header';
+        severityHeader.innerHTML = `
+            <div class="severity-icon">
+                ${getSeverityIcon(severity)}
+            </div>
+            <span>${severity.charAt(0).toUpperCase() + severity.slice(1)}s (${severityErrors.length})</span>
+        `;
+        
+        const errorsList = document.createElement('div');
+        errorsList.className = 'validation-errors-list';
+        
+        severityErrors.forEach((error, index) => {
+            const errorItem = document.createElement('div');
+            errorItem.className = 'validation-error-item';
+            errorItem.innerHTML = `
+                <div class="error-location">Line ${error.line}:${error.column}</div>
+                <div class="error-message">${error.message}</div>
+                <div class="error-type">${error.type.replace(/-/g, ' ')}</div>
+            `;
+            
+            // Make error item clickable to jump to line
+            errorItem.addEventListener('click', () => {
+                jumpToError(error);
+                // Highlight the clicked error
+                errorItem.classList.add('highlighted');
+                setTimeout(() => errorItem.classList.remove('highlighted'), 2000);
+            });
+            
+            errorsList.appendChild(errorItem);
+        });
+        
+        severitySection.appendChild(severityHeader);
+        severitySection.appendChild(errorsList);
+        content.appendChild(severitySection);
+    });
+    
+    // Add quick actions
+    const actions = document.createElement('div');
+    actions.className = 'validation-panel-actions';
+    actions.innerHTML = `
+        <button class="validation-action-btn" onclick="jumpToNextError()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <polyline points="9,18 15,12 9,6" stroke="currentColor" stroke-width="2"/>
+            </svg>
+            Next Issue
+        </button>
+        <button class="validation-action-btn" onclick="focusEditor()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 2L2 7V17C2 17.5304 2.21071 18.0391 2.58579 18.4142C2.96086 18.7893 3.46957 19 4 19H20C20.5304 19 21.0391 18.7893 21.4142 18.4142C21.7893 18.0391 22 17.5304 22 17V7L12 2Z" stroke="currentColor" stroke-width="2"/>
+            </svg>
+            Focus Editor
+        </button>
+        <button class="validation-action-btn" onclick="copyValidationReport()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2" stroke="currentColor" stroke-width="2"/>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2 2v1" stroke="currentColor" stroke-width="2"/>
+            </svg>
+            Copy Report
+        </button>
+    `;
+    
+    panel.appendChild(header);
+    panel.appendChild(content);
+    panel.appendChild(actions);
+    
+    document.body.appendChild(panel);
+    
+    // Store current errors for navigation
+    window.currentValidationErrors = errors.filter(e => e.severity === 'error' || e.severity === 'warning');
+    window.currentErrorIndex = 0;
+}
+
+function getSeverityIcon(severity) {
+    switch (severity) {
+        case 'error':
+            return `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                <line x1="15" y1="9" x2="9" y2="15" stroke="currentColor" stroke-width="2"/>
+                <line x1="9" y1="9" x2="15" y2="15" stroke="currentColor" stroke-width="2"/>
+            </svg>`;
+        case 'warning':
+            return `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" stroke="currentColor" stroke-width="2"/>
+                <line x1="12" y1="9" x2="12" y2="13" stroke="currentColor" stroke-width="2"/>
+                <path d="M12 17h.01" stroke="currentColor" stroke-width="2"/>
+            </svg>`;
+        case 'info':
+            return `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                <path d="M12 16v-4" stroke="currentColor" stroke-width="2"/>
+                <path d="M12 8h.01" stroke="currentColor" stroke-width="2"/>
+            </svg>`;
+        default:
+            return '';
+    }
+}
+
+function jumpToError(error) {
+    if (!editor) return;
+    
+    try {
+        // Set cursor to the error location
+        editor.setPosition({
+            lineNumber: error.line,
+            column: error.column
+        });
+        
+        // Reveal the line in center
+        editor.revealLineInCenter(error.line);
+        
+        // Focus the editor
+        editor.focus();
+        
+        // Show a temporary highlight
+        const decoration = editor.deltaDecorations([], [{
+            range: {
+                startLineNumber: error.line,
+                startColumn: error.column,
+                endLineNumber: error.endLine || error.line,
+                endColumn: error.endColumn || error.column + 10
+            },
+            options: {
+                className: 'validation-jump-highlight',
+                stickiness: 1
+            }
+        }]);
+        
+        // Remove highlight after 2 seconds
+        setTimeout(() => {
+            editor.deltaDecorations(decoration, []);
+        }, 2000);
+        
+        showCopyNotification(`Jumped to line ${error.line}`, 'success');
+    } catch (err) {
+        console.error('Failed to jump to error:', err);
+        showCopyNotification('Failed to jump to error location', 'error');
+    }
+}
+
+function jumpToNextError() {
+    if (!window.currentValidationErrors || window.currentValidationErrors.length === 0) {
+        showCopyNotification('No validation errors to navigate', 'info');
+        return;
+    }
+    
+    const error = window.currentValidationErrors[window.currentErrorIndex];
+    jumpToError(error);
+    
+    // Move to next error (cycle through)
+    window.currentErrorIndex = (window.currentErrorIndex + 1) % window.currentValidationErrors.length;
+}
+
+function focusEditor() {
+    if (editor) {
+        editor.focus();
+        showCopyNotification('Editor focused', 'success');
+    }
+}
+
+function copyValidationReport() {
+    if (!window.currentValidationErrors) return;
+    
+    const errors = window.currentValidationErrors;
+    let report = `HTML Validation Report\n`;
+    report += `Generated: ${new Date().toLocaleString()}\n`;
+    report += `Total Issues: ${errors.length}\n\n`;
+    
+    errors.forEach((error, index) => {
+        report += `${index + 1}. ${error.severity.toUpperCase()}: ${error.message}\n`;
+        report += `   Location: Line ${error.line}, Column ${error.column}\n`;
+        report += `   Type: ${error.type}\n\n`;
+    });
+    
+    navigator.clipboard.writeText(report).then(() => {
+        showCopyNotification('Validation report copied to clipboard', 'success');
+    }).catch(() => {
+        showCopyNotification('Failed to copy validation report', 'error');
+    });
 }
 
 function clearValidationStatus() {
@@ -1492,27 +1787,6 @@ function downloadHtml() {
     // Clean up
     document.body.removeChild(link);
     URL.revokeObjectURL(link.href);
-}
-
-// Clear editor content
-function clearEditor() {
-    if (!editor) return;
-    
-    // Show confirmation dialog to prevent accidental clearing
-    const confirmed = confirm('Are you sure you want to clear all code? This action cannot be undone.');
-    
-    if (confirmed) {
-        editor.setValue('');
-        showCopyNotification('Editor cleared!', 'success');
-        
-        // Update preview to reflect empty editor
-        updatePreview();
-        
-        // Reset current document reference
-        if (window.documentStorage) {
-            window.documentStorage.currentDocument = null;
-        }
-    }
 }
 
 // Toggle preview background between light and dark
@@ -3180,314 +3454,3 @@ class SupabaseDocumentStorage {
     }
 }
 
-// Modal Functions
-function closeSaveModal() {
-    document.getElementById('saveModal').classList.remove('show');
-}
-
-function closeCategoryModal() {
-    document.getElementById('categoryModal').classList.remove('show');
-}
-
-function saveDocument() {
-    const name = document.getElementById('documentName').value.trim();
-    const category = document.getElementById('documentCategory').value;
-    
-    if (!name) {
-        alert('Please enter a document name');
-        return;
-    }
-    
-    if (!editor) {
-        alert('Editor not ready');
-        return;
-    }
-    
-    const content = editor.getValue();
-    documentStorage.saveDocument(name, category, content);
-    closeSaveModal();
-}
-
-function addCategory() {
-    const name = document.getElementById('categoryName').value.trim();
-    
-    if (!name) {
-        alert('Please enter a category name');
-        return;
-    }
-    
-    documentStorage.addCategory(name);
-    closeCategoryModal();
-}
-
-// Add notification styles to head
-const notificationStyles = document.createElement('style');
-notificationStyles.textContent = `
-    @keyframes slideInRight {
-        from {
-            transform: translateX(100%);
-            opacity: 0;
-        }
-        to {
-            transform: translateX(0);
-            opacity: 1;
-        }
-    }
-    
-    @keyframes slideOutRight {
-        from {
-            transform: translateX(0);
-            opacity: 1;
-        }
-        to {
-            transform: translateX(100%);
-            opacity: 0;
-        }
-    }
-`;
-document.head.appendChild(notificationStyles);
-
-// Global sidebar toggle function - independent of storage system
-function toggleSidebar() {
-    const sidebar = document.getElementById('documentsSidebar');
-    if (sidebar) {
-        sidebar.classList.toggle('collapsed');
-        
-        // Trigger Monaco layout update
-        if (editor) {
-            setTimeout(() => editor.layout(), 300);
-        }
-    }
-}
-
-// Set up sidebar toggle immediately when DOM is ready
-function setupSidebarToggle() {
-    const sidebarToggle = document.getElementById('sidebarToggle');
-    if (sidebarToggle) {
-        sidebarToggle.addEventListener('click', toggleSidebar);
-        console.log('✅ Sidebar toggle event listener set up');
-    } else {
-        console.warn('❌ Sidebar toggle button not found');
-    }
-}
-
-// Initialize storage system with better debugging
-let documentStorage;
-let storageInitialized = false;
-
-function initializeStorage() {
-    if (storageInitialized) {
-        console.log('⏩ Storage already initialized as:', documentStorage?.constructor.name);
-        return;
-    }
-    
-    console.log('=== Starting Storage Initialization ===');
-    console.log('supabaseLoaded flag:', window.supabaseLoaded);
-    console.log('window.supabase:', typeof window.supabase);
-    console.log('window.createClient:', typeof window.createClient);
-    
-    try {
-        // Check if Supabase is available and properly loaded
-        if (window.supabaseLoaded && window.supabase && typeof window.supabase.createClient === 'function') {
-            console.log('✅ Supabase is available, initializing SupabaseDocumentStorage...');
-            documentStorage = new SupabaseDocumentStorage();
-        } else {
-            console.log('⚠️ Supabase not available, falling back to localStorage...');
-            console.log('Supabase check details:');
-            console.log('- supabaseLoaded:', window.supabaseLoaded);
-            console.log('- supabase exists:', !!window.supabase);
-            console.log('- createClient function:', typeof window.supabase?.createClient);
-            documentStorage = new DocumentStorage();
-        }
-        storageInitialized = true;
-        console.log('✅ Storage initialized successfully as:', documentStorage.constructor.name);
-    } catch (error) {
-        console.error('❌ Failed to initialize Supabase storage:', error);
-        console.log('🔄 Falling back to localStorage...');
-        documentStorage = new DocumentStorage();
-        storageInitialized = true;
-    }
-}
-
-// Listen for Supabase events
-window.addEventListener('supabaseReady', () => {
-    console.log('🎉 Supabase ready event received, re-initializing storage...');
-    // If we're currently in demo mode, try to switch to Supabase
-    if (documentStorage && documentStorage.demoMode) {
-        console.log('🔄 Attempting to switch from demo mode to Supabase...');
-        storageInitialized = false;
-        initializeStorage();
-    }
-});
-
-window.addEventListener('supabaseFailed', () => {
-    console.log('⚠️ Supabase failed event received, using demo mode...');
-    if (!storageInitialized) {
-        initializeStorage();
-    }
-});
-
-// Initialize when DOM is ready - but wait for Supabase decision
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-        // Set up sidebar toggle immediately
-        setupSidebarToggle();
-        
-        // Wait longer for Supabase to potentially load and expose globals
-        setTimeout(() => {
-            if (!storageInitialized) {
-                console.log('⏰ Initial storage check after 2 seconds...');
-                initializeStorage();
-            }
-        }, 2000);
-        
-        // Final fallback timer
-        setTimeout(() => {
-            if (!storageInitialized) {
-                console.log('⏰ Final fallback initialization after 6 seconds...');
-                initializeStorage();
-            }
-        }, 6000);
-    });
-} else {
-    // Set up sidebar toggle immediately
-    setupSidebarToggle();
-    
-    // Wait longer for Supabase to potentially load and expose globals
-    setTimeout(() => {
-        if (!storageInitialized) {
-            console.log('⏰ Initial storage check after 2 seconds...');
-            initializeStorage();
-        }
-    }, 2000);
-    
-    // Final fallback timer
-    setTimeout(() => {
-        if (!storageInitialized) {
-            console.log('⏰ Final fallback initialization after 6 seconds...');
-            initializeStorage();
-        }
-    }, 6000);
-}
-
-// Quick function to update your name for existing account
-function updateMyName() {
-    if (documentStorage && documentStorage.currentUser) {
-        documentStorage.updateUserProfile('Nick');
-    } else {
-        alert('Please sign in first');
-    }
-}
-
-// Authentication Functions
-function toggleAuth() {
-    if (documentStorage.demoMode) {
-        documentStorage.showAuthModal();
-    } else if (documentStorage.currentUser) {
-        documentStorage.signOut();
-    } else {
-        documentStorage.showAuthModal();
-    }
-}
-
-// User menu functions
-function toggleUserMenu() {
-    const userMenu = document.getElementById('userMenu');
-    userMenu.classList.toggle('show');
-}
-
-// Close user menu when clicking outside
-document.addEventListener('click', (e) => {
-    const userMenu = document.getElementById('userMenu');
-    const userMenuBtn = document.querySelector('.user-menu-btn');
-    const userProfile = document.getElementById('userProfile');
-    
-    if (userMenu && userMenu.classList.contains('show')) {
-        if (!userProfile.contains(e.target)) {
-            userMenu.classList.remove('show');
-        }
-    }
-});
-
-function closeAuthModal() {
-    document.getElementById('authModal').classList.remove('show');
-}
-
-function switchAuthTab(tab) {
-    const tabs = document.querySelectorAll('.auth-tab');
-    const title = document.getElementById('authModalTitle');
-    const submitBtn = document.getElementById('authSubmitBtn');
-    const nameGroup = document.getElementById('nameGroup');
-    const nameInput = document.getElementById('authName');
-    
-    tabs.forEach(t => t.classList.remove('active'));
-    document.querySelector(`[onclick="switchAuthTab('${tab}')"]`).classList.add('active');
-    
-    if (tab === 'signin') {
-        title.textContent = 'Sign In to Save Your Work';
-        submitBtn.textContent = 'Sign In';
-        nameGroup.style.display = 'none';
-        nameInput.required = false;
-    } else {
-        title.textContent = 'Create Your Account';
-        submitBtn.textContent = 'Sign Up';
-        nameGroup.style.display = 'block';
-        nameInput.required = true;
-    }
-}
-
-async function handleAuth(event) {
-    event.preventDefault();
-    
-    const email = document.getElementById('authEmail').value;
-    const password = document.getElementById('authPassword').value;
-    const name = document.getElementById('authName').value;
-    const isSignUp = document.getElementById('authSubmitBtn').textContent === 'Sign Up';
-    const submitBtn = document.getElementById('authSubmitBtn');
-    
-    // Disable button during request
-    submitBtn.disabled = true;
-    submitBtn.textContent = isSignUp ? 'Creating Account...' : 'Signing In...';
-    
-    try {
-        let result;
-        if (isSignUp) {
-            result = await documentStorage.signUp(email, password, name);
-        } else {
-            result = await documentStorage.signIn(email, password);
-        }
-        
-        if (result && result.error) {
-            alert(result.error.message);
-        } else {
-            // Success!
-            closeAuthModal();
-            // Clear form
-            document.getElementById('authForm').reset();
-            
-            // For sign-up, show a different message since they need to confirm email
-            if (isSignUp) {
-                alert('Account created! Please check your email to confirm your account before signing in.');
-            } else {
-                // For sign-in, give a moment for the auth state to update
-                setTimeout(() => {
-                    if (documentStorage.updateAuthUI) {
-                        documentStorage.updateAuthUI();
-                    }
-                }, 100);
-            }
-        }
-    } catch (error) {
-        alert('Authentication failed: ' + error.message);
-    } finally {
-        // Re-enable button
-        submitBtn.disabled = false;
-        submitBtn.textContent = isSignUp ? 'Sign Up' : 'Sign In';
-    }
-}
-
-function useDemoMode() {
-    closeAuthModal();
-    // Only show notification when user explicitly chooses demo mode
-    documentStorage.useDemoMode(true);
-} 
