@@ -175,6 +175,31 @@ Consider setting up automated backups in Supabase for production use.
 - Add more indexes if you have many documents
 - Consider implementing pagination for large document collections
 
+## Common Issues & Solutions
+
+### "Users aren't remembered after signup"
+
+**Issue**: When someone signs up, they see a "Check your email" message but then aren't automatically signed in.
+
+**Root Cause**: Supabase requires email confirmation by default. Users must click the confirmation link in their email before they can sign in.
+
+**What the app now does**:
+1. Shows clear messaging about email confirmation
+2. Provides a "Resend Confirmation Email" option if needed
+3. Automatically recognizes when users return after email confirmation
+4. Guides users through the process with helpful notifications
+
+**To disable email confirmation** (not recommended for production):
+1. Go to Authentication → Settings in your Supabase dashboard
+2. Find "Confirm Email" under Email Provider settings
+3. Toggle it off
+
+**Best practices**:
+- Keep email confirmation enabled for security
+- Configure a reliable SMTP provider for email delivery
+- Set up proper redirect URLs for email confirmation
+- Consider adding email domain validation for common typos
+
 ## Support
 
 If you encounter issues:

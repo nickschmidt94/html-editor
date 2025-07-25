@@ -2073,17 +2073,41 @@ function switchAuthTab(tab) {
     const signUpTab = document.querySelector('.auth-tab:last-child');
     const nameGroup = document.getElementById('nameGroup');
     const submitBtn = document.getElementById('authSubmitBtn');
+    const resendSection = document.getElementById('resendConfirmationSection');
     
     if (tab === 'signin') {
         signInTab.classList.add('active');
         signUpTab.classList.remove('active');
         nameGroup.style.display = 'none';
         submitBtn.textContent = 'Sign In';
+        
+        // Show resend section if there's a pending email
+        const pendingEmail = localStorage.getItem('pendingSignupEmail');
+        if (pendingEmail) {
+            resendSection.style.display = 'block';
+        } else {
+            resendSection.style.display = 'none';
+        }
     } else {
         signInTab.classList.remove('active');
         signUpTab.classList.add('active');
         nameGroup.style.display = 'block';
         submitBtn.textContent = 'Sign Up';
+        resendSection.style.display = 'none';
+    }
+}
+
+function resendConfirmationEmail() {
+    const storage = window.documentStorage;
+    const email = document.getElementById('authEmail').value || localStorage.getItem('pendingSignupEmail');
+    
+    if (!email) {
+        alert('Please enter your email address first.');
+        return;
+    }
+    
+    if (storage && storage.resendConfirmation) {
+        storage.resendConfirmation(email);
     }
 }
 
@@ -2485,14 +2509,23 @@ class DocumentStorage {
         });
     }
 
-    showNotification(message, type = 'info') {
+    showNotification(message, type = 'info', duration = 3000) {
         // Create notification element
         const notification = document.createElement('div');
+        
+        // Define colors based on type
+        const colors = {
+            success: '#10b981',
+            error: '#ef4444',
+            warning: '#f59e0b',
+            info: '#6366f1'
+        };
+        
         notification.style.cssText = `
             position: fixed;
             top: 20px;
             right: 20px;
-            background: ${type === 'success' ? '#10b981' : '#6366f1'};
+            background: ${colors[type] || colors.info};
             color: white;
             padding: 12px 20px;
             border-radius: 8px;
@@ -2501,6 +2534,8 @@ class DocumentStorage {
             z-index: 2000;
             animation: slideInRight 0.3s ease;
             box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            max-width: 350px;
+            word-wrap: break-word;
         `;
         notification.textContent = message;
 
@@ -2514,7 +2549,7 @@ class DocumentStorage {
                     notification.parentNode.removeChild(notification);
                 }
             }, 300);
-        }, 3000);
+        }, duration);
     }
 }
 
@@ -2687,6 +2722,19 @@ class SupabaseDocumentStorage {
                 if (event === 'SIGNED_IN' && this.currentUser) {
                     this.demoMode = false;
                     console.log('✅ User signed in, disabled demo mode');
+                    
+                    // Clear any pending signup info since user is now confirmed and signed in
+                    localStorage.removeItem('pendingSignupEmail');
+                    
+                    // Check if this was from email confirmation
+                    const isFromEmailConfirmation = window.location.hash.includes('access_token') || window.location.hash.includes('type=signup');
+                    if (isFromEmailConfirmation) {
+                        this.showNotification('Email confirmed successfully! Welcome to your account.', 'success');
+                        // Clean up URL if needed
+                        if (window.location.hash) {
+                            window.history.replaceState(null, null, window.location.pathname);
+                        }
+                    }
                 }
                 
                 this.updateAuthUI();
@@ -2730,6 +2778,9 @@ class SupabaseDocumentStorage {
     }
 
     setupEventListeners() {
+        // Handle email confirmation links
+        this.handleEmailConfirmation();
+        
         // The save functionality is now handled through the dropdown menu
         // via handleSaveDropdownAction() function
         
@@ -2821,11 +2872,43 @@ class SupabaseDocumentStorage {
             
             if (error) throw error;
             
-            this.showNotification('Check your email to confirm your account!', 'success');
-            // Note: For sign-up, user won't be signed in until email is confirmed
+            // Check if email confirmation is required
+            if (data.user && !data.session) {
+                // Email confirmation required
+                this.showNotification('Please check your email and click the confirmation link to complete your account setup!', 'success', 8000);
+                
+                // Store pending user info for better UX
+                localStorage.setItem('pendingSignupEmail', email);
+                
+                // Show additional guidance
+                setTimeout(() => {
+                    this.showNotification('Once you confirm your email, you can sign in normally. Confirmation emails may take a few minutes to arrive.', 'info', 6000);
+                }, 2000);
+                
+            } else if (data.session) {
+                // User was signed in immediately (email confirmation disabled)
+                this.currentUser = data.user;
+                this.demoMode = false;
+                this.updateAuthUI();
+                this.showNotification('Account created and signed in successfully!', 'success');
+                this.loadUserData();
+            }
+            
             return { data, error: null };
         } catch (error) {
             console.error('Sign up error:', error);
+            
+            // Provide more helpful error messages
+            let errorMessage = 'Sign up failed. Please try again.';
+            if (error.message.includes('already registered')) {
+                errorMessage = 'This email is already registered. Try signing in instead.';
+            } else if (error.message.includes('Invalid email')) {
+                errorMessage = 'Please enter a valid email address.';
+            } else if (error.message.includes('Password')) {
+                errorMessage = 'Password must be at least 6 characters long.';
+            }
+            
+            this.showNotification(errorMessage, 'error');
             return { data: null, error };
         }
     }
@@ -2850,12 +2933,38 @@ class SupabaseDocumentStorage {
             this.demoMode = false;
             console.log('✅ Sign in successful, disabled demo mode for user:', data.user.email);
             
+            // Clear any pending signup info
+            localStorage.removeItem('pendingSignupEmail');
+            
             this.updateAuthUI();
             this.showNotification('Successfully signed in!', 'success');
+            await this.loadUserData();
             
             return { data, error: null };
         } catch (error) {
             console.error('❌ Sign in error:', error);
+            
+            // Provide helpful error messages based on the error type
+            let errorMessage = 'Sign in failed. Please check your credentials.';
+            
+            if (error.message.includes('Email not confirmed')) {
+                errorMessage = 'Please check your email and click the confirmation link before signing in.';
+                // Show resend option
+                setTimeout(() => {
+                    this.showNotification('Need a new confirmation email? Try signing up again with the same email.', 'info', 5000);
+                }, 2000);
+            } else if (error.message.includes('Invalid login credentials')) {
+                const pendingEmail = localStorage.getItem('pendingSignupEmail');
+                if (pendingEmail === email) {
+                    errorMessage = 'Please confirm your email first by clicking the link we sent you, then try signing in again.';
+                } else {
+                    errorMessage = 'Invalid email or password. Please check your credentials.';
+                }
+            } else if (error.message.includes('Too many requests')) {
+                errorMessage = 'Too many sign in attempts. Please wait a moment and try again.';
+            }
+            
+            this.showNotification(errorMessage, 'error', 6000);
             return { data: null, error };
         }
     }
@@ -3231,7 +3340,31 @@ class SupabaseDocumentStorage {
 
     showAuthModal() {
         const modal = document.getElementById('authModal');
+        const resendSection = document.getElementById('resendConfirmationSection');
         modal.classList.add('show');
+        
+        // Check if there's a pending signup that needs email confirmation
+        const pendingEmail = localStorage.getItem('pendingSignupEmail');
+        if (pendingEmail) {
+            // Show helpful guidance
+            const emailInput = document.getElementById('authEmail');
+            emailInput.value = pendingEmail;
+            
+            // Switch to sign-in tab by default if they have a pending confirmation
+            switchAuthTab('signin');
+            
+            // Show the resend section
+            resendSection.style.display = 'block';
+            
+            // Show a helpful hint
+            setTimeout(() => {
+                this.showNotification('Please check your email for the confirmation link. If you don\'t see it, check your spam folder or click "Resend Confirmation Email" below.', 'info', 8000);
+            }, 500);
+        } else {
+            // Hide resend section if no pending email
+            resendSection.style.display = 'none';
+        }
+        
         document.getElementById('authEmail').focus();
     }
 
@@ -3416,14 +3549,23 @@ class SupabaseDocumentStorage {
         }
     }
 
-    showNotification(message, type = 'info') {
+    showNotification(message, type = 'info', duration = 3000) {
         // Create notification element
         const notification = document.createElement('div');
+        
+        // Define colors based on type
+        const colors = {
+            success: '#10b981',
+            error: '#ef4444',
+            warning: '#f59e0b',
+            info: '#6366f1'
+        };
+        
         notification.style.cssText = `
             position: fixed;
             top: 20px;
             right: 20px;
-            background: ${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#6366f1'};
+            background: ${colors[type] || colors.info};
             color: white;
             padding: 12px 20px;
             border-radius: 8px;
@@ -3432,6 +3574,8 @@ class SupabaseDocumentStorage {
             z-index: 2000;
             animation: slideInRight 0.3s ease;
             box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            max-width: 350px;
+            word-wrap: break-word;
         `;
         notification.textContent = message;
 
@@ -3445,12 +3589,54 @@ class SupabaseDocumentStorage {
                     notification.parentNode.removeChild(notification);
                 }
             }, 300);
-        }, 3000);
+        }, duration);
     }
 
     async syncOfflineChanges() {
         // TODO: Implement offline sync logic
         console.log('Syncing offline changes...');
+    }
+
+    handleEmailConfirmation() {
+        // Check if the URL contains email confirmation parameters
+        const hash = window.location.hash;
+        if (hash && (hash.includes('type=signup') || hash.includes('access_token'))) {
+            console.log('🔗 Detected email confirmation link, processing...');
+            
+            // Show loading message
+            this.showNotification('Processing email confirmation...', 'info', 2000);
+            
+            // The auth state change handler will pick up the confirmation automatically
+            // and show the success message
+        }
+    }
+
+    async resendConfirmation(email) {
+        if (this.demoMode) return;
+        
+        try {
+            const { error } = await this.supabase.auth.resend({
+                type: 'signup',
+                email: email
+            });
+            
+            if (error) throw error;
+            
+            this.showNotification('Confirmation email sent! Please check your inbox and spam folder.', 'success', 6000);
+            return { error: null };
+        } catch (error) {
+            console.error('Resend confirmation error:', error);
+            
+            let errorMessage = 'Failed to resend confirmation email.';
+            if (error.message.includes('already confirmed')) {
+                errorMessage = 'This email is already confirmed. Try signing in instead.';
+            } else if (error.message.includes('not found')) {
+                errorMessage = 'Email not found. Please sign up first.';
+            }
+            
+            this.showNotification(errorMessage, 'error');
+            return { error };
+        }
     }
 }
 
