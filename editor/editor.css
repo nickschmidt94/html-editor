@@ -1133,6 +1133,145 @@
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
 }
 
+/* Category Input Container */
+.category-input-container {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.category-input-container select {
+    flex: 1;
+}
+
+.btn-new-category {
+    padding: 10px 12px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.02);
+    backdrop-filter: blur(10px);
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 40px;
+    height: 40px;
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-new-category::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.03), transparent);
+    transition: left 0.5s ease;
+}
+
+.btn-new-category:hover::before {
+    left: 100%;
+}
+
+.btn-new-category:hover {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.12);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+.new-category-input {
+    margin-top: 12px;
+    padding: 12px;
+    background: rgba(255, 255, 255, 0.02);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 8px;
+    animation: slideDown 0.3s ease;
+}
+
+.new-category-input input {
+    width: 100%;
+    margin-bottom: 8px;
+}
+
+.new-category-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+}
+
+.btn-mini {
+    padding: 6px 12px;
+    border: none;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-mini::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.03), transparent);
+    transition: left 0.5s ease;
+}
+
+.btn-mini:hover::before {
+    left: 100%;
+}
+
+.btn-mini.primary {
+    background: rgba(255, 255, 255, 0.08);
+    color: white;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.btn-mini.primary:hover {
+    background: rgba(255, 255, 255, 0.12);
+    transform: translateY(-1px);
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
+}
+
+.btn-mini.secondary {
+    background: rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: var(--text-primary);
+}
+
+.btn-mini.secondary:hover {
+    background: rgba(255, 255, 255, 0.06);
+    transform: translateY(-1px);
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+        max-height: 0;
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+        max-height: 100px;
+    }
+}
+
 .editor-pane, .preview-pane {
     flex: 1;
     display: flex;
@@ -1261,152 +1400,379 @@
 /* Line Numbers Margin */
 #editor-container .monaco-editor .margin,
 #editor-container .monaco-editor .margin-view-overlays {
-    background: rgba(0, 0, 0, 0.2) !important;
-    border-right: 1px solid rgba(255, 255, 255, 0.05) !important;
-    backdrop-filter: blur(5px) !important;
-    -webkit-backdrop-filter: blur(5px) !important;
+    background: rgba(0, 0, 0, 0.3) !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
+    backdrop-filter: blur(8px) !important;
+    -webkit-backdrop-filter: blur(8px) !important;
 }
 
 /* Current Line Highlight */
 #editor-container .monaco-editor .current-line,
 #editor-container .monaco-editor .view-overlays .current-line {
-    background: rgba(255, 255, 255, 0.02) !important;
+    background: rgba(255, 255, 255, 0.06) !important;
     border: none !important;
     backdrop-filter: blur(5px) !important;
     -webkit-backdrop-filter: blur(5px) !important;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08) !important;
 }
 
 /* Text Selection */
 #editor-container .monaco-editor .selected-text,
 #editor-container .monaco-editor .view-overlays .selected-text {
-    background: rgba(255, 255, 255, 0.1) !important;
+    background: rgba(96, 165, 250, 0.25) !important;
     backdrop-filter: blur(3px) !important;
     -webkit-backdrop-filter: blur(3px) !important;
+    border-radius: 2px !important;
+    box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.3) !important;
 }
 
 /* Cursor */
 #editor-container .monaco-editor .cursor,
 #editor-container .monaco-editor .view-cursors .cursor {
-    color: rgba(255, 255, 255, 0.9) !important;
-    background: rgba(255, 255, 255, 0.9) !important;
+    color: #ffffff !important;
+    background: #ffffff !important;
+    box-shadow: 0 0 2px rgba(255, 255, 255, 0.8) !important;
+    width: 2px !important;
 }
 
 /* Line Numbers */
 #editor-container .monaco-editor .line-numbers {
-    color: rgba(255, 255, 255, 0.3) !important;
+    color: rgba(255, 255, 255, 0.5) !important;
+    font-weight: 400 !important;
 }
 
 /* Scrollbars */
 #editor-container .monaco-editor .decorationsOverviewRuler,
 #editor-container .monaco-editor .scroll-decoration {
-    background: rgba(255, 255, 255, 0.03) !important;
+    background: rgba(255, 255, 255, 0.05) !important;
 }
 
 #editor-container .monaco-scrollable-element > .scrollbar {
-    background: rgba(0, 0, 0, 0.1) !important;
+    background: rgba(0, 0, 0, 0.2) !important;
     backdrop-filter: blur(5px) !important;
     -webkit-backdrop-filter: blur(5px) !important;
 }
 
 #editor-container .monaco-scrollable-element > .scrollbar > .slider {
-    background: rgba(255, 255, 255, 0.1) !important;
-    border-radius: 3px !important;
+    background: rgba(255, 255, 255, 0.15) !important;
+    border-radius: 4px !important;
     backdrop-filter: blur(5px) !important;
     -webkit-backdrop-filter: blur(5px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
 }
 
 #editor-container .monaco-scrollable-element > .scrollbar > .slider:hover {
-    background: rgba(255, 255, 255, 0.15) !important;
+    background: rgba(255, 255, 255, 0.25) !important;
+    border-color: rgba(255, 255, 255, 0.2) !important;
 }
 
 #editor-container .monaco-scrollable-element > .scrollbar > .slider:active {
-    background: rgba(255, 255, 255, 0.2) !important;
+    background: rgba(255, 255, 255, 0.35) !important;
+    border-color: rgba(255, 255, 255, 0.3) !important;
 }
 
 /* Minimap */
 #editor-container .monaco-editor .minimap,
 #editor-container .monaco-editor .minimap-slider {
-    background: rgba(0, 0, 0, 0.3) !important;
-    backdrop-filter: blur(10px) !important;
-    -webkit-backdrop-filter: blur(10px) !important;
+    background: rgba(0, 0, 0, 0.4) !important;
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.05) !important;
 }
 
 /* Minimap Decorations Layer - Fix white background */
 #editor-container .monaco-editor .minimap .minimap-decorations-layer,
 #editor-container .monaco-editor .minimap-decorations-layer {
-    background: rgba(0, 0, 0, 0.4) !important;
-    backdrop-filter: blur(10px) !important;
-    -webkit-backdrop-filter: blur(10px) !important;
+    background: rgba(0, 0, 0, 0.5) !important;
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
 }
 
 /* Minimap Canvas Background */
 #editor-container .monaco-editor .minimap canvas {
-    background: rgba(0, 0, 0, 0.2) !important;
-    backdrop-filter: blur(8px) !important;
-    -webkit-backdrop-filter: blur(8px) !important;
-    opacity: 0.8 !important;
+    background: rgba(0, 0, 0, 0.3) !important;
+    backdrop-filter: blur(10px) !important;
+    -webkit-backdrop-filter: blur(10px) !important;
+    opacity: 0.9 !important;
 }
 
 /* Minimap Slider (viewport indicator) */
 #editor-container .monaco-editor .minimap-slider .minimap-slider-horizontal {
-    background: rgba(255, 255, 255, 0.1) !important;
-    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    background: rgba(96, 165, 250, 0.2) !important;
+    border: 1px solid rgba(96, 165, 250, 0.4) !important;
     backdrop-filter: blur(5px) !important;
     -webkit-backdrop-filter: blur(5px) !important;
+    border-radius: 2px !important;
 }
 
 /* Suggestions/Autocomplete */
 #editor-container .monaco-editor .suggest-widget {
-    background: rgba(0, 0, 0, 0.8) !important;
-    backdrop-filter: blur(20px) !important;
-    -webkit-backdrop-filter: blur(20px) !important;
-    border: 1px solid rgba(255, 255, 255, 0.1) !important;
-    border-radius: 8px !important;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6) !important;
+    background: rgba(0, 0, 0, 0.9) !important;
+    backdrop-filter: blur(25px) !important;
+    -webkit-backdrop-filter: blur(25px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    border-radius: 10px !important;
+    box-shadow: 
+        0 12px 40px rgba(0, 0, 0, 0.8),
+        inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
 }
 
 /* Context Menu */
 #editor-container .monaco-editor .context-view .monaco-menu {
-    background: rgba(0, 0, 0, 0.8) !important;
-    backdrop-filter: blur(20px) !important;
-    -webkit-backdrop-filter: blur(20px) !important;
-    border: 1px solid rgba(255, 255, 255, 0.1) !important;
-    border-radius: 8px !important;
+    background: rgba(0, 0, 0, 0.9) !important;
+    backdrop-filter: blur(25px) !important;
+    -webkit-backdrop-filter: blur(25px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    border-radius: 10px !important;
+    box-shadow: 
+        0 12px 40px rgba(0, 0, 0, 0.8),
+        inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
 }
 
 /* Find Widget */
 #editor-container .monaco-editor .find-widget {
-    background: rgba(0, 0, 0, 0.8) !important;
-    backdrop-filter: blur(20px) !important;
-    -webkit-backdrop-filter: blur(20px) !important;
-    border: 1px solid rgba(255, 255, 255, 0.1) !important;
-    border-radius: 8px !important;
+    background: rgba(0, 0, 0, 0.9) !important;
+    backdrop-filter: blur(25px) !important;
+    -webkit-backdrop-filter: blur(25px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    border-radius: 10px !important;
+    box-shadow: 
+        0 8px 30px rgba(0, 0, 0, 0.8),
+        inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
 }
 
 /* Text Color - Make sure text is visible */
 #editor-container .monaco-editor .view-line span {
-    color: #e4e4e7 !important;
+    color: #f1f5f9 !important;
 }
 
-/* Specific token colors for better visibility */
+/* Enhanced Syntax Highlighting Colors for Better Visibility */
 #editor-container .monaco-editor .token.tag {
-    color: #60a5fa !important;
+    color: #7dd3fc !important;
+    font-weight: 500 !important;
 }
 
 #editor-container .monaco-editor .token.attribute.name {
-    color: #fbbf24 !important;
+    color: #fcd34d !important;
+    font-weight: 400 !important;
 }
 
-#editor-container .monaco-editor .token.attribute.value {
-    color: #34d399 !important;
-}
-
+#editor-container .monaco-editor .token.attribute.value,
 #editor-container .monaco-editor .token.string {
-    color: #34d399 !important;
+    color: #6ee7b7 !important;
 }
 
 #editor-container .monaco-editor .token.comment {
-    color: rgba(255, 255, 255, 0.4) !important;
+    color: rgba(255, 255, 255, 0.5) !important;
+    font-style: italic !important;
+}
+
+#editor-container .monaco-editor .token.keyword {
+    color: #f472b6 !important;
+    font-weight: 500 !important;
+}
+
+#editor-container .monaco-editor .token.number {
+    color: #fb7185 !important;
+}
+
+#editor-container .monaco-editor .token.punctuation {
+    color: #cbd5e1 !important;
+}
+
+/* Word Highlighting (when selecting all occurrences) */
+#editor-container .monaco-editor .wordHighlight {
+    background: rgba(96, 165, 250, 0.15) !important;
+    border: 1px solid rgba(96, 165, 250, 0.3) !important;
+    border-radius: 2px !important;
+}
+
+#editor-container .monaco-editor .wordHighlightStrong {
+    background: rgba(96, 165, 250, 0.25) !important;
+    border: 1px solid rgba(96, 165, 250, 0.4) !important;
+    border-radius: 2px !important;
+}
+
+/* Find Match Highlighting */
+#editor-container .monaco-editor .findMatch {
+    background: rgba(251, 191, 36, 0.3) !important;
+    border: 1px solid rgba(251, 191, 36, 0.5) !important;
+    border-radius: 2px !important;
+}
+
+#editor-container .monaco-editor .currentFindMatch {
+    background: rgba(251, 191, 36, 0.4) !important;
+    border: 2px solid rgba(251, 191, 36, 0.7) !important;
+    border-radius: 2px !important;
+}
+
+/* Bracket Matching */
+#editor-container .monaco-editor .bracket-match {
+    background: rgba(255, 255, 255, 0.1) !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+}
+
+/* Error and Warning Squiggles */
+#editor-container .monaco-editor .squiggly-error {
+    border-bottom: 2px wavy #ff6b6b !important;
+}
+
+#editor-container .monaco-editor .squiggly-warning {
+    border-bottom: 2px wavy #fbbf24 !important;
+}
+
+#editor-container .monaco-editor .squiggly-info {
+    border-bottom: 2px wavy #60a5fa !important;
+}
+
+/* HTML Validation Styles */
+#editor-container .monaco-editor .validation-error {
+    background: rgba(239, 68, 68, 0.15) !important;
+    border: 1px solid rgba(239, 68, 68, 0.3) !important;
+    border-radius: 2px !important;
+}
+
+#editor-container .monaco-editor .validation-warning {
+    background: rgba(251, 191, 36, 0.15) !important;
+    border: 1px solid rgba(251, 191, 36, 0.3) !important;
+    border-radius: 2px !important;
+}
+
+#editor-container .monaco-editor .validation-info {
+    background: rgba(96, 165, 250, 0.1) !important;
+    border: 1px solid rgba(96, 165, 250, 0.2) !important;
+    border-radius: 2px !important;
+}
+
+/* Validation Status Notifications */
+.validation-status {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+    animation: slideInUp 0.3s ease;
+    max-width: 300px;
+}
+
+.validation-status.validation-success {
+    background: rgba(16, 185, 129, 0.15);
+    color: #10d876;
+    border-color: rgba(16, 185, 129, 0.25);
+}
+
+.validation-status.validation-error {
+    background: rgba(239, 68, 68, 0.15);
+    color: #ff6b6b;
+    border-color: rgba(239, 68, 68, 0.25);
+}
+
+.validation-status.validation-warning {
+    background: rgba(251, 191, 36, 0.15);
+    color: #fbbf24;
+    border-color: rgba(251, 191, 36, 0.25);
+}
+
+@keyframes slideInUp {
+    from {
+        transform: translateY(20px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* Enhanced Monaco Editor Validation Markers */
+#editor-container .monaco-editor .margin .glyph-margin-widgets .cgmr {
+    background: transparent !important;
+}
+
+/* Error markers in gutter */
+#editor-container .monaco-editor .glyph-margin-widgets .error,
+#editor-container .monaco-editor .margin-view-overlays .error {
+    background: rgba(239, 68, 68, 0.2) !important;
+}
+
+#editor-container .monaco-editor .glyph-margin-widgets .warning,
+#editor-container .monaco-editor .margin-view-overlays .warning {
+    background: rgba(251, 191, 36, 0.2) !important;
+}
+
+#editor-container .monaco-editor .glyph-margin-widgets .info,
+#editor-container .monaco-editor .margin-view-overlays .info {
+    background: rgba(96, 165, 250, 0.15) !important;
+}
+
+/* Monaco Editor validation decorations */
+.monaco-editor .validation-decoration-error {
+    background: rgba(239, 68, 68, 0.2) !important;
+    border-left: 4px solid #ef4444 !important;
+    margin-left: -4px !important;
+}
+
+.monaco-editor .validation-decoration-warning {
+    background: rgba(251, 191, 36, 0.15) !important;
+    border-left: 4px solid #fbbf24 !important;
+    margin-left: -4px !important;
+}
+
+.monaco-editor .validation-decoration-info {
+    background: rgba(96, 165, 250, 0.1) !important;
+    border-left: 4px solid #60a5fa !important;
+    margin-left: -4px !important;
+}
+
+/* Enhanced hover tooltips for validation */
+.monaco-hover .monaco-hover-content .validation-hover {
+    background: rgba(0, 0, 0, 0.95) !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    border-radius: 6px !important;
+    padding: 8px 12px !important;
+    color: #f1f5f9 !important;
+    font-size: 12px !important;
+    max-width: 400px !important;
+}
+
+/* Validation Toggle Button States */
+.action-btn#validationToggle.save {
+    background: rgba(16, 185, 129, 0.08);
+    border-color: rgba(16, 185, 129, 0.15);
+    color: #10d876;
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.08);
+}
+
+.action-btn#validationToggle.save:hover {
+    background: rgba(16, 185, 129, 0.12);
+    box-shadow: 0 4px 20px rgba(16, 185, 129, 0.15);
+    border-color: rgba(16, 185, 129, 0.25);
+    transform: translateY(-1px);
+}
+
+.action-btn#validationToggle.secondary {
+    background: rgba(107, 114, 128, 0.08);
+    border-color: rgba(107, 114, 128, 0.15);
+    color: var(--text-secondary);
+    box-shadow: 0 2px 8px rgba(107, 114, 128, 0.08);
+}
+
+.action-btn#validationToggle.secondary:hover {
+    background: rgba(107, 114, 128, 0.12);
+    box-shadow: 0 4px 20px rgba(107, 114, 128, 0.15);
+    border-color: rgba(107, 114, 128, 0.25);
+    color: var(--text-primary);
+    transform: translateY(-1px);
 }
 
 #preview {

@@ -414,9 +414,24 @@
                 </div>
                 <div class="form-group">
                     <label for="documentCategory">Category</label>
-                    <select id="documentCategory">
-                        <option value="">Select category...</option>
-                    </select>
+                    <div class="category-input-container">
+                        <select id="documentCategory" onchange="handleCategoryChange()">
+                            <option value="">Select category...</option>
+                        </select>
+                        <button type="button" id="newCategoryInlineBtn" class="btn-new-category" onclick="showInlineNewCategory()" title="Create new category">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <line x1="12" y1="5" x2="12" y2="19" stroke="currentColor" stroke-width="2"/>
+                                <line x1="5" y1="12" x2="19" y2="12" stroke="currentColor" stroke-width="2"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <div id="newCategoryInput" class="new-category-input" style="display: none;">
+                        <input type="text" id="newCategoryName" placeholder="Enter new category name..." />
+                        <div class="new-category-actions">
+                            <button type="button" class="btn-mini secondary" onclick="cancelInlineNewCategory()">Cancel</button>
+                            <button type="button" class="btn-mini primary" onclick="createInlineCategory()">Create</button>
+                        </div>
+                    </div>
                 </div>
                 <div class="form-actions">
                     <button class="btn secondary" onclick="closeSaveModal()">Cancel</button>

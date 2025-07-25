@@ -4,6 +4,375 @@ let isMobile = false;
 let ogOverlayVisible = false;
 let isDragging = false;
 let dragOffset = { x: 0, y: 0 };
+let validationEnabled = true;
+let validationMarkers = [];
+
+// HTML Validation System
+class HTMLValidator {
+    constructor() {
+        this.errorTypes = {
+            UNCLOSED_TAG: 'unclosed-tag',
+            INVALID_NESTING: 'invalid-nesting',
+            MISSING_ATTRIBUTE: 'missing-attribute',
+            INVALID_ATTRIBUTE: 'invalid-attribute',
+            DUPLICATE_ATTRIBUTE: 'duplicate-attribute',
+            SYNTAX_ERROR: 'syntax-error',
+            ACCESSIBILITY: 'accessibility',
+            SEO: 'seo'
+        };
+        
+        this.voidElements = new Set([
+            'area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input',
+            'link', 'meta', 'param', 'source', 'track', 'wbr'
+        ]);
+        
+        this.blockElements = new Set([
+            'div', 'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'section',
+            'article', 'header', 'footer', 'nav', 'main', 'aside', 'ul', 'ol', 'li'
+        ]);
+        
+        this.inlineElements = new Set([
+            'span', 'a', 'strong', 'em', 'b', 'i', 'code', 'small', 'mark'
+        ]);
+    }
+    
+    validate(htmlContent) {
+        const errors = [];
+        const lines = htmlContent.split('\n');
+        
+        // Parse HTML and validate
+        try {
+            errors.push(...this.validateSyntax(htmlContent, lines));
+            errors.push(...this.validateStructure(htmlContent, lines));
+            errors.push(...this.validateAccessibility(htmlContent, lines));
+            errors.push(...this.validateSEO(htmlContent, lines));
+        } catch (error) {
+            console.error('Validation error:', error);
+        }
+        
+        return errors;
+    }
+    
+    validateSyntax(htmlContent, lines) {
+        const errors = [];
+        const tagStack = [];
+        const tagRegex = /<\/?([a-zA-Z][a-zA-Z0-9]*)\b[^>]*>/g;
+        
+        let match;
+        while ((match = tagRegex.exec(htmlContent)) !== null) {
+            const fullMatch = match[0];
+            const tagName = match[1].toLowerCase();
+            const startPos = match.index;
+            const position = this.getLineAndColumn(htmlContent, startPos);
+            
+            // Check for malformed tags
+            if (!fullMatch.endsWith('>')) {
+                errors.push({
+                    type: this.errorTypes.SYNTAX_ERROR,
+                    message: `Malformed tag: missing closing '>'`,
+                    line: position.line,
+                    column: position.column,
+                    endLine: position.line,
+                    endColumn: position.column + fullMatch.length,
+                    severity: 'error'
+                });
+                continue;
+            }
+            
+            const isClosingTag = fullMatch.startsWith('</');
+            const isSelfClosing = fullMatch.endsWith('/>') || this.voidElements.has(tagName);
+            
+            if (isClosingTag) {
+                // Check for matching opening tag
+                const lastOpenTag = tagStack.pop();
+                if (!lastOpenTag) {
+                    errors.push({
+                        type: this.errorTypes.SYNTAX_ERROR,
+                        message: `Unexpected closing tag '</${tagName}>'`,
+                        line: position.line,
+                        column: position.column,
+                        endLine: position.line,
+                        endColumn: position.column + fullMatch.length,
+                        severity: 'error'
+                    });
+                } else if (lastOpenTag.tagName !== tagName) {
+                    errors.push({
+                        type: this.errorTypes.UNCLOSED_TAG,
+                        message: `Mismatched closing tag: expected '</${lastOpenTag.tagName}>' but found '</${tagName}>'`,
+                        line: position.line,
+                        column: position.column,
+                        endLine: position.line,
+                        endColumn: position.column + fullMatch.length,
+                        severity: 'error'
+                    });
+                    // Put the tag back on stack since it wasn't properly closed
+                    tagStack.push(lastOpenTag);
+                }
+            } else if (!isSelfClosing) {
+                // Opening tag - add to stack
+                tagStack.push({
+                    tagName,
+                    line: position.line,
+                    column: position.column,
+                    fullMatch
+                });
+            }
+            
+            // Validate attributes
+            errors.push(...this.validateAttributes(fullMatch, tagName, position));
+        }
+        
+        // Check for unclosed tags
+        tagStack.forEach(tag => {
+            errors.push({
+                type: this.errorTypes.UNCLOSED_TAG,
+                message: `Unclosed tag '<${tag.tagName}>'`,
+                line: tag.line,
+                column: tag.column,
+                endLine: tag.line,
+                endColumn: tag.column + tag.fullMatch.length,
+                severity: 'error'
+            });
+        });
+        
+        return errors;
+    }
+    
+    validateAttributes(tagHtml, tagName, position) {
+        const errors = [];
+        const attributeRegex = /\s+([a-zA-Z-]+)(?:=["']([^"']*)["']|=([^\s>]+)|(?=\s|>))/g;
+        const attributes = new Set();
+        
+        let match;
+        while ((match = attributeRegex.exec(tagHtml)) !== null) {
+            const attrName = match[1].toLowerCase();
+            const attrValue = match[2] || match[3] || '';
+            const attrStart = position.column + match.index;
+            
+            // Check for duplicate attributes
+            if (attributes.has(attrName)) {
+                errors.push({
+                    type: this.errorTypes.DUPLICATE_ATTRIBUTE,
+                    message: `Duplicate attribute '${attrName}'`,
+                    line: position.line,
+                    column: attrStart,
+                    endLine: position.line,
+                    endColumn: attrStart + match[0].length,
+                    severity: 'warning'
+                });
+            }
+            attributes.add(attrName);
+            
+            // Validate specific attributes
+            if (attrName === 'id' && !attrValue) {
+                errors.push({
+                    type: this.errorTypes.INVALID_ATTRIBUTE,
+                    message: `Empty 'id' attribute`,
+                    line: position.line,
+                    column: attrStart,
+                    endLine: position.line,
+                    endColumn: attrStart + match[0].length,
+                    severity: 'warning'
+                });
+            }
+            
+            if (attrName === 'href' && tagName === 'a' && !attrValue) {
+                errors.push({
+                    type: this.errorTypes.INVALID_ATTRIBUTE,
+                    message: `Empty 'href' attribute in link`,
+                    line: position.line,
+                    column: attrStart,
+                    endLine: position.line,
+                    endColumn: attrStart + match[0].length,
+                    severity: 'warning'
+                });
+            }
+            
+            if (attrName === 'src' && ['img', 'script', 'iframe'].includes(tagName) && !attrValue) {
+                errors.push({
+                    type: this.errorTypes.INVALID_ATTRIBUTE,
+                    message: `Empty 'src' attribute in ${tagName}`,
+                    line: position.line,
+                    column: attrStart,
+                    endLine: position.line,
+                    endColumn: attrStart + match[0].length,
+                    severity: 'error'
+                });
+            }
+        }
+        
+        return errors;
+    }
+    
+    validateStructure(htmlContent, lines) {
+        const errors = [];
+        
+        // Check for proper document structure
+        if (!htmlContent.includes('<!DOCTYPE')) {
+            errors.push({
+                type: this.errorTypes.MISSING_ATTRIBUTE,
+                message: `Missing DOCTYPE declaration`,
+                line: 1,
+                column: 1,
+                endLine: 1,
+                endColumn: 1,
+                severity: 'warning'
+            });
+        }
+        
+        if (!htmlContent.includes('<html')) {
+            errors.push({
+                type: this.errorTypes.MISSING_ATTRIBUTE,
+                message: `Missing <html> element`,
+                line: 1,
+                column: 1,
+                endLine: 1,
+                endColumn: 1,
+                severity: 'warning'
+            });
+        }
+        
+        if (!htmlContent.includes('<head>')) {
+            errors.push({
+                type: this.errorTypes.MISSING_ATTRIBUTE,
+                message: `Missing <head> element`,
+                line: 1,
+                column: 1,
+                endLine: 1,
+                endColumn: 1,
+                severity: 'warning'
+            });
+        }
+        
+        if (!htmlContent.includes('<body>')) {
+            errors.push({
+                type: this.errorTypes.MISSING_ATTRIBUTE,
+                message: `Missing <body> element`,
+                line: 1,
+                column: 1,
+                endLine: 1,
+                endColumn: 1,
+                severity: 'warning'
+            });
+        }
+        
+        return errors;
+    }
+    
+    validateAccessibility(htmlContent, lines) {
+        const errors = [];
+        const imgRegex = /<img[^>]*>/g;
+        
+        let match;
+        while ((match = imgRegex.exec(htmlContent)) !== null) {
+            const imgTag = match[0];
+            const position = this.getLineAndColumn(htmlContent, match.index);
+            
+            if (!imgTag.includes('alt=')) {
+                errors.push({
+                    type: this.errorTypes.ACCESSIBILITY,
+                    message: `Image missing 'alt' attribute for accessibility`,
+                    line: position.line,
+                    column: position.column,
+                    endLine: position.line,
+                    endColumn: position.column + imgTag.length,
+                    severity: 'warning'
+                });
+            }
+        }
+        
+        // Check for form inputs without labels
+        const inputRegex = /<input[^>]*>/g;
+        while ((match = inputRegex.exec(htmlContent)) !== null) {
+            const inputTag = match[0];
+            const position = this.getLineAndColumn(htmlContent, match.index);
+            
+            if (!inputTag.includes('aria-label=') && !inputTag.includes('id=')) {
+                errors.push({
+                    type: this.errorTypes.ACCESSIBILITY,
+                    message: `Input element should have 'aria-label' or be associated with a label`,
+                    line: position.line,
+                    column: position.column,
+                    endLine: position.line,
+                    endColumn: position.column + inputTag.length,
+                    severity: 'info'
+                });
+            }
+        }
+        
+        return errors;
+    }
+    
+    validateSEO(htmlContent, lines) {
+        const errors = [];
+        
+        if (!htmlContent.includes('<title>')) {
+            errors.push({
+                type: this.errorTypes.SEO,
+                message: `Missing <title> element - important for SEO`,
+                line: 1,
+                column: 1,
+                endLine: 1,
+                endColumn: 1,
+                severity: 'info'
+            });
+        }
+        
+        if (!htmlContent.includes('name="description"')) {
+            errors.push({
+                type: this.errorTypes.SEO,
+                message: `Missing meta description - important for SEO`,
+                line: 1,
+                column: 1,
+                endLine: 1,
+                endColumn: 1,
+                severity: 'info'
+            });
+        }
+        
+        // Check heading hierarchy
+        const headingRegex = /<h([1-6])[^>]*>/g;
+        const headings = [];
+        
+        let match;
+        while ((match = headingRegex.exec(htmlContent)) !== null) {
+            const level = parseInt(match[1]);
+            const position = this.getLineAndColumn(htmlContent, match.index);
+            headings.push({ level, position });
+        }
+        
+        // Check for proper heading hierarchy
+        for (let i = 1; i < headings.length; i++) {
+            const prev = headings[i - 1];
+            const curr = headings[i];
+            
+            if (curr.level > prev.level + 1) {
+                errors.push({
+                    type: this.errorTypes.SEO,
+                    message: `Heading hierarchy skipped from h${prev.level} to h${curr.level}`,
+                    line: curr.position.line,
+                    column: curr.position.column,
+                    endLine: curr.position.line,
+                    endColumn: curr.position.column + 4,
+                    severity: 'info'
+                });
+            }
+        }
+        
+        return errors;
+    }
+    
+    getLineAndColumn(content, index) {
+        const lines = content.substring(0, index).split('\n');
+        return {
+            line: lines.length,
+            column: lines[lines.length - 1].length + 1
+        };
+    }
+}
+
+// Initialize validation system
+const htmlValidator = new HTMLValidator();
 
 // Initialize Monaco Editor
 require.config({ paths: { vs: 'https://unpkg.com/monaco-editor@0.44.0/min/vs' } });
@@ -118,14 +487,199 @@ require(['vs/editor/editor.main'], function () {
         domReadOnly: false
     });
 
+    // Set up HTML validation
+    setupHTMLValidation();
+
     // Update preview when content changes
     editor.onDidChangeModelContent(() => {
         updatePreview();
+        if (validationEnabled) {
+            validateHTML();
+        }
     });
     
-    // Initial preview
+    // Initial preview and validation
     updatePreview();
+    if (validationEnabled) {
+        validateHTML();
+    }
 });
+
+// HTML Validation Setup
+function setupHTMLValidation() {
+    // Add validation toggle to header controls
+    const headerControls = document.querySelector('.editor-pane .header-controls');
+    if (headerControls) {
+        const validationToggle = document.createElement('button');
+        validationToggle.className = 'action-btn secondary';
+        validationToggle.id = 'validationToggle';
+        validationToggle.title = 'Toggle HTML validation';
+        validationToggle.innerHTML = `
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+            </svg>
+        `;
+        validationToggle.onclick = toggleValidation;
+        
+        // Insert before the clear button
+        const clearBtn = document.getElementById('clearBtn');
+        headerControls.insertBefore(validationToggle, clearBtn);
+    }
+}
+
+function validateHTML() {
+    if (!editor || !validationEnabled) return;
+    
+    const htmlContent = editor.getValue();
+    const errors = htmlValidator.validate(htmlContent);
+    
+    // Clear previous markers
+    if (validationMarkers.length > 0) {
+        editor.deltaDecorations(validationMarkers, []);
+        validationMarkers = [];
+    }
+    
+    // Convert errors to Monaco markers
+    const markers = errors.map(error => ({
+        startLineNumber: error.line,
+        startColumn: error.column,
+        endLineNumber: error.endLine,
+        endColumn: error.endColumn,
+        message: error.message,
+        severity: getMonacoSeverity(error.severity),
+        source: 'html-validator'
+    }));
+    
+    // Set markers in Monaco
+    monaco.editor.setModelMarkers(editor.getModel(), 'html-validator', markers);
+    
+    // Add decorations for better visibility
+    const decorations = errors.map(error => ({
+        range: {
+            startLineNumber: error.line,
+            startColumn: error.column,
+            endLineNumber: error.endLine,
+            endColumn: error.endColumn
+        },
+        options: {
+            className: `validation-${error.severity}`,
+            stickiness: 1,
+            hoverMessage: {
+                value: `**${error.severity.toUpperCase()}**: ${error.message}`
+            }
+        }
+    }));
+    
+    validationMarkers = editor.deltaDecorations([], decorations);
+    
+    // Update validation status in UI
+    updateValidationStatus(errors);
+}
+
+function getMonacoSeverity(severity) {
+    switch (severity) {
+        case 'error': return monaco.MarkerSeverity.Error;
+        case 'warning': return monaco.MarkerSeverity.Warning;
+        case 'info': return monaco.MarkerSeverity.Info;
+        default: return monaco.MarkerSeverity.Hint;
+    }
+}
+
+function toggleValidation() {
+    validationEnabled = !validationEnabled;
+    const toggleBtn = document.getElementById('validationToggle');
+    
+    if (validationEnabled) {
+        toggleBtn.classList.remove('secondary');
+        toggleBtn.classList.add('save');
+        toggleBtn.title = 'HTML validation enabled - Click to disable';
+        validateHTML();
+        showCopyNotification('HTML validation enabled', 'success');
+    } else {
+        toggleBtn.classList.remove('save');
+        toggleBtn.classList.add('secondary');
+        toggleBtn.title = 'HTML validation disabled - Click to enable';
+        
+        // Clear all markers and decorations
+        monaco.editor.setModelMarkers(editor.getModel(), 'html-validator', []);
+        if (validationMarkers.length > 0) {
+            editor.deltaDecorations(validationMarkers, []);
+            validationMarkers = [];
+        }
+        clearValidationStatus();
+        showCopyNotification('HTML validation disabled', 'info');
+    }
+}
+
+function updateValidationStatus(errors) {
+    // Remove existing status
+    const existingStatus = document.querySelector('.validation-status');
+    if (existingStatus) {
+        existingStatus.remove();
+    }
+    
+    if (errors.length === 0) {
+        // Show success indicator
+        const statusEl = document.createElement('div');
+        statusEl.className = 'validation-status validation-success';
+        statusEl.innerHTML = `
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+            </svg>
+            <span>No validation errors</span>
+        `;
+        
+        document.body.appendChild(statusEl);
+        
+        // Auto-hide after 3 seconds
+        setTimeout(() => {
+            if (statusEl.parentNode) {
+                statusEl.remove();
+            }
+        }, 3000);
+    } else {
+        // Show error count
+        const errorCount = errors.filter(e => e.severity === 'error').length;
+        const warningCount = errors.filter(e => e.severity === 'warning').length;
+        const infoCount = errors.filter(e => e.severity === 'info').length;
+        
+        if (errorCount > 0 || warningCount > 0) {
+            const statusEl = document.createElement('div');
+            statusEl.className = `validation-status validation-${errorCount > 0 ? 'error' : 'warning'}`;
+            
+            let message = '';
+            if (errorCount > 0) message += `${errorCount} error${errorCount > 1 ? 's' : ''}`;
+            if (warningCount > 0) {
+                if (message) message += ', ';
+                message += `${warningCount} warning${warningCount > 1 ? 's' : ''}`;
+            }
+            if (infoCount > 0) {
+                if (message) message += ', ';
+                message += `${infoCount} suggestion${infoCount > 1 ? 's' : ''}`;
+            }
+            
+            statusEl.innerHTML = `
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                    <line x1="12" y1="8" x2="12" y2="12" stroke="currentColor" stroke-width="2"/>
+                    <path d="M12 16h.01" stroke="currentColor" stroke-width="2"/>
+                </svg>
+                <span>${message}</span>
+            `;
+            
+            document.body.appendChild(statusEl);
+        }
+    }
+}
+
+function clearValidationStatus() {
+    const existingStatus = document.querySelector('.validation-status');
+    if (existingStatus) {
+        existingStatus.remove();
+    }
+}
 
 function updatePreview() {
     const preview = document.getElementById('preview');
@@ -1130,6 +1684,173 @@ window.addEventListener('resize', () => {
     }
 });
 
+// Modal Helper Functions
+function closeSaveModal() {
+    const modal = document.getElementById('saveModal');
+    modal.classList.remove('show');
+    
+    // Reset the new category input if it's visible
+    cancelInlineNewCategory();
+}
+
+function closeCategoryModal() {
+    const modal = document.getElementById('categoryModal');
+    modal.classList.remove('show');
+}
+
+function closeAuthModal() {
+    const modal = document.getElementById('authModal');
+    modal.classList.remove('show');
+}
+
+function saveDocument() {
+    const nameInput = document.getElementById('documentName');
+    const categorySelect = document.getElementById('documentCategory');
+    const name = nameInput.value.trim();
+    const category = categorySelect.value;
+    
+    if (!name) {
+        nameInput.focus();
+        return;
+    }
+    
+    if (!editor) return;
+    
+    const content = editor.getValue();
+    const storage = window.documentStorage;
+    
+    if (storage) {
+        storage.saveDocument(name, category, content);
+        closeSaveModal();
+    }
+}
+
+function addCategory() {
+    const nameInput = document.getElementById('categoryName');
+    const name = nameInput.value.trim();
+    
+    if (!name) {
+        nameInput.focus();
+        return;
+    }
+    
+    const storage = window.documentStorage;
+    if (storage) {
+        storage.addCategory(name);
+        closeCategoryModal();
+    }
+}
+
+function toggleSidebar() {
+    const sidebar = document.getElementById('documentsSidebar');
+    const button = document.getElementById('sidebarToggle');
+    
+    sidebar.classList.toggle('collapsed');
+    
+    // Update button icon based on state
+    const isCollapsed = sidebar.classList.contains('collapsed');
+    button.innerHTML = isCollapsed 
+        ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 4H21V6H3V4ZM3 11H21V13H3V11ZM3 18H21V20H3V18Z" fill="currentColor"/></svg>'
+        : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M18 6L6 18M6 6L18 18" stroke="currentColor" stroke-width="2"/></svg>';
+    
+    button.title = isCollapsed ? 'Show Saved Documents' : 'Hide Saved Documents';
+}
+
+function toggleUserMenu() {
+    const menu = document.getElementById('userMenu');
+    const isVisible = menu.classList.contains('show');
+    
+    if (isVisible) {
+        menu.classList.remove('show');
+        document.removeEventListener('click', closeUserMenuOnClickOutside);
+    } else {
+        menu.classList.add('show');
+        setTimeout(() => {
+            document.addEventListener('click', closeUserMenuOnClickOutside);
+        }, 0);
+    }
+}
+
+function closeUserMenuOnClickOutside(event) {
+    const menu = document.getElementById('userMenu');
+    const profileContainer = document.getElementById('userProfile');
+    
+    if (!menu.contains(event.target) && !profileContainer.contains(event.target)) {
+        menu.classList.remove('show');
+        document.removeEventListener('click', closeUserMenuOnClickOutside);
+    }
+}
+
+function toggleAuth() {
+    const storage = window.documentStorage;
+    if (storage && storage.currentUser) {
+        // Sign out
+        storage.signOut();
+    } else {
+        // Show auth modal
+        if (storage && storage.showAuthModal) {
+            storage.showAuthModal();
+        }
+    }
+}
+
+function switchAuthTab(tab) {
+    const signInTab = document.querySelector('.auth-tab:first-child');
+    const signUpTab = document.querySelector('.auth-tab:last-child');
+    const nameGroup = document.getElementById('nameGroup');
+    const submitBtn = document.getElementById('authSubmitBtn');
+    
+    if (tab === 'signin') {
+        signInTab.classList.add('active');
+        signUpTab.classList.remove('active');
+        nameGroup.style.display = 'none';
+        submitBtn.textContent = 'Sign In';
+    } else {
+        signInTab.classList.remove('active');
+        signUpTab.classList.add('active');
+        nameGroup.style.display = 'block';
+        submitBtn.textContent = 'Sign Up';
+    }
+}
+
+async function handleAuth(event) {
+    event.preventDefault();
+    
+    const storage = window.documentStorage;
+    if (!storage) return;
+    
+    const isSignUp = document.querySelector('.auth-tab.active').textContent === 'Sign Up';
+    const email = document.getElementById('authEmail').value;
+    const password = document.getElementById('authPassword').value;
+    const name = document.getElementById('authName').value;
+    
+    try {
+        let result;
+        if (isSignUp) {
+            result = await storage.signUp(email, password, name);
+        } else {
+            result = await storage.signIn(email, password);
+        }
+        
+        if (result && !result.error) {
+            closeAuthModal();
+        } else if (result && result.error) {
+            alert(`Error: ${result.error.message}`);
+        }
+    } catch (error) {
+        console.error('Auth error:', error);
+        alert('Authentication failed. Please try again.');
+    }
+}
+
+function useDemoMode() {
+    const storage = window.documentStorage;
+    if (storage && storage.useDemoMode) {
+        storage.useDemoMode(true);
+        closeAuthModal();
+    }
+}
+
 // Initialize storage systems when page loads
 window.addEventListener('DOMContentLoaded', () => {
     // Try to initialize Supabase storage first, falls back to local storage
@@ -1138,6 +1859,12 @@ window.addEventListener('DOMContentLoaded', () => {
     } catch (error) {
         console.warn('Failed to initialize Supabase storage, using local storage:', error);
         window.documentStorage = new DocumentStorage();
+    }
+    
+    // Set up sidebar toggle
+    const sidebarToggle = document.getElementById('sidebarToggle');
+    if (sidebarToggle) {
+        sidebarToggle.addEventListener('click', toggleSidebar);
     }
 }); 
 
@@ -1391,6 +2118,14 @@ class DocumentStorage {
             option.textContent = category;
             select.appendChild(option);
         });
+        
+        // Add "Create new category..." option
+        const createOption = document.createElement('option');
+        createOption.value = '__CREATE_NEW__';
+        createOption.textContent = '+ Create new category...';
+        createOption.style.fontStyle = 'italic';
+        createOption.style.color = '#a855f7';
+        select.appendChild(createOption);
     }
 
     renderSidebar() {
@@ -1506,6 +2241,87 @@ class DocumentStorage {
                 }
             }, 300);
         }, 3000);
+    }
+}
+
+// Global functions for inline category creation
+function handleCategoryChange() {
+    const select = document.getElementById('documentCategory');
+    const newCategoryInput = document.getElementById('newCategoryInput');
+    
+    if (select.value === '__CREATE_NEW__') {
+        showInlineNewCategory();
+        // Reset the select to empty so user can see the new category input
+        select.value = '';
+    } else {
+        // Hide the new category input if it's visible
+        if (newCategoryInput.style.display !== 'none') {
+            cancelInlineNewCategory();
+        }
+    }
+}
+
+function showInlineNewCategory() {
+    const newCategoryInput = document.getElementById('newCategoryInput');
+    const newCategoryName = document.getElementById('newCategoryName');
+    const newCategoryBtn = document.getElementById('newCategoryInlineBtn');
+    
+    newCategoryInput.style.display = 'block';
+    newCategoryBtn.style.display = 'none';
+    newCategoryName.value = '';
+    newCategoryName.focus();
+    
+    // Handle Enter key
+    newCategoryName.onkeypress = function(e) {
+        if (e.key === 'Enter') {
+            createInlineCategory();
+        } else if (e.key === 'Escape') {
+            cancelInlineNewCategory();
+        }
+    };
+}
+
+function cancelInlineNewCategory() {
+    const newCategoryInput = document.getElementById('newCategoryInput');
+    const newCategoryBtn = document.getElementById('newCategoryInlineBtn');
+    const select = document.getElementById('documentCategory');
+    
+    newCategoryInput.style.display = 'none';
+    newCategoryBtn.style.display = 'flex';
+    
+    // Reset select if it was on the create option
+    if (select.value === '__CREATE_NEW__') {
+        select.value = '';
+    }
+}
+
+function createInlineCategory() {
+    const newCategoryName = document.getElementById('newCategoryName');
+    const categoryName = newCategoryName.value.trim();
+    
+    if (!categoryName) {
+        newCategoryName.focus();
+        return;
+    }
+    
+    // Use the appropriate storage system
+    const storage = window.documentStorage;
+    if (storage) {
+        // Add the category
+        storage.addCategory(categoryName);
+        
+        // Refresh the dropdown
+        storage.populateCategorySelect();
+        
+        // Select the new category
+        const select = document.getElementById('documentCategory');
+        select.value = categoryName;
+        
+        // Hide the input and show the button again
+        cancelInlineNewCategory();
+        
+        // Show success message
+        storage.showNotification(`Category "${categoryName}" created!`, 'success');
     }
 }
 
@@ -2190,6 +3006,14 @@ class SupabaseDocumentStorage {
             option.textContent = category;
             select.appendChild(option);
         });
+        
+        // Add "Create new category..." option
+        const createOption = document.createElement('option');
+        createOption.value = '__CREATE_NEW__';
+        createOption.textContent = '+ Create new category...';
+        createOption.style.fontStyle = 'italic';
+        createOption.style.color = '#a855f7';
+        select.appendChild(createOption);
     }
 
     renderSidebar() {
