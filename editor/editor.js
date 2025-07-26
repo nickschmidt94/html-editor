@@ -2015,6 +2015,50 @@ function addCategory() {
     }
 }
 
+function showProfileModal() {
+    const modal = document.getElementById('profileModal');
+    const nameInput = document.getElementById('profileName');
+    const storage = window.documentStorage;
+    
+    // Close user menu first
+    const userMenu = document.getElementById('userMenu');
+    if (userMenu) {
+        userMenu.classList.remove('show');
+    }
+    
+    // Pre-fill the current name if available
+    if (storage && storage.currentUser && storage.currentUser.user_metadata?.full_name) {
+        nameInput.value = storage.currentUser.user_metadata.full_name;
+    }
+    
+    modal.style.display = 'flex';
+    nameInput.focus();
+}
+
+function closeProfileModal() {
+    const modal = document.getElementById('profileModal');
+    const nameInput = document.getElementById('profileName');
+    
+    modal.style.display = 'none';
+    nameInput.value = '';
+}
+
+function updateProfile() {
+    const nameInput = document.getElementById('profileName');
+    const name = nameInput.value.trim();
+    
+    if (!name) {
+        nameInput.focus();
+        return;
+    }
+    
+    const storage = window.documentStorage;
+    if (storage && storage.updateUserProfile) {
+        storage.updateUserProfile(name);
+        closeProfileModal();
+    }
+}
+
 function toggleSidebar() {
     const sidebar = document.getElementById('documentsSidebar');
     const button = document.getElementById('sidebarToggle');
