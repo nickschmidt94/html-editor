@@ -1671,6 +1671,32 @@ function updateOverlaySize() {
     if (overlay) {
         overlay.style.width = overlaySize.width + 'px';
         overlay.style.height = overlaySize.height + 'px';
+        
+        // Ensure overlay stays within bounds after resizing
+        constrainOverlayPosition(overlay);
+    }
+}
+
+function constrainOverlayPosition(overlay) {
+    const previewRect = overlay.parentElement.getBoundingClientRect();
+    const overlayRect = overlay.getBoundingClientRect();
+    
+    // Get current position relative to parent
+    const currentLeft = parseInt(overlay.style.left) || 0;
+    const currentTop = parseInt(overlay.style.top) || 0;
+    
+    // Calculate constrained position
+    const maxLeft = previewRect.width - overlaySize.width;
+    const maxTop = previewRect.height - overlaySize.height;
+    
+    const newLeft = Math.max(0, Math.min(currentLeft, maxLeft));
+    const newTop = Math.max(0, Math.min(currentTop, maxTop));
+    
+    // Only update if position changed
+    if (newLeft !== currentLeft || newTop !== currentTop) {
+        overlay.style.left = newLeft + 'px';
+        overlay.style.top = newTop + 'px';
+        overlay.style.transform = 'none';
     }
 }
 
@@ -1909,9 +1935,11 @@ function setupDragging(overlay) {
         let newX = e.clientX - previewRect.left - dragOffset.x;
         let newY = e.clientY - previewRect.top - dragOffset.y;
         
-        // Keep within bounds
-        newX = Math.max(0, Math.min(newX, previewRect.width - 1200));
-        newY = Math.max(0, Math.min(newY, previewRect.height - 630));
+        // Keep within bounds using current overlay size
+        const currentWidth = overlaySize.width;
+        const currentHeight = overlaySize.height;
+        newX = Math.max(0, Math.min(newX, previewRect.width - currentWidth));
+        newY = Math.max(0, Math.min(newY, previewRect.height - currentHeight));
         
         overlay.style.left = newX + 'px';
         overlay.style.top = newY + 'px';
