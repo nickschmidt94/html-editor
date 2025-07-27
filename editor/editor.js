@@ -442,6 +442,44 @@ document.addEventListener('DOMContentLoaded', function() {
 // Initialize Monaco Editor
 require.config({ paths: { vs: 'https://unpkg.com/monaco-editor@0.44.0/min/vs' } });
 require(['vs/editor/editor.main'], function () {
+    // Absolutely unhinged preview content collection
+    const previewContent = [
+        // Absolute Degeneracy Mode
+        { title: "we live in a society", text: "where HTML previews go this hard for literally no reason. bottom text. your move, tailwind." },
+        { title: "sir this is a wendy's", text: "and yet here you are, writing code at 3am. the preview respects the grind. goblin mode activated." },
+        
+        // Feral Coding Hours
+        { title: "unalive me.js", text: "jk jk... unless your code doesn't match this preview's energy. then it's on sight. choose violence." },
+        { title: "i'm baby", text: "but this glassmorphism? full grown. mature. aged like fine wine in a digital cellar. chef's kiss." },
+        
+        // Maximum Cope
+        { title: "L + ratio + you fell off", text: "+ your HTML is mid + this preview clears + touch DOM + maidenless behavior + skill issue" },
+        { title: "he's literally just sitting there", text: "menacingly. this preview has done nothing wrong ever in its life. we stan. no choice but to code." },
+        
+        // Delulu Developer Arc
+        { title: "gaslight gatekeep girlcode", text: "this preview isn't real it can't hurt you. the preview: absolutely demolishing with dark mode excellence" },
+        { title: "hear me out...", text: "what if we just... never wrote bad code again? this preview has inspired world peace. nobel prize when?" },
+        
+        // Chronically Online Syndrome
+        { title: "bestie wake up", text: "new preview just dropped and it's giving main character energy. your divs could never relate." },
+        { title: "caught in 4k", text: "writing vanilla CSS in 2025? couldn't be me. but this preview? cinematography. oscar worthy. IMAX quality." },
+        
+        // Unhinged Tech Bro Energy
+        { title: "10x preview", text: "while you were partying, i studied the glassmorphism. this preview just disrupted the entire industry." },
+        { title: "NPC behavior", text: "using default previews. this one hits different. built different. constructed alternatively if you will." },
+        
+        // Brain Smoothening Content
+        { title: "babe it's 4pm", text: "time for your daily existential crisis about whether your code sparks joy. this preview does btw." },
+        { title: "i ain't reading all that", text: "i'm happy for u tho. or sorry that happened. either way this preview absolutely devours." },
+        
+        // Peak Internet Poisoning
+        { title: "weird flex but ok", text: "imagine not having a preview this clean. couldn't be you. unless... haha jk... unless? 😳" },
+        { title: "call that HTML aura", text: "+1000 aura for using this preview. -10000 for inline styles. them's the rules i don't make them." }
+    ];
+    
+    // Pick random content
+    const randomContent = previewContent[Math.floor(Math.random() * previewContent.length)];
+    
     const initialContent = `<!DOCTYPE html>
 <html>
 <head>
@@ -456,36 +494,116 @@ require(['vs/editor/editor.main'], function () {
         
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #0a0a0a;
             color: white;
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
             padding: 20px;
+            overflow: hidden;
+            position: relative;
         }
         
+        /* Animated gradient orbs for background */
+        body::before,
+        body::after {
+            content: '';
+            position: absolute;
+            width: 400px;
+            height: 400px;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.4;
+        }
+        
+        body::before {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            top: -200px;
+            right: -100px;
+            animation: float 20s ease-in-out infinite;
+        }
+        
+        body::after {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            bottom: -200px;
+            left: -100px;
+            animation: float 20s ease-in-out infinite reverse;
+        }
+        
+        /* Glass container */
         .container {
             text-align: center;
             max-width: 600px;
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-radius: 24px;
+            padding: 60px 40px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 
+                0 8px 32px rgba(0, 0, 0, 0.3),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            position: relative;
+            z-index: 1;
+            animation: slideIn 0.8s ease-out;
+        }
+        
+        /* Additional glass layer for depth */
+        .container::before {
+            content: '';
+            position: absolute;
+            inset: -1px;
+            background: linear-gradient(135deg, 
+                rgba(255, 255, 255, 0.1) 0%, 
+                rgba(255, 255, 255, 0.05) 50%,
+                rgba(255, 255, 255, 0) 100%);
+            border-radius: 24px;
+            z-index: -1;
+            opacity: 0.5;
         }
         
         h1 {
-            font-size: 3rem;
+            font-size: 3.5rem;
             font-weight: 700;
-            margin-bottom: 1rem;
-            background: linear-gradient(135deg, #fff 0%, rgba(255,255,255,0.8) 100%);
+            margin-bottom: 1.5rem;
+            background: linear-gradient(135deg, #fff 0%, rgba(255,255,255,0.7) 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
+            letter-spacing: -0.02em;
             animation: fadeInUp 0.8s ease-out;
+            text-shadow: 0 0 40px rgba(255, 255, 255, 0.1);
         }
         
         p {
             font-size: 1.2rem;
-            opacity: 0.9;
-            line-height: 1.6;
+            opacity: 0.8;
+            line-height: 1.8;
             animation: fadeInUp 0.8s ease-out 0.2s both;
+            color: rgba(255, 255, 255, 0.9);
+            font-weight: 300;
+        }
+        
+        /* Subtle glow effect on hover */
+        .container:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+            transition: all 0.3s ease;
+        }
+        
+        /* Floating animation for background orbs */
+        @keyframes float {
+            0%, 100% {
+                transform: translate(0, 0) rotate(0deg);
+            }
+            33% {
+                transform: translate(30px, -30px) rotate(120deg);
+            }
+            66% {
+                transform: translate(-20px, 20px) rotate(240deg);
+            }
         }
         
         @keyframes fadeInUp {
@@ -498,12 +616,44 @@ require(['vs/editor/editor.main'], function () {
                 transform: translateY(0);
             }
         }
+        
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: scale(0.9) translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
+        }
+        
+        /* Responsive adjustments */
+        @media (max-width: 600px) {
+            .container {
+                padding: 40px 30px;
+            }
+            
+            h1 {
+                font-size: 2.5rem;
+            }
+            
+            p {
+                font-size: 1.1rem;
+            }
+            
+            body::before,
+            body::after {
+                width: 300px;
+                height: 300px;
+            }
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Beautiful HTML</h1>
-        <p>Start creating something amazing. Changes appear instantly as you type.</p>
+        <h1>${randomContent.title}</h1>
+        <p>${randomContent.text}</p>
     </div>
 </body>
 </html>`;
