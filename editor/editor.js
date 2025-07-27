@@ -6,8 +6,9 @@ let isDragging = false;
 let dragOffset = { x: 0, y: 0 };
 let validationEnabled = true;
 let validationMarkers = [];
-let previewZoom = 1;
-let zoomContainer = null;
+let isOverlayResizing = false;
+let resizeHandle = null;
+let overlaySize = { width: 1200, height: 630 };
 
 // HTML Validation System
 class HTMLValidator {
@@ -1647,54 +1648,36 @@ function toggleDevice() {
     }
 }
 
-// Zoom functionality
-function zoomPreview(factor) {
-    previewZoom = Math.max(0.25, Math.min(3, previewZoom * factor));
-    applyPreviewZoom();
-    updateZoomDisplay();
-}
-
-function resetPreviewZoom() {
-    previewZoom = 1;
-    applyPreviewZoom();
-    updateZoomDisplay();
-}
-
-function applyPreviewZoom() {
-    const preview = document.getElementById('preview');
-    if (!preview) return;
+// Resize functionality for screenshot overlay
+function resizeOverlay(newWidth) {
+    // Maintain aspect ratio (1200:630 = 1.904:1)
+    const aspectRatio = 1200 / 630;
+    overlaySize.width = Math.max(300, Math.min(2400, newWidth));
+    overlaySize.height = overlaySize.width / aspectRatio;
     
-    if (!zoomContainer) {
-        // Create zoom container if it doesn't exist
-        zoomContainer = document.createElement('div');
-        zoomContainer.style.cssText = `
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            transform-origin: top left;
-        `;
-        
-        // Wrap the iframe
-        const parent = preview.parentNode;
-        parent.insertBefore(zoomContainer, preview);
-        zoomContainer.appendChild(preview);
+    updateOverlaySize();
+    updateSizeDisplay();
+}
+
+function resetOverlaySize() {
+    overlaySize.width = 1200;
+    overlaySize.height = 630;
+    updateOverlaySize();
+    updateSizeDisplay();
+}
+
+function updateOverlaySize() {
+    const overlay = document.getElementById('og-overlay');
+    if (overlay) {
+        overlay.style.width = overlaySize.width + 'px';
+        overlay.style.height = overlaySize.height + 'px';
     }
-    
-    // Apply zoom transform
-    preview.style.transform = `scale(${previewZoom})`;
-    preview.style.transformOrigin = 'top left';
-    
-    // Adjust container to accommodate zoom
-    const containerWidth = 100 / previewZoom;
-    const containerHeight = 100 / previewZoom;
-    preview.style.width = `${containerWidth}%`;
-    preview.style.height = `${containerHeight}%`;
 }
 
-function updateZoomDisplay() {
-    const zoomDisplay = document.getElementById('zoom-display');
-    if (zoomDisplay) {
-        zoomDisplay.textContent = `${Math.round(previewZoom * 100)}%`;
+function updateSizeDisplay() {
+    const sizeDisplay = document.getElementById('size-display');
+    if (sizeDisplay) {
+        sizeDisplay.textContent = `${overlaySize.width}×${overlaySize.height}px`;
     }
 }
 
@@ -1730,7 +1713,7 @@ function exportOpenGraphImage() {
                 0 0 20px rgba(34, 197, 94, 0.2);
         `;
         
-        // Add label with zoom controls
+        // Add label with resize controls
         const labelContainer = document.createElement('div');
         labelContainer.style.cssText = `
             position: absolute;
@@ -1752,11 +1735,11 @@ function exportOpenGraphImage() {
             white-space: nowrap;
             cursor: move;
         `;
-        label.textContent = '1200×630px - Drag to position';
+        label.textContent = 'Drag to position • Drag corner to resize';
         
-        // Zoom controls
-        const zoomControls = document.createElement('div');
-        zoomControls.style.cssText = `
+        // Size controls
+        const sizeControls = document.createElement('div');
+        sizeControls.style.cssText = `
             display: flex;
             gap: 4px;
             align-items: center;
@@ -1765,9 +1748,9 @@ function exportOpenGraphImage() {
             padding: 4px;
         `;
         
-        // Zoom out button
-        const zoomOutBtn = document.createElement('button');
-        zoomOutBtn.style.cssText = `
+        // Smaller button
+        const smallerBtn = document.createElement('button');
+        smallerBtn.style.cssText = `
             background: rgba(255, 255, 255, 0.1);
             border: none;
             color: white;
@@ -1781,27 +1764,27 @@ function exportOpenGraphImage() {
             font-size: 14px;
             transition: all 0.2s ease;
         `;
-        zoomOutBtn.innerHTML = '−';
-        zoomOutBtn.title = 'Zoom out (Ctrl + -)';
-        zoomOutBtn.onclick = (e) => { e.stopPropagation(); zoomPreview(0.8); };
-        zoomOutBtn.onmouseover = () => zoomOutBtn.style.background = 'rgba(255, 255, 255, 0.2)';
-        zoomOutBtn.onmouseout = () => zoomOutBtn.style.background = 'rgba(255, 255, 255, 0.1)';
+        smallerBtn.innerHTML = '−';
+        smallerBtn.title = 'Make smaller';
+        smallerBtn.onclick = (e) => { e.stopPropagation(); resizeOverlay(overlaySize.width * 0.8); };
+        smallerBtn.onmouseover = () => smallerBtn.style.background = 'rgba(255, 255, 255, 0.2)';
+        smallerBtn.onmouseout = () => smallerBtn.style.background = 'rgba(255, 255, 255, 0.1)';
         
-        // Zoom display
-        const zoomDisplay = document.createElement('div');
-        zoomDisplay.id = 'zoom-display';
-        zoomDisplay.style.cssText = `
+        // Size display
+        const sizeDisplay = document.createElement('div');
+        sizeDisplay.id = 'size-display';
+        sizeDisplay.style.cssText = `
             color: white;
             font-size: 11px;
-            min-width: 35px;
+            min-width: 80px;
             text-align: center;
             font-weight: 600;
         `;
-        zoomDisplay.textContent = `${Math.round(previewZoom * 100)}%`;
+        sizeDisplay.textContent = `${overlaySize.width}×${overlaySize.height}px`;
         
-        // Zoom in button
-        const zoomInBtn = document.createElement('button');
-        zoomInBtn.style.cssText = `
+        // Larger button
+        const largerBtn = document.createElement('button');
+        largerBtn.style.cssText = `
             background: rgba(255, 255, 255, 0.1);
             border: none;
             color: white;
@@ -1815,13 +1798,13 @@ function exportOpenGraphImage() {
             font-size: 14px;
             transition: all 0.2s ease;
         `;
-        zoomInBtn.innerHTML = '+';
-        zoomInBtn.title = 'Zoom in (Ctrl + +)';
-        zoomInBtn.onclick = (e) => { e.stopPropagation(); zoomPreview(1.25); };
-        zoomInBtn.onmouseover = () => zoomInBtn.style.background = 'rgba(255, 255, 255, 0.2)';
-        zoomInBtn.onmouseout = () => zoomInBtn.style.background = 'rgba(255, 255, 255, 0.1)';
+        largerBtn.innerHTML = '+';
+        largerBtn.title = 'Make larger';
+        largerBtn.onclick = (e) => { e.stopPropagation(); resizeOverlay(overlaySize.width * 1.25); };
+        largerBtn.onmouseover = () => largerBtn.style.background = 'rgba(255, 255, 255, 0.2)';
+        largerBtn.onmouseout = () => largerBtn.style.background = 'rgba(255, 255, 255, 0.1)';
         
-        // Reset zoom button
+        // Reset size button
         const resetBtn = document.createElement('button');
         resetBtn.style.cssText = `
             background: rgba(255, 255, 255, 0.1);
@@ -1838,19 +1821,40 @@ function exportOpenGraphImage() {
             transition: all 0.2s ease;
         `;
         resetBtn.innerHTML = '⌂';
-        resetBtn.title = 'Reset zoom (Ctrl + 0)';
-        resetBtn.onclick = (e) => { e.stopPropagation(); resetPreviewZoom(); };
+        resetBtn.title = 'Reset to 1200×630px';
+        resetBtn.onclick = (e) => { e.stopPropagation(); resetOverlaySize(); };
         resetBtn.onmouseover = () => resetBtn.style.background = 'rgba(255, 255, 255, 0.2)';
         resetBtn.onmouseout = () => resetBtn.style.background = 'rgba(255, 255, 255, 0.1)';
         
-        zoomControls.appendChild(zoomOutBtn);
-        zoomControls.appendChild(zoomDisplay);
-        zoomControls.appendChild(zoomInBtn);
-        zoomControls.appendChild(resetBtn);
+        sizeControls.appendChild(smallerBtn);
+        sizeControls.appendChild(sizeDisplay);
+        sizeControls.appendChild(largerBtn);
+        sizeControls.appendChild(resetBtn);
         
         labelContainer.appendChild(label);
-        labelContainer.appendChild(zoomControls);
+        labelContainer.appendChild(sizeControls);
         overlay.appendChild(labelContainer);
+        
+        // Add resize handle
+        const resizeHandle = document.createElement('div');
+        resizeHandle.style.cssText = `
+            position: absolute;
+            bottom: -8px;
+            right: -8px;
+            width: 16px;
+            height: 16px;
+            background: #22c55e;
+            border-radius: 50%;
+            cursor: nw-resize;
+            border: 2px solid white;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            transition: all 0.2s ease;
+        `;
+        resizeHandle.title = 'Drag to resize (maintains aspect ratio)';
+        overlay.appendChild(resizeHandle);
+        
+        // Setup resize functionality
+        setupOverlayResize(overlay, resizeHandle);
         
         // Make overlay draggable
         setupDragging(overlay);
@@ -1859,25 +1863,19 @@ function exportOpenGraphImage() {
         previewPane.style.position = 'relative';
         previewPane.appendChild(overlay);
         
-        // Setup keyboard shortcuts
-        setupZoomKeyboardShortcuts();
-        
         // Update button
         exportBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" stroke-width="2"/><line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" stroke-width="2"/></svg>';
         exportBtn.title = 'Hide OpenGraph overlay';
         
     } else {
-        // Remove overlay and reset zoom
+        // Remove overlay and reset size
         const overlay = document.getElementById('og-overlay');
         if (overlay) {
             overlay.remove();
         }
         
-        // Reset zoom when closing overlay
-        resetPreviewZoom();
-        
-        // Remove keyboard shortcuts
-        removeZoomKeyboardShortcuts();
+        // Reset overlay size when closing
+        resetOverlaySize();
         
         // Update button
         exportBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M23 19C23 19.5304 22.7893 20.0391 22.4142 20.4142C22.0391 20.7893 21.5304 21 21 21H3C2.46957 21 1.96086 20.7893 1.58579 20.4142C1.21071 20.0391 1 19.5304 1 19V8C1 7.46957 1.21071 6.96086 1.58579 6.58579C1.96086 6.21071 2.46957 6 3 6H7L9 4H15L17 6H21C21.5304 6 22.0391 6.21071 22.4142 6.58579C22.7893 6.96086 23 7.46957 23 8V19Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="13" r="4" stroke="currentColor" stroke-width="2"/></svg>';
@@ -1928,33 +1926,49 @@ function setupDragging(overlay) {
     }
 }
 
-// Keyboard shortcuts for zoom
-function handleZoomKeyboard(e) {
-    if (e.ctrlKey || e.metaKey) {
-        switch (e.key) {
-            case '+':
-            case '=':
-                e.preventDefault();
-                zoomPreview(1.25);
-                break;
-            case '-':
-                e.preventDefault();
-                zoomPreview(0.8);
-                break;
-            case '0':
-                e.preventDefault();
-                resetPreviewZoom();
-                break;
+// Setup resize functionality for overlay
+function setupOverlayResize(overlay, handle) {
+    handle.addEventListener('mousedown', startResize);
+    
+    function startResize(e) {
+        isOverlayResizing = true;
+        resizeHandle = handle;
+        
+        const rect = overlay.getBoundingClientRect();
+        const startX = e.clientX;
+        const startY = e.clientY;
+        const startWidth = overlaySize.width;
+        const startHeight = overlaySize.height;
+        
+        function resize(e) {
+            if (!isOverlayResizing) return;
+            
+            // Calculate new width based on mouse movement
+            const deltaX = e.clientX - startX;
+            const deltaY = e.clientY - startY;
+            
+            // Use the larger delta to determine new size
+            const delta = Math.max(deltaX, deltaY);
+            const newWidth = startWidth + delta;
+            
+            resizeOverlay(newWidth);
         }
+        
+        function stopResize() {
+            if (isOverlayResizing) {
+                isOverlayResizing = false;
+                resizeHandle = null;
+                document.removeEventListener('mousemove', resize);
+                document.removeEventListener('mouseup', stopResize);
+            }
+        }
+        
+        document.addEventListener('mousemove', resize);
+        document.addEventListener('mouseup', stopResize);
+        
+        e.preventDefault();
+        e.stopPropagation();
     }
-}
-
-function setupZoomKeyboardShortcuts() {
-    document.addEventListener('keydown', handleZoomKeyboard);
-}
-
-function removeZoomKeyboardShortcuts() {
-    document.removeEventListener('keydown', handleZoomKeyboard);
 }
 
 // Download HTML function
