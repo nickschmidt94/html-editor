@@ -6,6 +6,8 @@ let isDragging = false;
 let dragOffset = { x: 0, y: 0 };
 let validationEnabled = true;
 let validationMarkers = [];
+let previewZoom = 1;
+let zoomContainer = null;
 
 // HTML Validation System
 class HTMLValidator {
@@ -1645,6 +1647,57 @@ function toggleDevice() {
     }
 }
 
+// Zoom functionality
+function zoomPreview(factor) {
+    previewZoom = Math.max(0.25, Math.min(3, previewZoom * factor));
+    applyPreviewZoom();
+    updateZoomDisplay();
+}
+
+function resetPreviewZoom() {
+    previewZoom = 1;
+    applyPreviewZoom();
+    updateZoomDisplay();
+}
+
+function applyPreviewZoom() {
+    const preview = document.getElementById('preview');
+    if (!preview) return;
+    
+    if (!zoomContainer) {
+        // Create zoom container if it doesn't exist
+        zoomContainer = document.createElement('div');
+        zoomContainer.style.cssText = `
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            transform-origin: top left;
+        `;
+        
+        // Wrap the iframe
+        const parent = preview.parentNode;
+        parent.insertBefore(zoomContainer, preview);
+        zoomContainer.appendChild(preview);
+    }
+    
+    // Apply zoom transform
+    preview.style.transform = `scale(${previewZoom})`;
+    preview.style.transformOrigin = 'top left';
+    
+    // Adjust container to accommodate zoom
+    const containerWidth = 100 / previewZoom;
+    const containerHeight = 100 / previewZoom;
+    preview.style.width = `${containerWidth}%`;
+    preview.style.height = `${containerHeight}%`;
+}
+
+function updateZoomDisplay() {
+    const zoomDisplay = document.getElementById('zoom-display');
+    if (zoomDisplay) {
+        zoomDisplay.textContent = `${Math.round(previewZoom * 100)}%`;
+    }
+}
+
 // OpenGraph overlay functionality
 function exportOpenGraphImage() {
     const exportBtn = document.getElementById('exportBtn');
@@ -1677,12 +1730,19 @@ function exportOpenGraphImage() {
                 0 0 20px rgba(34, 197, 94, 0.2);
         `;
         
-        // Add label
+        // Add label with zoom controls
+        const labelContainer = document.createElement('div');
+        labelContainer.style.cssText = `
+            position: absolute;
+            top: -60px;
+            left: 0;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        `;
+        
         const label = document.createElement('div');
         label.style.cssText = `
-            position: absolute;
-            top: -35px;
-            left: 0;
             background: #22c55e;
             color: white;
             padding: 4px 12px;
@@ -1693,7 +1753,104 @@ function exportOpenGraphImage() {
             cursor: move;
         `;
         label.textContent = '1200×630px - Drag to position';
-        overlay.appendChild(label);
+        
+        // Zoom controls
+        const zoomControls = document.createElement('div');
+        zoomControls.style.cssText = `
+            display: flex;
+            gap: 4px;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.8);
+            border-radius: 6px;
+            padding: 4px;
+        `;
+        
+        // Zoom out button
+        const zoomOutBtn = document.createElement('button');
+        zoomOutBtn.style.cssText = `
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: white;
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            transition: all 0.2s ease;
+        `;
+        zoomOutBtn.innerHTML = '−';
+        zoomOutBtn.title = 'Zoom out (Ctrl + -)';
+        zoomOutBtn.onclick = (e) => { e.stopPropagation(); zoomPreview(0.8); };
+        zoomOutBtn.onmouseover = () => zoomOutBtn.style.background = 'rgba(255, 255, 255, 0.2)';
+        zoomOutBtn.onmouseout = () => zoomOutBtn.style.background = 'rgba(255, 255, 255, 0.1)';
+        
+        // Zoom display
+        const zoomDisplay = document.createElement('div');
+        zoomDisplay.id = 'zoom-display';
+        zoomDisplay.style.cssText = `
+            color: white;
+            font-size: 11px;
+            min-width: 35px;
+            text-align: center;
+            font-weight: 600;
+        `;
+        zoomDisplay.textContent = `${Math.round(previewZoom * 100)}%`;
+        
+        // Zoom in button
+        const zoomInBtn = document.createElement('button');
+        zoomInBtn.style.cssText = `
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: white;
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            transition: all 0.2s ease;
+        `;
+        zoomInBtn.innerHTML = '+';
+        zoomInBtn.title = 'Zoom in (Ctrl + +)';
+        zoomInBtn.onclick = (e) => { e.stopPropagation(); zoomPreview(1.25); };
+        zoomInBtn.onmouseover = () => zoomInBtn.style.background = 'rgba(255, 255, 255, 0.2)';
+        zoomInBtn.onmouseout = () => zoomInBtn.style.background = 'rgba(255, 255, 255, 0.1)';
+        
+        // Reset zoom button
+        const resetBtn = document.createElement('button');
+        resetBtn.style.cssText = `
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: white;
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            transition: all 0.2s ease;
+        `;
+        resetBtn.innerHTML = '⌂';
+        resetBtn.title = 'Reset zoom (Ctrl + 0)';
+        resetBtn.onclick = (e) => { e.stopPropagation(); resetPreviewZoom(); };
+        resetBtn.onmouseover = () => resetBtn.style.background = 'rgba(255, 255, 255, 0.2)';
+        resetBtn.onmouseout = () => resetBtn.style.background = 'rgba(255, 255, 255, 0.1)';
+        
+        zoomControls.appendChild(zoomOutBtn);
+        zoomControls.appendChild(zoomDisplay);
+        zoomControls.appendChild(zoomInBtn);
+        zoomControls.appendChild(resetBtn);
+        
+        labelContainer.appendChild(label);
+        labelContainer.appendChild(zoomControls);
+        overlay.appendChild(labelContainer);
         
         // Make overlay draggable
         setupDragging(overlay);
@@ -1702,16 +1859,25 @@ function exportOpenGraphImage() {
         previewPane.style.position = 'relative';
         previewPane.appendChild(overlay);
         
+        // Setup keyboard shortcuts
+        setupZoomKeyboardShortcuts();
+        
         // Update button
         exportBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" stroke-width="2"/><line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" stroke-width="2"/></svg>';
         exportBtn.title = 'Hide OpenGraph overlay';
         
     } else {
-        // Remove overlay
+        // Remove overlay and reset zoom
         const overlay = document.getElementById('og-overlay');
         if (overlay) {
             overlay.remove();
         }
+        
+        // Reset zoom when closing overlay
+        resetPreviewZoom();
+        
+        // Remove keyboard shortcuts
+        removeZoomKeyboardShortcuts();
         
         // Update button
         exportBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M23 19C23 19.5304 22.7893 20.0391 22.4142 20.4142C22.0391 20.7893 21.5304 21 21 21H3C2.46957 21 1.96086 20.7893 1.58579 20.4142C1.21071 20.0391 1 19.5304 1 19V8C1 7.46957 1.21071 6.96086 1.58579 6.58579C1.96086 6.21071 2.46957 6 3 6H7L9 4H15L17 6H21C21.5304 6 22.0391 6.21071 22.4142 6.58579C22.7893 6.96086 23 7.46957 23 8V19Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="13" r="4" stroke="currentColor" stroke-width="2"/></svg>';
@@ -1760,6 +1926,35 @@ function setupDragging(overlay) {
             overlay.style.cursor = 'move';
         }
     }
+}
+
+// Keyboard shortcuts for zoom
+function handleZoomKeyboard(e) {
+    if (e.ctrlKey || e.metaKey) {
+        switch (e.key) {
+            case '+':
+            case '=':
+                e.preventDefault();
+                zoomPreview(1.25);
+                break;
+            case '-':
+                e.preventDefault();
+                zoomPreview(0.8);
+                break;
+            case '0':
+                e.preventDefault();
+                resetPreviewZoom();
+                break;
+        }
+    }
+}
+
+function setupZoomKeyboardShortcuts() {
+    document.addEventListener('keydown', handleZoomKeyboard);
+}
+
+function removeZoomKeyboardShortcuts() {
+    document.removeEventListener('keydown', handleZoomKeyboard);
 }
 
 // Download HTML function
