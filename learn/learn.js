@@ -88,50 +88,7 @@ class DOMTreeBuilder {
     }
 
     detectErrors(html, analysis) {
-        // Check for unclosed tags
-        const openTags = [];
-        const tagRegex = /<\/?([a-zA-Z][a-zA-Z0-9]*)[^>]*>/g;
-        let match;
-
-        while ((match = tagRegex.exec(html)) !== null) {
-            const tagName = match[1].toLowerCase();
-            const isClosing = match[0].startsWith('</');
-            const isSelfClosing = match[0].endsWith('/>') || ['img', 'br', 'hr', 'input', 'meta', 'link'].includes(tagName);
-
-            if (isClosing) {
-                const lastOpen = openTags.pop();
-                if (!lastOpen || lastOpen !== tagName) {
-                    analysis.errors.push({
-                        type: 'unclosed_tag',
-                        tag: lastOpen || tagName,
-                        message: `Mismatched closing tag: ${tagName}`
-                    });
-                }
-            } else if (!isSelfClosing) {
-                openTags.push(tagName);
-            }
-        }
-
-        // Report unclosed tags
-        openTags.forEach(tag => {
-            analysis.errors.push({
-                type: 'unclosed_tag',
-                tag: tag,
-                message: `Unclosed tag: ${tag}`
-            });
-            analysis.fixes.push(`Browser automatically closed &lt;${tag}&gt;`);
-        });
-
-        // Check for malformed attributes
-        const malformedAttrRegex = /\s+([a-zA-Z-]+)(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+))?/g;
-        const attributeErrors = html.match(/\s+[a-zA-Z-]+=(?:[^"'\s>][^\s>]*)/g);
-        if (attributeErrors) {
-            analysis.errors.push({
-                type: 'malformed_attribute',
-                message: 'Unquoted attribute values detected'
-            });
-            analysis.fixes.push('Browser automatically quoted attribute values');
-        }
+        // Error detection disabled - validation functionality removed
     }
 
     buildNodeTree(element, nodes, level, parentId = null) {
