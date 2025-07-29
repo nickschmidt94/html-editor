@@ -209,13 +209,34 @@
         <!-- Saved Documents Sidebar -->
         <div id="documentsSidebar" class="documents-sidebar collapsed">
             <div class="sidebar-header">
-                <h3>Saved Documents</h3>
-                <button id="newCategoryBtn" class="action-btn secondary" title="Add Category">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <line x1="12" y1="5" x2="12" y2="19" stroke="currentColor" stroke-width="2"/>
-                        <line x1="5" y1="12" x2="19" y2="12" stroke="currentColor" stroke-width="2"/>
-                    </svg>
-                </button>
+                <div class="space-selector-container">
+                    <button id="currentSpaceSelector" class="space-selector" onclick="toggleSpaceDropdown()" title="Click to switch spaces">
+                        Personal Workspace
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="space-chevron">
+                            <polyline points="6,9 12,15 18,9" stroke="currentColor" stroke-width="2"/>
+                        </svg>
+                    </button>
+                    <div id="spaceDropdown" class="space-dropdown">
+                        <div class="space-dropdown-header">
+                            <h4>Spaces</h4>
+                            <button class="space-action-btn" onclick="showSpaceModal()" title="Create New Space">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <line x1="12" y1="5" x2="12" y2="19" stroke="currentColor" stroke-width="2"/>
+                                    <line x1="5" y1="12" x2="19" y2="12" stroke="currentColor" stroke-width="2"/>
+                                </svg>
+                            </button>
+                        </div>
+                        <div id="spacesList" class="spaces-list"></div>
+                    </div>
+                </div>
+                <div class="sidebar-actions">
+                    <button id="newCategoryBtn" class="action-btn secondary" title="Add Category">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <line x1="12" y1="5" x2="12" y2="19" stroke="currentColor" stroke-width="2"/>
+                            <line x1="5" y1="12" x2="19" y2="12" stroke="currentColor" stroke-width="2"/>
+                        </svg>
+                    </button>
+                </div>
             </div>
             <div class="sidebar-content">
                 <div id="categoriesList"></div>
@@ -430,6 +451,12 @@
                     <input type="text" id="documentName" placeholder="Enter document name..." />
                 </div>
                 <div class="form-group">
+                    <label for="documentSpace">Space</label>
+                    <select id="documentSpace">
+                        <option value="">Select space...</option>
+                    </select>
+                </div>
+                <div class="form-group">
                     <label for="documentCategory">Category</label>
                     <div class="category-input-container">
                         <select id="documentCategory" onchange="handleCategoryChange()">
@@ -473,6 +500,54 @@
                 <div class="form-actions">
                     <button class="btn secondary" onclick="closeCategoryModal()">Cancel</button>
                     <button class="btn primary" onclick="addCategory()">Add Category</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Space Management Modal -->
+    <div id="spaceModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Create New Space</h3>
+                <button class="modal-close" onclick="closeSpaceModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="spaceName">Space Name</label>
+                    <input type="text" id="spaceName" placeholder="Enter space name..." />
+                </div>
+                <div class="form-group">
+                    <label for="spaceDescription">Description (Optional)</label>
+                    <textarea id="spaceDescription" placeholder="Describe what this space is for..." rows="3"></textarea>
+                </div>
+                <div class="form-actions">
+                    <button class="btn secondary" onclick="closeSpaceModal()">Cancel</button>
+                    <button class="btn primary" onclick="createSpace()">Create Space</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Space Modal -->
+    <div id="editSpaceModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Edit Space</h3>
+                <button class="modal-close" onclick="closeEditSpaceModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="editSpaceName">Space Name</label>
+                    <input type="text" id="editSpaceName" placeholder="Enter space name..." />
+                </div>
+                <div class="form-group">
+                    <label for="editSpaceDescription">Description (Optional)</label>
+                    <textarea id="editSpaceDescription" placeholder="Describe what this space is for..." rows="3"></textarea>
+                </div>
+                <div class="form-actions">
+                    <button class="btn secondary" onclick="closeEditSpaceModal()">Cancel</button>
+                    <button class="btn primary" onclick="updateSpace()">Update Space</button>
                 </div>
             </div>
         </div>

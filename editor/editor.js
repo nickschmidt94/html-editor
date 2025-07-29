@@ -2597,17 +2597,34 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 }); 
 
-// Document Storage System
+// Document Storage System with Spaces Support
 class DocumentStorage {
     constructor() {
         this.storageKey = 'html-editor-documents';
         this.categoriesKey = 'html-editor-categories';
+        this.spacesKey = 'html-editor-spaces';
+        this.currentSpaceKey = 'html-editor-current-space';
         this.currentDocument = null;
+        this.currentSpace = null;
         this.init();
     }
 
     init() {
-        // Initialize default categories if none exist
+        // Initialize default space if none exist
+        if (!this.getSpaces().length) {
+            this.addSpace('Personal Workspace', 'Your main workspace for personal projects', true);
+        }
+        
+        // Set current space
+        this.currentSpace = this.getCurrentSpace() || this.getSpaces()[0];
+        
+        // Migrate existing documents without space IDs
+        this.migrateExistingDocuments();
+        
+        // Migrate existing categories without space IDs
+        this.migrateExistingCategories();
+        
+        // Initialize default categories for current space if none exist
         if (!this.getCategories().length) {
             this.addCategory('Personal');
             this.addCategory('Work');
@@ -2615,6 +2632,155 @@ class DocumentStorage {
         }
         this.renderSidebar();
         this.setupEventListeners();
+    }
+    
+    migrateExistingDocuments() {
+        const allDocuments = JSON.parse(localStorage.getItem(this.storageKey) || '[]');
+        let updated = false;
+        
+        allDocuments.forEach(doc => {
+            if (!doc.spaceId && this.currentSpace) {
+                doc.spaceId = this.currentSpace.id;
+                updated = true;
+            }
+        });
+        
+        if (updated) {
+            localStorage.setItem(this.storageKey, JSON.stringify(allDocuments));
+            console.log('✅ Migrated existing documents to spaces');
+        }
+    }
+    
+    migrateExistingCategories() {
+        const stored = localStorage.getItem(this.categoriesKey);
+        if (!stored) return;
+        
+        let categories;
+        try {
+            categories = JSON.parse(stored);
+        } catch (e) {
+            return;
+        }
+        
+        // Check if categories are already in new format (objects with spaceId)
+        if (categories.length > 0 && typeof categories[0] === 'object' && categories[0].spaceId) {
+            return; // Already migrated
+        }
+        
+        // Migrate old format (array of strings) to new format (array of objects)
+        const migratedCategories = categories.map(categoryName => ({
+            name: categoryName,
+            spaceId: this.currentSpace?.id,
+            createdAt: new Date().toISOString()
+        }));
+        
+        localStorage.setItem(this.categoriesKey, JSON.stringify(migratedCategories));
+        console.log('✅ Migrated existing categories to spaces');
+    }
+
+    // === SPACES MANAGEMENT ===
+    
+    getSpaces() {
+        const stored = localStorage.getItem(this.spacesKey);
+        return stored ? JSON.parse(stored) : [];
+    }
+    
+    getCurrentSpace() {
+        const currentSpaceId = localStorage.getItem(this.currentSpaceKey);
+        if (currentSpaceId) {
+            return this.getSpaces().find(space => space.id === currentSpaceId) || null;
+        }
+        return null;
+    }
+    
+    setCurrentSpace(spaceId) {
+        const space = this.getSpaces().find(s => s.id === spaceId);
+        if (space) {
+            this.currentSpace = space;
+            localStorage.setItem(this.currentSpaceKey, spaceId);
+            this.renderSidebar();
+            this.showNotification(`Switched to "${space.name}"`, 'success');
+        }
+    }
+    
+    addSpace(name, description = '', setAsCurrent = false) {
+        const spaces = this.getSpaces();
+        const newSpace = {
+            id: Date.now().toString(),
+            name: name,
+            description: description,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+        };
+        
+        spaces.push(newSpace);
+        localStorage.setItem(this.spacesKey, JSON.stringify(spaces));
+        
+        if (setAsCurrent || !this.currentSpace) {
+            this.setCurrentSpace(newSpace.id);
+        }
+        
+        return newSpace;
+    }
+    
+    updateSpace(spaceId, updates) {
+        const spaces = this.getSpaces();
+        const spaceIndex = spaces.findIndex(s => s.id === spaceId);
+        
+        if (spaceIndex >= 0) {
+            spaces[spaceIndex] = {
+                ...spaces[spaceIndex],
+                ...updates,
+                updatedAt: new Date().toISOString()
+            };
+            localStorage.setItem(this.spacesKey, JSON.stringify(spaces));
+            
+            // Update current space if it's the one being edited
+            if (this.currentSpace && this.currentSpace.id === spaceId) {
+                this.currentSpace = spaces[spaceIndex];
+            }
+            
+            this.renderSidebar();
+        }
+    }
+    
+    deleteSpace(spaceId) {
+        const spaces = this.getSpaces();
+        const spaceToDelete = spaces.find(s => s.id === spaceId);
+        
+        if (!spaceToDelete) return;
+        
+        // Don't allow deleting the last space
+        if (spaces.length <= 1) {
+            this.showNotification('Cannot delete the last space', 'error');
+            return;
+        }
+        
+        // Move documents to default space (first space that's not being deleted)
+        const defaultSpace = spaces.find(s => s.id !== spaceId);
+        const documents = this.getDocuments();
+        documents.forEach(doc => {
+            if (doc.spaceId === spaceId) {
+                doc.spaceId = defaultSpace.id;
+            }
+        });
+        localStorage.setItem(this.storageKey, JSON.stringify(documents));
+        
+        // Remove categories specific to this space
+        const categories = this.getCategories();
+        const updatedCategories = categories.filter(cat => cat.spaceId !== spaceId);
+        localStorage.setItem(this.categoriesKey, JSON.stringify(updatedCategories));
+        
+        // Remove the space
+        const filteredSpaces = spaces.filter(s => s.id !== spaceId);
+        localStorage.setItem(this.spacesKey, JSON.stringify(filteredSpaces));
+        
+        // Switch to default space if current space was deleted
+        if (this.currentSpace && this.currentSpace.id === spaceId) {
+            this.setCurrentSpace(defaultSpace.id);
+        }
+        
+        this.showNotification(`Space "${spaceToDelete.name}" deleted`, 'success');
     }
 
     setupEventListeners() {
@@ -2635,16 +2801,36 @@ class DocumentStorage {
 
     getDocuments() {
         const stored = localStorage.getItem(this.storageKey);
-        return stored ? JSON.parse(stored) : [];
+        const allDocuments = stored ? JSON.parse(stored) : [];
+        
+        // Filter by current space
+        if (this.currentSpace) {
+            return allDocuments.filter(doc => doc.spaceId === this.currentSpace.id);
+        }
+        
+        return allDocuments;
     }
 
     getCategories() {
         const stored = localStorage.getItem(this.categoriesKey);
-        return stored ? JSON.parse(stored) : [];
+        const allCategories = stored ? JSON.parse(stored) : [];
+        
+        // Filter by current space
+        if (this.currentSpace) {
+            return allCategories.filter(cat => cat.spaceId === this.currentSpace.id).map(cat => cat.name);
+        }
+        
+        return allCategories.map(cat => cat.name);
     }
 
-    saveDocument(name, category, content) {
-        const documents = this.getDocuments();
+    saveDocument(name, category, content, spaceId = null) {
+        const targetSpaceId = spaceId || this.currentSpace?.id;
+        if (!targetSpaceId) {
+            this.showNotification('No space selected', 'error');
+            return;
+        }
+        
+        const documents = JSON.parse(localStorage.getItem(this.storageKey) || '[]');
         const now = new Date().toISOString();
         
         const document = {
@@ -2652,13 +2838,16 @@ class DocumentStorage {
             name: name,
             category: category || 'Uncategorized',
             content: content,
+            spaceId: targetSpaceId,
             createdAt: now,
             updatedAt: now
         };
 
-        // Check if document with same name exists in category
+        // Check if document with same name exists in category within target space
         const existingIndex = documents.findIndex(doc => 
-            doc.name === name && doc.category === category
+            doc.name === name && 
+            doc.category === category && 
+            doc.spaceId === targetSpaceId
         );
 
         if (existingIndex >= 0) {
@@ -2678,8 +2867,8 @@ class DocumentStorage {
     }
 
     loadDocument(id) {
-        const documents = this.getDocuments();
-        const document = documents.find(doc => doc.id === id);
+        const allDocuments = JSON.parse(localStorage.getItem(this.storageKey) || '[]');
+        const document = allDocuments.find(doc => doc.id === id);
         
         if (document && editor) {
             editor.setValue(document.content);
@@ -2689,7 +2878,7 @@ class DocumentStorage {
     }
 
     deleteDocument(id) {
-        const documents = this.getDocuments();
+        const documents = JSON.parse(localStorage.getItem(this.storageKey) || '[]');
         const filtered = documents.filter(doc => doc.id !== id);
         localStorage.setItem(this.storageKey, JSON.stringify(filtered));
         this.renderSidebar();
@@ -2697,7 +2886,7 @@ class DocumentStorage {
     }
 
     duplicateDocument(id) {
-        const documents = this.getDocuments();
+        const documents = JSON.parse(localStorage.getItem(this.storageKey) || '[]');
         const original = documents.find(doc => doc.id === id);
         
         if (original) {
@@ -2717,23 +2906,38 @@ class DocumentStorage {
     }
 
     addCategory(name) {
-        const categories = this.getCategories();
-        if (!categories.includes(name)) {
-            categories.push(name);
-            localStorage.setItem(this.categoriesKey, JSON.stringify(categories));
+        if (!this.currentSpace) return;
+        
+        const allCategories = JSON.parse(localStorage.getItem(this.categoriesKey) || '[]');
+        const categoryExists = allCategories.some(cat => 
+            cat.name === name && cat.spaceId === this.currentSpace.id
+        );
+        
+        if (!categoryExists) {
+            allCategories.push({
+                name: name,
+                spaceId: this.currentSpace.id,
+                createdAt: new Date().toISOString()
+            });
+            localStorage.setItem(this.categoriesKey, JSON.stringify(allCategories));
             this.renderSidebar();
             this.populateCategorySelect();
         }
     }
 
     deleteCategory(name) {
-        const categories = this.getCategories().filter(cat => cat !== name);
-        localStorage.setItem(this.categoriesKey, JSON.stringify(categories));
+        if (!this.currentSpace) return;
         
-        // Move documents from deleted category to 'Uncategorized'
-        const documents = this.getDocuments();
+        const allCategories = JSON.parse(localStorage.getItem(this.categoriesKey) || '[]');
+        const filteredCategories = allCategories.filter(cat => 
+            !(cat.name === name && cat.spaceId === this.currentSpace.id)
+        );
+        localStorage.setItem(this.categoriesKey, JSON.stringify(filteredCategories));
+        
+        // Move documents from deleted category to 'Uncategorized' within current space
+        const documents = JSON.parse(localStorage.getItem(this.storageKey) || '[]');
         documents.forEach(doc => {
-            if (doc.category === name) {
+            if (doc.category === name && doc.spaceId === this.currentSpace.id) {
                 doc.category = 'Uncategorized';
             }
         });
@@ -2747,21 +2951,44 @@ class DocumentStorage {
         const modal = document.getElementById('saveModal');
         const nameInput = document.getElementById('documentName');
         const categorySelect = document.getElementById('documentCategory');
+        const spaceSelect = document.getElementById('documentSpace');
         
-        // Populate categories
+        // Populate spaces and categories
+        this.populateSpaceSelect();
         this.populateCategorySelect();
         
         // Pre-fill if editing current document
         if (this.currentDocument) {
             nameInput.value = this.currentDocument.name;
             categorySelect.value = this.currentDocument.category;
+            if (spaceSelect) {
+                spaceSelect.value = this.currentDocument.spaceId || this.currentSpace?.id;
+            }
         } else {
             nameInput.value = '';
             categorySelect.value = '';
+            if (spaceSelect) {
+                spaceSelect.value = this.currentSpace?.id || '';
+            }
         }
         
         modal.classList.add('show');
         nameInput.focus();
+    }
+
+    populateSpaceSelect() {
+        const select = document.getElementById('documentSpace');
+        if (!select) return;
+        
+        const spaces = this.getSpaces();
+        
+        select.innerHTML = '';
+        spaces.forEach(space => {
+            const option = document.createElement('option');
+            option.value = space.id;
+            option.textContent = space.name;
+            select.appendChild(option);
+        });
     }
 
     showCategoryModal() {
@@ -2769,6 +2996,35 @@ class DocumentStorage {
         const nameInput = document.getElementById('categoryName');
         
         nameInput.value = '';
+        modal.classList.add('show');
+        nameInput.focus();
+    }
+
+    showSpaceModal() {
+        const modal = document.getElementById('spaceModal');
+        const nameInput = document.getElementById('spaceName');
+        const descriptionInput = document.getElementById('spaceDescription');
+        
+        nameInput.value = '';
+        descriptionInput.value = '';
+        modal.classList.add('show');
+        nameInput.focus();
+    }
+
+    showEditSpaceModal(spaceId) {
+        const space = this.getSpaces().find(s => s.id === spaceId);
+        if (!space) return;
+        
+        const modal = document.getElementById('editSpaceModal');
+        const nameInput = document.getElementById('editSpaceName');
+        const descriptionInput = document.getElementById('editSpaceDescription');
+        
+        nameInput.value = space.name;
+        descriptionInput.value = space.description || '';
+        
+        // Store space ID for updating
+        modal.setAttribute('data-space-id', spaceId);
+        
         modal.classList.add('show');
         nameInput.focus();
     }
@@ -2858,6 +3114,9 @@ class DocumentStorage {
     }
 
     renderSidebar() {
+        // Update space selector in sidebar header
+        this.updateSpaceSelector();
+        
         const container = document.getElementById('categoriesList');
         const documents = this.getDocuments();
         const categories = this.getCategories();
@@ -2938,6 +3197,19 @@ class DocumentStorage {
             categoryGroup.appendChild(categoryDocuments);
             container.appendChild(categoryGroup);
         });
+    }
+
+    updateSpaceSelector() {
+        const spaceSelector = document.getElementById('currentSpaceSelector');
+        if (!spaceSelector) return;
+        
+        const spaces = this.getSpaces();
+        const currentSpace = this.currentSpace;
+        
+        if (currentSpace) {
+            spaceSelector.textContent = currentSpace.name;
+            spaceSelector.title = currentSpace.description || currentSpace.name;
+        }
     }
 
     showNotification(message, type = 'info', duration = 3000) {
@@ -3065,6 +3337,181 @@ function createInlineCategory() {
     }
 }
 
+// === SPACE MANAGEMENT FUNCTIONS ===
+
+function toggleSpaceDropdown() {
+    const dropdown = document.getElementById('spaceDropdown');
+    const isVisible = dropdown.classList.contains('show');
+    
+    if (isVisible) {
+        dropdown.classList.remove('show');
+        document.removeEventListener('click', closeSpaceDropdownOnClickOutside);
+    } else {
+        populateSpaceDropdown();
+        dropdown.classList.add('show');
+        setTimeout(() => {
+            document.addEventListener('click', closeSpaceDropdownOnClickOutside);
+        }, 0);
+    }
+}
+
+function closeSpaceDropdownOnClickOutside(event) {
+    const dropdown = document.getElementById('spaceDropdown');
+    const spaceSelector = document.getElementById('currentSpaceSelector');
+    
+    if (!dropdown.contains(event.target) && !spaceSelector.contains(event.target)) {
+        dropdown.classList.remove('show');
+        document.removeEventListener('click', closeSpaceDropdownOnClickOutside);
+    }
+}
+
+function populateSpaceDropdown() {
+    const container = document.getElementById('spacesList');
+    const storage = window.documentStorage;
+    
+    if (!storage) return;
+    
+    const spaces = storage.getSpaces();
+    const currentSpace = storage.currentSpace;
+    
+    container.innerHTML = '';
+    
+    spaces.forEach(space => {
+        const spaceItem = document.createElement('div');
+        spaceItem.className = `space-item ${space.id === currentSpace?.id ? 'active' : ''}`;
+        spaceItem.innerHTML = `
+            <div class="space-info" onclick="switchToSpace('${space.id}')">
+                <div class="space-name">${space.name}</div>
+                ${space.description ? `<div class="space-description">${space.description}</div>` : ''}
+            </div>
+            <div class="space-actions">
+                <button class="space-action-btn" onclick="editSpace('${space.id}')" title="Edit Space">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2"/>
+                        <path d="m18.5 2.5 a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2"/>
+                    </svg>
+                </button>
+                ${spaces.length > 1 ? `
+                    <button class="space-action-btn delete" onclick="deleteSpace('${space.id}')" title="Delete Space">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" stroke="currentColor" stroke-width="2"/>
+                        </svg>
+                    </button>
+                ` : ''}
+            </div>
+        `;
+        container.appendChild(spaceItem);
+    });
+}
+
+function switchToSpace(spaceId) {
+    const storage = window.documentStorage;
+    if (storage) {
+        storage.setCurrentSpace(spaceId);
+        toggleSpaceDropdown(); // Close the dropdown
+    }
+}
+
+function showSpaceModal() {
+    const storage = window.documentStorage;
+    if (storage) {
+        storage.showSpaceModal();
+        toggleSpaceDropdown(); // Close the dropdown
+    }
+}
+
+function editSpace(spaceId) {
+    const storage = window.documentStorage;
+    if (storage) {
+        storage.showEditSpaceModal(spaceId);
+        toggleSpaceDropdown(); // Close the dropdown
+    }
+}
+
+function deleteSpace(spaceId) {
+    const storage = window.documentStorage;
+    if (storage) {
+        const space = storage.getSpaces().find(s => s.id === spaceId);
+        if (space && confirm(`Are you sure you want to delete the space "${space.name}"? All documents and categories will be moved to another space.`)) {
+            storage.deleteSpace(spaceId);
+            toggleSpaceDropdown(); // Close the dropdown
+        }
+    }
+}
+
+function closeSpaceModal() {
+    const modal = document.getElementById('spaceModal');
+    modal.classList.remove('show');
+}
+
+function closeEditSpaceModal() {
+    const modal = document.getElementById('editSpaceModal');
+    modal.classList.remove('show');
+}
+
+function createSpace() {
+    const nameInput = document.getElementById('spaceName');
+    const descriptionInput = document.getElementById('spaceDescription');
+    const name = nameInput.value.trim();
+    const description = descriptionInput.value.trim();
+    
+    if (!name) {
+        nameInput.focus();
+        return;
+    }
+    
+    const storage = window.documentStorage;
+    if (storage) {
+        storage.addSpace(name, description, true);
+        closeSpaceModal();
+    }
+}
+
+function updateSpace() {
+    const modal = document.getElementById('editSpaceModal');
+    const spaceId = modal.getAttribute('data-space-id');
+    const nameInput = document.getElementById('editSpaceName');
+    const descriptionInput = document.getElementById('editSpaceDescription');
+    const name = nameInput.value.trim();
+    const description = descriptionInput.value.trim();
+    
+    if (!name) {
+        nameInput.focus();
+        return;
+    }
+    
+    const storage = window.documentStorage;
+    if (storage) {
+        storage.updateSpace(spaceId, { name, description });
+        closeEditSpaceModal();
+    }
+}
+
+function saveDocument() {
+    const nameInput = document.getElementById('documentName');
+    const categorySelect = document.getElementById('documentCategory');
+    const spaceSelect = document.getElementById('documentSpace');
+    
+    const name = nameInput.value.trim();
+    const category = categorySelect.value;
+    const spaceId = spaceSelect ? spaceSelect.value : null;
+    
+    if (!name) {
+        nameInput.focus();
+        return;
+    }
+    
+    if (!editor) return;
+    
+    const content = editor.getValue();
+    const storage = window.documentStorage;
+    
+    if (storage) {
+        storage.saveDocument(name, category, content, spaceId);
+        closeSaveModal();
+    }
+}
+
 // Supabase Configuration and Storage System
 class SupabaseDocumentStorage {
     constructor() {
@@ -3075,6 +3522,7 @@ class SupabaseDocumentStorage {
         this.supabase = null;
         this.currentUser = null;
         this.currentDocument = null;
+        this.currentSpace = null;
         this.isOnline = navigator.onLine;
         this.demoMode = false;
         this.localBackup = new DocumentStorage(); // Fallback to localStorage
@@ -4068,6 +4516,137 @@ class SupabaseDocumentStorage {
             this.showNotification(errorMessage, 'error');
             return { error };
         }
+    }
+
+    // === SPACES SUPPORT METHODS ===
+    
+    getSpaces() {
+        if (this.demoMode) {
+            return this.localBackup.getSpaces();
+        }
+        return this.spaces || [];
+    }
+    
+    getCurrentSpace() {
+        if (this.demoMode) {
+            return this.localBackup.getCurrentSpace();
+        }
+        return this.currentSpace;
+    }
+    
+    setCurrentSpace(spaceId) {
+        if (this.demoMode) {
+            return this.localBackup.setCurrentSpace(spaceId);
+        }
+        
+        const space = this.getSpaces().find(s => s.id === spaceId);
+        if (space) {
+            this.currentSpace = space;
+            this.renderSidebar();
+            this.showNotification(`Switched to "${space.name}"`, 'success');
+        }
+    }
+    
+    addSpace(name, description = '', setAsCurrent = false) {
+        if (this.demoMode) {
+            return this.localBackup.addSpace(name, description, setAsCurrent);
+        }
+        
+        // TODO: Implement Supabase space creation
+        // For now, delegate to local backup
+        return this.localBackup.addSpace(name, description, setAsCurrent);
+    }
+    
+    updateSpace(spaceId, updates) {
+        if (this.demoMode) {
+            return this.localBackup.updateSpace(spaceId, updates);
+        }
+        
+        // TODO: Implement Supabase space update
+        // For now, delegate to local backup
+        return this.localBackup.updateSpace(spaceId, updates);
+    }
+    
+    deleteSpace(spaceId) {
+        if (this.demoMode) {
+            return this.localBackup.deleteSpace(spaceId);
+        }
+        
+        // TODO: Implement Supabase space deletion
+        // For now, delegate to local backup
+        return this.localBackup.deleteSpace(spaceId);
+    }
+    
+    showSpaceModal() {
+        if (this.demoMode) {
+            return this.localBackup.showSpaceModal();
+        }
+        
+        const modal = document.getElementById('spaceModal');
+        const nameInput = document.getElementById('spaceName');
+        const descriptionInput = document.getElementById('spaceDescription');
+        
+        nameInput.value = '';
+        descriptionInput.value = '';
+        modal.classList.add('show');
+        nameInput.focus();
+    }
+    
+    showEditSpaceModal(spaceId) {
+        if (this.demoMode) {
+            return this.localBackup.showEditSpaceModal(spaceId);
+        }
+        
+        const space = this.getSpaces().find(s => s.id === spaceId);
+        if (!space) return;
+        
+        const modal = document.getElementById('editSpaceModal');
+        const nameInput = document.getElementById('editSpaceName');
+        const descriptionInput = document.getElementById('editSpaceDescription');
+        
+        nameInput.value = space.name;
+        descriptionInput.value = space.description || '';
+        
+        // Store space ID for updating
+        modal.setAttribute('data-space-id', spaceId);
+        
+        modal.classList.add('show');
+        nameInput.focus();
+    }
+    
+    updateSpaceSelector() {
+        if (this.demoMode) {
+            return this.localBackup.updateSpaceSelector();
+        }
+        
+        const spaceSelector = document.getElementById('currentSpaceSelector');
+        if (!spaceSelector) return;
+        
+        const currentSpace = this.currentSpace;
+        
+        if (currentSpace) {
+            spaceSelector.textContent = currentSpace.name;
+            spaceSelector.title = currentSpace.description || currentSpace.name;
+        }
+    }
+    
+    populateSpaceSelect() {
+        if (this.demoMode) {
+            return this.localBackup.populateSpaceSelect();
+        }
+        
+        const select = document.getElementById('documentSpace');
+        if (!select) return;
+        
+        const spaces = this.getSpaces();
+        
+        select.innerHTML = '';
+        spaces.forEach(space => {
+            const option = document.createElement('option');
+            option.value = space.id;
+            option.textContent = space.name;
+            select.appendChild(option);
+        });
     }
 }
 
