@@ -3143,6 +3143,7 @@ class DocumentStorage {
 
             const categoryHeader = document.createElement('div');
             categoryHeader.className = 'category-header';
+            categoryHeader.setAttribute('data-category', category);
             categoryHeader.innerHTML = `
                 <div class="category-title">
                     <span>${category}</span>
@@ -3161,6 +3162,9 @@ class DocumentStorage {
                     </svg>
                 </div>
             `;
+            
+            // Add drop zone functionality
+            this.addDropZoneListeners(categoryHeader, category);
 
             const categoryDocuments = document.createElement('div');
             categoryDocuments.className = 'category-documents';
@@ -3168,6 +3172,9 @@ class DocumentStorage {
             docs.forEach(doc => {
                 const docItem = document.createElement('div');
                 docItem.className = 'document-item';
+                docItem.draggable = true;
+                docItem.setAttribute('data-doc-id', doc.id);
+                docItem.setAttribute('data-doc-category', doc.category);
                 docItem.innerHTML = `
                     <span class="document-name" onclick="documentStorage.loadDocument('${doc.id}')" title="Click to open document">${doc.name}</span>
                     <div class="document-actions">
@@ -3184,6 +3191,10 @@ class DocumentStorage {
                         </button>
                     </div>
                 `;
+                
+                // Add drag event listeners
+                this.addDragEventListeners(docItem, doc);
+                
                 categoryDocuments.appendChild(docItem);
             });
 
@@ -3209,6 +3220,78 @@ class DocumentStorage {
         if (currentSpace) {
             spaceSelector.textContent = currentSpace.name;
             spaceSelector.title = currentSpace.description || currentSpace.name;
+        }
+    }
+
+    // === DRAG AND DROP METHODS ===
+    
+    addDragEventListeners(docItem, doc) {
+        docItem.addEventListener('dragstart', (e) => {
+            e.dataTransfer.setData('text/plain', JSON.stringify({
+                docId: doc.id,
+                fromCategory: doc.category
+            }));
+            docItem.classList.add('dragging');
+            
+            // Show all category headers as potential drop zones
+            document.querySelectorAll('.category-header').forEach(header => {
+                header.classList.add('drop-zone-visible');
+            });
+        });
+        
+        docItem.addEventListener('dragend', (e) => {
+            docItem.classList.remove('dragging');
+            
+            // Hide drop zone indicators
+            document.querySelectorAll('.category-header').forEach(header => {
+                header.classList.remove('drop-zone-visible', 'drop-zone-active');
+            });
+        });
+    }
+    
+    addDropZoneListeners(categoryHeader, category) {
+        categoryHeader.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            categoryHeader.classList.add('drop-zone-active');
+        });
+        
+        categoryHeader.addEventListener('dragleave', (e) => {
+            // Only remove if leaving the header itself, not just its children
+            if (!categoryHeader.contains(e.relatedTarget)) {
+                categoryHeader.classList.remove('drop-zone-active');
+            }
+        });
+        
+        categoryHeader.addEventListener('drop', (e) => {
+            e.preventDefault();
+            categoryHeader.classList.remove('drop-zone-active');
+            
+            try {
+                const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+                const { docId, fromCategory } = data;
+                
+                if (fromCategory !== category) {
+                    this.moveDocumentToCategory(docId, category);
+                }
+            } catch (error) {
+                console.error('Error processing drop:', error);
+            }
+        });
+    }
+    
+    moveDocumentToCategory(docId, newCategory) {
+        const documents = JSON.parse(localStorage.getItem(this.storageKey) || '[]');
+        const docIndex = documents.findIndex(doc => doc.id === docId);
+        
+        if (docIndex >= 0) {
+            const oldCategory = documents[docIndex].category;
+            documents[docIndex].category = newCategory;
+            documents[docIndex].updatedAt = new Date().toISOString();
+            
+            localStorage.setItem(this.storageKey, JSON.stringify(documents));
+            this.renderSidebar();
+            
+            this.showNotification(`Moved document to "${newCategory}"`, 'success');
         }
     }
 
@@ -4333,6 +4416,7 @@ class SupabaseDocumentStorage {
 
             const categoryHeader = document.createElement('div');
             categoryHeader.className = 'category-header';
+            categoryHeader.setAttribute('data-category', category);
             categoryHeader.innerHTML = `
                 <div class="category-title">
                     <span>${category}</span>
@@ -4351,6 +4435,9 @@ class SupabaseDocumentStorage {
                     </svg>
                 </div>
             `;
+            
+            // Add drop zone functionality
+            this.addDropZoneListeners(categoryHeader, category);
 
             const categoryDocuments = document.createElement('div');
             categoryDocuments.className = 'category-documents';
@@ -4358,6 +4445,9 @@ class SupabaseDocumentStorage {
             docs.forEach(doc => {
                 const docItem = document.createElement('div');
                 docItem.className = 'document-item';
+                docItem.draggable = true;
+                docItem.setAttribute('data-doc-id', doc.id);
+                docItem.setAttribute('data-doc-category', doc.category);
                 docItem.innerHTML = `
                     <span class="document-name" onclick="documentStorage.loadDocument('${doc.id}')" title="Click to open document">${doc.name}</span>
                     <div class="document-actions">
@@ -4374,6 +4464,10 @@ class SupabaseDocumentStorage {
                         </button>
                     </div>
                 `;
+                
+                // Add drag event listeners
+                this.addDragEventListeners(docItem, doc);
+                
                 categoryDocuments.appendChild(docItem);
             });
 
@@ -4647,6 +4741,38 @@ class SupabaseDocumentStorage {
             option.textContent = space.name;
             select.appendChild(option);
         });
+    }
+
+    // === DRAG AND DROP SUPPORT ===
+    
+    addDragEventListeners(docItem, doc) {
+        if (this.demoMode) {
+            return this.localBackup.addDragEventListeners(docItem, doc);
+        }
+        
+        // For Supabase mode, delegate to local backup for now
+        // TODO: Implement native Supabase drag and drop
+        return this.localBackup.addDragEventListeners(docItem, doc);
+    }
+    
+    addDropZoneListeners(categoryHeader, category) {
+        if (this.demoMode) {
+            return this.localBackup.addDropZoneListeners(categoryHeader, category);
+        }
+        
+        // For Supabase mode, delegate to local backup for now
+        // TODO: Implement native Supabase drag and drop
+        return this.localBackup.addDropZoneListeners(categoryHeader, category);
+    }
+    
+    moveDocumentToCategory(docId, newCategory) {
+        if (this.demoMode) {
+            return this.localBackup.moveDocumentToCategory(docId, newCategory);
+        }
+        
+        // For Supabase mode, delegate to local backup for now
+        // TODO: Implement native Supabase document moving
+        return this.localBackup.moveDocumentToCategory(docId, newCategory);
     }
 }
 

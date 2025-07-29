@@ -149,7 +149,7 @@
     box-shadow: 
         0 15px 30px rgba(0, 0, 0, 0.4),
         inset 0 1px 0 rgba(255, 255, 255, 0.03);
-    z-index: 999999;
+    z-index: 99999999;
     opacity: 0;
     visibility: hidden;
     transform: translateY(-4px) scale(0.95);
@@ -2516,4 +2516,121 @@
         padding: 6px 12px;
         font-size: 10px;
     }
+}
+
+/* === DRAG AND DROP STYLES === */
+
+/* Document item drag states */
+.document-item[draggable="true"] {
+    cursor: grab;
+    transition: all 0.3s ease;
+}
+
+.document-item[draggable="true"]:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.document-item.dragging {
+    opacity: 0.5;
+    transform: rotate(2deg) scale(1.05);
+    cursor: grabbing;
+    z-index: 1000;
+    pointer-events: none;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+}
+
+/* Drop zone states */
+.category-header.drop-zone-visible {
+    position: relative;
+    transition: all 0.3s ease;
+}
+
+.category-header.drop-zone-visible::before {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    background: linear-gradient(45deg, rgba(168, 85, 247, 0.1), rgba(59, 130, 246, 0.1));
+    border-radius: 8px;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    z-index: -1;
+}
+
+.category-header.drop-zone-active {
+    background: rgba(168, 85, 247, 0.08);
+    border: 2px dashed rgba(168, 85, 247, 0.4);
+    border-radius: 8px;
+    transform: scale(1.02);
+    box-shadow: 0 4px 15px rgba(168, 85, 247, 0.2);
+}
+
+.category-header.drop-zone-active::before {
+    opacity: 1;
+}
+
+.category-header.drop-zone-active .category-title {
+    color: rgba(168, 85, 247, 1);
+    font-weight: 600;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+/* Drop zone animations */
+@keyframes dropZonePulse {
+    0%, 100% {
+        box-shadow: 0 4px 15px rgba(168, 85, 247, 0.2);
+    }
+    50% {
+        box-shadow: 0 4px 20px rgba(168, 85, 247, 0.4);
+    }
+}
+
+.category-header.drop-zone-active {
+    animation: dropZonePulse 1.5s infinite;
+}
+
+/* Enhanced document item hover effects */
+.document-item {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+}
+
+.document-item::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(45deg, rgba(255, 255, 255, 0.02), transparent);
+    border-radius: 6px;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+}
+
+.document-item:hover::before {
+    opacity: 1;
+}
+
+/* Drag handle indicator */
+.document-item[draggable="true"]::after {
+    content: '⋮⋮';
+    position: absolute;
+    right: 40px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: rgba(255, 255, 255, 0.2);
+    font-size: 12px;
+    line-height: 0.5;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+}
+
+.document-item[draggable="true"]:hover::after {
+    opacity: 1;
 } 
