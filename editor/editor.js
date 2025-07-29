@@ -4171,6 +4171,318 @@ class AIAssistant {
                 this.hideExplainTooltip();
             }
         });
+        
+        // Settings functionality
+        this.setupSettingsUI();
+    }
+    
+    setupSettingsUI() {
+        // Settings button
+        const settingsBtn = document.getElementById('aiSettingsBtn');
+        if (settingsBtn) {
+            settingsBtn.addEventListener('click', () => this.toggleSettings());
+        }
+        
+        // Provider selection
+        const providerSelect = document.getElementById('aiProviderSelect');
+        if (providerSelect) {
+            providerSelect.addEventListener('change', (e) => this.handleProviderChange(e.target.value));
+        }
+        
+        // API key toggle visibility
+        const apiKeyToggle = document.getElementById('aiApiKeyToggle');
+        if (apiKeyToggle) {
+            apiKeyToggle.addEventListener('click', () => this.toggleApiKeyVisibility());
+        }
+        
+        // Action buttons
+        const saveBtn = document.getElementById('aiSaveConfig');
+        if (saveBtn) {
+            saveBtn.addEventListener('click', () => this.saveConfiguration());
+        }
+        
+        const testBtn = document.getElementById('aiTestConnection');
+        if (testBtn) {
+            testBtn.addEventListener('click', () => this.testConnection());
+        }
+        
+        const clearBtn = document.getElementById('aiClearConfig');
+        if (clearBtn) {
+            clearBtn.addEventListener('click', () => this.clearConfiguration());
+        }
+        
+        // Load current configuration into UI
+        this.updateSettingsUI();
+    }
+    
+    toggleSettings() {
+        const settingsSection = document.getElementById('aiSettingsSection');
+        const settingsBtn = document.getElementById('aiSettingsBtn');
+        
+        if (settingsSection && settingsBtn) {
+            const isVisible = settingsSection.style.display !== 'none';
+            settingsSection.style.display = isVisible ? 'none' : 'block';
+            settingsBtn.classList.toggle('active', !isVisible);
+            
+            if (!isVisible) {
+                this.updateSettingsUI();
+            }
+        }
+    }
+    
+    handleProviderChange(provider) {
+        this.apiProvider = provider;
+        
+        // Update help text and custom endpoint visibility
+        const helpText = document.getElementById('aiProviderLink');
+        const customEndpointSection = document.getElementById('aiCustomEndpointSection');
+        
+        if (helpText) {
+            switch (provider) {
+                case 'openai':
+                    helpText.textContent = 'platform.openai.com';
+                    helpText.href = 'https://platform.openai.com';
+                    break;
+                case 'anthropic':
+                    helpText.textContent = 'console.anthropic.com';
+                    helpText.href = 'https://console.anthropic.com';
+                    break;
+                case 'custom':
+                    helpText.textContent = 'your API provider';
+                    helpText.href = '#';
+                    break;
+            }
+        }
+        
+        if (customEndpointSection) {
+            customEndpointSection.style.display = provider === 'custom' ? 'block' : 'none';
+        }
+    }
+    
+    toggleApiKeyVisibility() {
+        const apiKeyInput = document.getElementById('aiApiKeyInput');
+        const toggleBtn = document.getElementById('aiApiKeyToggle');
+        
+        if (apiKeyInput && toggleBtn) {
+            const isPassword = apiKeyInput.type === 'password';
+            apiKeyInput.type = isPassword ? 'text' : 'password';
+            
+            // Update icon
+            const icon = isPassword ? 
+                `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                    <line x1="1" y1="1" x2="23" y2="23"/>
+                </svg>` :
+                `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                </svg>`;
+            
+            toggleBtn.innerHTML = icon;
+        }
+    }
+    
+    updateSettingsUI() {
+        // Update provider select
+        const providerSelect = document.getElementById('aiProviderSelect');
+        if (providerSelect) {
+            providerSelect.value = this.apiProvider;
+            this.handleProviderChange(this.apiProvider);
+        }
+        
+        // Update API key input
+        const apiKeyInput = document.getElementById('aiApiKeyInput');
+        if (apiKeyInput) {
+            apiKeyInput.value = this.apiKey;
+        }
+        
+        // Update custom endpoint
+        const customEndpoint = document.getElementById('aiCustomEndpoint');
+        if (customEndpoint) {
+            customEndpoint.value = this.apiEndpoint;
+        }
+        
+        // Update connection status and security info
+        this.updateConnectionStatus();
+    }
+    
+    updateConnectionStatus() {
+        const statusIndicator = document.querySelector('#aiConnectionStatus .status-indicator');
+        const statusText = document.querySelector('#aiConnectionStatus .status-text');
+        
+        if (statusIndicator && statusText) {
+            const isConfigured = this.apiKey || this.apiEndpoint;
+            const storage = window.documentStorage;
+            const isSupabaseUser = storage && storage.supabase && storage.currentUser;
+            
+            if (isConfigured) {
+                statusIndicator.className = 'status-indicator connected';
+                const storageLocation = isSupabaseUser ? 'Supabase' : 'Local';
+                statusText.textContent = `Connected (${this.apiProvider}) • ${storageLocation}`;
+            } else {
+                statusIndicator.className = 'status-indicator';
+                statusText.textContent = 'Not configured';
+            }
+        }
+        
+        // Update security info based on authentication status
+        this.updateSecurityInfo();
+    }
+    
+    updateSecurityInfo() {
+        const securityInfo = document.getElementById('aiSecurityInfo');
+        if (!securityInfo) return;
+        
+        const storage = window.documentStorage;
+        const isSupabaseUser = storage && storage.supabase && storage.currentUser;
+        
+        if (isSupabaseUser) {
+            securityInfo.innerHTML = `
+                <li>✅ Stored securely in your Supabase database</li>
+                <li>🔒 Protected with Row Level Security</li>
+                <li>🌐 Synced across all your devices</li>
+                <li>🚫 Never sent to our servers</li>
+                <li>➡️ Only sent directly to your chosen AI provider</li>
+            `;
+        } else {
+            securityInfo.innerHTML = `
+                <li>📱 Stored locally in your browser</li>
+                <li>💡 Sign in to sync across devices with Supabase</li>
+                <li>🚫 Never sent to our servers</li>
+                <li>➡️ Only sent directly to your chosen AI provider</li>
+            `;
+        }
+    }
+    
+    async saveConfiguration() {
+        const apiKeyInput = document.getElementById('aiApiKeyInput');
+        const customEndpoint = document.getElementById('aiCustomEndpoint');
+        const saveBtn = document.getElementById('aiSaveConfig');
+        
+        if (!apiKeyInput) return;
+        
+        const apiKey = apiKeyInput.value.trim();
+        const endpoint = customEndpoint ? customEndpoint.value.trim() : '';
+        
+        if (!apiKey && this.apiProvider !== 'custom') {
+            this.showNotification('Please enter an API key', 'error');
+            return;
+        }
+        
+        if (this.apiProvider === 'custom' && !endpoint) {
+            this.showNotification('Please enter a custom endpoint URL', 'error');
+            return;
+        }
+        
+        // Show loading state
+        if (saveBtn) {
+            saveBtn.disabled = true;
+            saveBtn.textContent = 'Saving...';
+        }
+        
+        try {
+            // Save to the existing system
+            const success = await this.saveApiConfig(this.apiProvider, apiKey, endpoint);
+            
+            if (success) {
+                this.showNotification('Configuration saved successfully!', 'success');
+                this.updateConnectionStatus();
+                
+                // Update welcome message if this is first time setup
+                this.updateWelcomeMessage();
+            } else {
+                this.showNotification('Failed to save configuration', 'error');
+            }
+        } catch (error) {
+            console.error('Error saving configuration:', error);
+            this.showNotification('Error saving configuration', 'error');
+        } finally {
+            if (saveBtn) {
+                saveBtn.disabled = false;
+                saveBtn.textContent = 'Save Configuration';
+            }
+        }
+    }
+    
+    async testConnection() {
+        const testBtn = document.getElementById('aiTestConnection');
+        
+        if (!this.apiKey && !this.apiEndpoint) {
+            this.showNotification('Please configure your API settings first', 'error');
+            return;
+        }
+        
+        if (testBtn) {
+            testBtn.disabled = true;
+            testBtn.textContent = 'Testing...';
+        }
+        
+        try {
+            // Test with a simple message
+            const testMessage = "Hello! This is a test message. Please respond with 'Test successful' if you receive this.";
+            const response = await this.makeAIRequest('You are a helpful assistant.', testMessage);
+            
+            if (response && response.trim().length > 0) {
+                this.showNotification('Connection test successful!', 'success');
+                this.updateConnectionStatus();
+            } else {
+                this.showNotification('Connection test failed - no response', 'error');
+            }
+        } catch (error) {
+            console.error('Connection test error:', error);
+            this.showNotification(`Connection test failed: ${error.message}`, 'error');
+        } finally {
+            if (testBtn) {
+                testBtn.disabled = false;
+                testBtn.textContent = 'Test Connection';
+            }
+        }
+    }
+    
+    clearConfiguration() {
+        if (confirm('Are you sure you want to clear your API configuration?')) {
+            // Clear the existing system
+            this.deleteApiConfig(this.apiProvider);
+            
+            // Clear UI
+            const apiKeyInput = document.getElementById('aiApiKeyInput');
+            const customEndpoint = document.getElementById('aiCustomEndpoint');
+            
+            if (apiKeyInput) apiKeyInput.value = '';
+            if (customEndpoint) customEndpoint.value = '';
+            
+            this.apiKey = '';
+            this.apiEndpoint = '';
+            this.updateConnectionStatus();
+            
+            this.showNotification('Configuration cleared', 'success');
+        }
+    }
+    
+    updateWelcomeMessage() {
+        const welcomeMessage = document.querySelector('.ai-welcome-message .ai-message-content');
+        if (welcomeMessage && (this.apiKey || this.apiEndpoint)) {
+            welcomeMessage.innerHTML = `
+                <p>Hey! I'm your AI coding assistant. I can help you:</p>
+                <ul>
+                    <li>🔍 Explain any code you highlight</li>
+                    <li>🐛 Debug issues and fix errors</li>
+                    <li>💡 Suggest improvements</li>
+                    <li>💬 Answer questions about your HTML/CSS</li>
+                </ul>
+                <p>✅ API configured! Try highlighting some code and clicking "Explain This", or just ask me anything!</p>
+            `;
+        }
+    }
+    
+    showNotification(message, type = 'info') {
+        // Reuse the existing notification system
+        if (typeof showCopyNotification === 'function') {
+            showCopyNotification(message, type);
+        } else {
+            // Fallback alert
+            alert(message);
+        }
     }
     
     initializeSelectionHandling() {
