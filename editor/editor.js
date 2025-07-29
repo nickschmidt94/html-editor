@@ -4085,3 +4085,770 @@ class SupabaseDocumentStorage {
     }
 }
 
+// === AI ASSISTANT SYSTEM ===
+
+class AIAssistant {
+    constructor() {
+        this.isOpen = false;
+        this.currentContext = null;
+        this.selectedText = '';
+        this.selectionPosition = null;
+        
+        // AI Configuration - now stored in Supabase
+        this.apiKey = '';
+        this.apiProvider = 'openai'; // openai, anthropic, or custom
+        this.apiEndpoint = '';
+        this.isLoadingConfig = false;
+        
+        this.init();
+    }
+    
+    async init() {
+        this.setupEventListeners();
+        this.initializeSelectionHandling();
+        
+        // Load API configuration from Supabase if user is authenticated
+        await this.loadApiConfig();
+        
+        // Show API key setup if not configured
+        if (!this.apiKey && !this.apiEndpoint) {
+            setTimeout(() => this.showApiSetup(), 2000);
+        }
+    }
+    
+    setupEventListeners() {
+        // Toggle button
+        const toggleBtn = document.getElementById('aiAssistantToggle');
+        if (toggleBtn) {
+            toggleBtn.addEventListener('click', () => this.toggle());
+        }
+        
+        // Close button
+        const closeBtn = document.getElementById('aiPanelClose');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => this.close());
+        }
+        
+        // Quick action buttons
+        document.querySelectorAll('.ai-quick-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const action = e.currentTarget.getAttribute('data-action');
+                this.handleQuickAction(action);
+            });
+        });
+        
+        // Chat input
+        const chatInput = document.getElementById('aiChatInput');
+        const sendButton = document.getElementById('aiSendButton');
+        
+        if (chatInput) {
+            chatInput.addEventListener('input', () => this.updateSendButton());
+            chatInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    this.sendMessage();
+                }
+            });
+            
+            // Auto-resize textarea
+            chatInput.addEventListener('input', this.autoResizeTextarea);
+        }
+        
+        if (sendButton) {
+            sendButton.addEventListener('click', () => this.sendMessage());
+        }
+        
+        // Explain tooltip
+        const explainBtn = document.getElementById('aiExplainSelected');
+        if (explainBtn) {
+            explainBtn.addEventListener('click', () => this.explainSelectedCode());
+        }
+        
+        // Close tooltip when clicking outside
+        document.addEventListener('click', (e) => {
+            const tooltip = document.getElementById('aiExplainTooltip');
+            if (tooltip && !tooltip.contains(e.target) && !e.target.closest('.monaco-editor')) {
+                this.hideExplainTooltip();
+            }
+        });
+    }
+    
+    initializeSelectionHandling() {
+        if (!editor) return;
+        
+        // Listen for selection changes in Monaco Editor
+        editor.onDidChangeCursorSelection((e) => {
+            const selection = editor.getSelection();
+            if (selection && !selection.isEmpty()) {
+                const selectedText = editor.getModel().getValueInRange(selection);
+                if (selectedText.trim().length > 2) {
+                    this.selectedText = selectedText;
+                    this.selectionPosition = selection;
+                    this.showExplainTooltip(e);
+                    this.updateContextIndicator('Code selected');
+                } else {
+                    this.hideExplainTooltip();
+                    this.clearContextIndicator();
+                }
+            } else {
+                this.selectedText = '';
+                this.selectionPosition = null;
+                this.hideExplainTooltip();
+                this.clearContextIndicator();
+            }
+        });
+    }
+    
+    toggle() {
+        if (this.isOpen) {
+            this.close();
+        } else {
+            this.open();
+        }
+    }
+    
+    open() {
+        const panel = document.getElementById('aiAssistantPanel');
+        const toggleBtn = document.getElementById('aiAssistantToggle');
+        
+        if (panel) {
+            panel.classList.add('open');
+            this.isOpen = true;
+            
+            if (toggleBtn) {
+                toggleBtn.classList.add('active');
+            }
+            
+            // Focus chat input
+            setTimeout(() => {
+                const chatInput = document.getElementById('aiChatInput');
+                if (chatInput) chatInput.focus();
+            }, 300);
+            
+            // Update context
+            this.updateCurrentContext();
+        }
+    }
+    
+    close() {
+        const panel = document.getElementById('aiAssistantPanel');
+        const toggleBtn = document.getElementById('aiAssistantToggle');
+        
+        if (panel) {
+            panel.classList.remove('open');
+            this.isOpen = false;
+            
+            if (toggleBtn) {
+                toggleBtn.classList.remove('active');
+            }
+        }
+        
+        this.hideExplainTooltip();
+    }
+    
+    updateCurrentContext() {
+        if (!editor) return;
+        
+        const fullCode = editor.getValue();
+        const cursorPosition = editor.getPosition();
+        
+        this.currentContext = {
+            fullCode: fullCode,
+            codeLength: fullCode.length,
+            cursorLine: cursorPosition ? cursorPosition.lineNumber : 1,
+            selectedText: this.selectedText,
+            language: 'html',
+            hasSelection: !!this.selectedText
+        };
+    }
+    
+    updateContextIndicator(text) {
+        const indicator = document.getElementById('aiContextIndicator');
+        const contextText = document.getElementById('aiContextText');
+        
+        if (indicator && contextText) {
+            contextText.textContent = text;
+            indicator.style.display = 'flex';
+        }
+    }
+    
+    clearContextIndicator() {
+        const indicator = document.getElementById('aiContextIndicator');
+        if (indicator) {
+            indicator.style.display = 'none';
+        }
+    }
+    
+    showExplainTooltip(event) {
+        if (!this.selectedText) return;
+        
+        const tooltip = document.getElementById('aiExplainTooltip');
+        if (!tooltip) return;
+        
+        // Position tooltip near the selection
+        const editorContainer = document.getElementById('editor-container');
+        if (editorContainer) {
+            const rect = editorContainer.getBoundingClientRect();
+            const x = Math.min(event.target?.getBoundingClientRect?.()?.left || rect.left + 100, window.innerWidth - 150);
+            const y = Math.min(event.target?.getBoundingClientRect?.()?.top || rect.top + 100, window.innerHeight - 100);
+            
+            tooltip.style.left = x + 'px';
+            tooltip.style.top = y + 'px';
+            tooltip.style.display = 'block';
+        }
+    }
+    
+    hideExplainTooltip() {
+        const tooltip = document.getElementById('aiExplainTooltip');
+        if (tooltip) {
+            tooltip.style.display = 'none';
+        }
+    }
+    
+    updateSendButton() {
+        const chatInput = document.getElementById('aiChatInput');
+        const sendButton = document.getElementById('aiSendButton');
+        
+        if (chatInput && sendButton) {
+            const hasContent = chatInput.value.trim().length > 0;
+            sendButton.disabled = !hasContent;
+        }
+    }
+    
+    autoResizeTextarea(event) {
+        const textarea = event.target;
+        textarea.style.height = 'auto';
+        textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
+    }
+    
+    async handleQuickAction(action) {
+        this.updateCurrentContext();
+        
+        let prompt = '';
+        switch (action) {
+            case 'explain-code':
+                if (this.selectedText) {
+                    prompt = `Please explain this HTML/CSS code:\n\n${this.selectedText}`;
+                } else {
+                    prompt = 'Please explain the current HTML/CSS code and what it does.';
+                }
+                break;
+                
+            case 'debug-code':
+                prompt = 'Please review this HTML/CSS code for any errors, missing elements, or potential issues and suggest fixes.';
+                break;
+                
+            case 'improve-code':
+                prompt = 'Please suggest improvements for this HTML/CSS code in terms of best practices, accessibility, and performance.';
+                break;
+        }
+        
+        if (prompt) {
+            await this.sendAIMessage(prompt);
+        }
+    }
+    
+    async explainSelectedCode() {
+        if (!this.selectedText) return;
+        
+        this.hideExplainTooltip();
+        if (!this.isOpen) this.open();
+        
+        await this.sendAIMessage(`Please explain this code:\n\n${this.selectedText}`);
+    }
+    
+    async sendMessage() {
+        const chatInput = document.getElementById('aiChatInput');
+        if (!chatInput || !chatInput.value.trim()) return;
+        
+        const userMessage = chatInput.value.trim();
+        chatInput.value = '';
+        this.updateSendButton();
+        
+        await this.sendAIMessage(userMessage);
+    }
+    
+    async sendAIMessage(message) {
+        this.updateCurrentContext();
+        this.addUserMessage(message);
+        this.showLoading(true);
+        
+        try {
+            const response = await this.callAI(message, this.currentContext);
+            this.addAIMessage(response);
+        } catch (error) {
+            console.error('AI request failed:', error);
+            this.addAIMessage('Sorry, I encountered an error. Please check your API configuration or try again later.');
+        }
+        
+        this.showLoading(false);
+    }
+    
+    addUserMessage(message) {
+        const messagesContainer = document.getElementById('aiChatMessages');
+        if (!messagesContainer) return;
+        
+        const messageDiv = document.createElement('div');
+        messageDiv.className = 'ai-user-message';
+        messageDiv.innerHTML = `
+            <div class="ai-user-avatar">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M20 21V19C20 17.9391 19.5786 16.9217 18.8284 16.1716C18.0783 15.4214 17.0609 15 16 15H8C6.93913 15 5.92172 15.4214 5.17157 16.1716C4.42143 16.9217 4 17.9391 4 19V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <circle cx="12" cy="7" r="4" stroke="currentColor" stroke-width="2"/>
+                </svg>
+            </div>
+            <div class="ai-user-message-content">
+                <p>${this.escapeHtml(message)}</p>
+            </div>
+        `;
+        
+        messagesContainer.appendChild(messageDiv);
+        this.scrollToBottom();
+    }
+    
+    addAIMessage(message) {
+        const messagesContainer = document.getElementById('aiChatMessages');
+        if (!messagesContainer) return;
+        
+        const messageDiv = document.createElement('div');
+        messageDiv.className = 'ai-message';
+        messageDiv.innerHTML = `
+            <div class="ai-avatar">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="12" cy="12" r="3" fill="currentColor"/>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" stroke="currentColor" stroke-width="2"/>
+                </svg>
+            </div>
+            <div class="ai-message-content">
+                ${this.formatAIResponse(message)}
+            </div>
+        `;
+        
+        messagesContainer.appendChild(messageDiv);
+        this.scrollToBottom();
+    }
+    
+    formatAIResponse(message) {
+        // Basic markdown-like formatting
+        let formatted = this.escapeHtml(message);
+        
+        // Code blocks
+        formatted = formatted.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
+        
+        // Inline code
+        formatted = formatted.replace(/`([^`]+)`/g, '<code>$1</code>');
+        
+        // Bold text
+        formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+        
+        // Convert line breaks to paragraphs
+        const paragraphs = formatted.split('\n\n').filter(p => p.trim());
+        if (paragraphs.length > 1) {
+            formatted = paragraphs.map(p => `<p>${p.replace(/\n/g, '<br>')}</p>`).join('');
+        } else {
+            formatted = `<p>${formatted.replace(/\n/g, '<br>')}</p>`;
+        }
+        
+        return formatted;
+    }
+    
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    scrollToBottom() {
+        const messagesContainer = document.getElementById('aiChatMessages');
+        if (messagesContainer) {
+            setTimeout(() => {
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            }, 100);
+        }
+    }
+    
+    showLoading(show) {
+        const overlay = document.getElementById('aiLoadingOverlay');
+        if (overlay) {
+            overlay.style.display = show ? 'flex' : 'none';
+        }
+    }
+    
+    async callAI(message, context) {
+        // If no API key is configured, show demo response
+        if (!this.apiKey && !this.apiEndpoint) {
+            return this.getDemoResponse(message, context);
+        }
+        
+        // Build the prompt with context
+        const systemPrompt = this.buildSystemPrompt();
+        const contextualPrompt = this.buildContextualPrompt(message, context);
+        
+        if (this.apiProvider === 'openai') {
+            return await this.callOpenAI(systemPrompt, contextualPrompt);
+        } else if (this.apiProvider === 'anthropic') {
+            return await this.callAnthropic(systemPrompt, contextualPrompt);
+        } else if (this.apiEndpoint) {
+            return await this.callCustomEndpoint(systemPrompt, contextualPrompt);
+        }
+        
+        throw new Error('No valid AI provider configured');
+    }
+    
+    buildSystemPrompt() {
+        return `You are a helpful AI coding assistant integrated into an HTML/CSS editor. Your role is to:
+1. Explain HTML and CSS code in a clear, beginner-friendly way
+2. Help debug issues like missing brackets, syntax errors, or styling problems
+3. Suggest improvements and best practices
+4. Be encouraging and supportive, like a friendly dev mentor
+5. Keep responses concise but thorough
+6. Use simple language and provide examples when helpful
+
+You have access to the user's current code and can see what they're working on. Be contextual and specific in your responses.`;
+    }
+    
+    buildContextualPrompt(message, context) {
+        let prompt = message;
+        
+        if (context) {
+            prompt += '\n\n--- Current Context ---\n';
+            
+            if (context.selectedText) {
+                prompt += `Selected code:\n${context.selectedText}\n\n`;
+            }
+            
+            if (context.fullCode && context.fullCode.trim()) {
+                // Include relevant parts of the full code
+                const codePreview = context.fullCode.length > 1000 
+                    ? context.fullCode.substring(0, 1000) + '...\n(code truncated)'
+                    : context.fullCode;
+                prompt += `Full document code:\n${codePreview}`;
+            }
+        }
+        
+        return prompt;
+    }
+    
+    async callOpenAI(systemPrompt, message) {
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${this.apiKey}`
+            },
+            body: JSON.stringify({
+                model: 'gpt-3.5-turbo',
+                messages: [
+                    { role: 'system', content: systemPrompt },
+                    { role: 'user', content: message }
+                ],
+                max_tokens: 500,
+                temperature: 0.7
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error(`OpenAI API error: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        return data.choices[0].message.content;
+    }
+    
+    async callAnthropic(systemPrompt, message) {
+        const response = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': this.apiKey,
+                'anthropic-version': '2023-06-01'
+            },
+            body: JSON.stringify({
+                model: 'claude-3-haiku-20240307',
+                max_tokens: 500,
+                system: systemPrompt,
+                messages: [
+                    { role: 'user', content: message }
+                ]
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error(`Anthropic API error: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        return data.content[0].text;
+    }
+    
+    async callCustomEndpoint(systemPrompt, message) {
+        const response = await fetch(this.apiEndpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                ...(this.apiKey && { 'Authorization': `Bearer ${this.apiKey}` })
+            },
+            body: JSON.stringify({
+                system: systemPrompt,
+                message: message,
+                context: this.currentContext
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error(`Custom API error: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        return data.response || data.message || data.content;
+    }
+    
+    getDemoResponse(message, context) {
+        // Demo responses for when no API is configured
+        const responses = [
+            "I'd love to help you with that! However, I need an API key to provide real AI assistance. Click the settings button to configure your OpenAI, Anthropic, or custom AI endpoint.",
+            
+            "Great question! To get personalized help with your code, please set up your AI API configuration. I can work with OpenAI, Anthropic Claude, or any custom endpoint you prefer.",
+            
+            "I can see you're working on some HTML/CSS! Once you configure an AI provider, I'll be able to give you detailed explanations, debug help, and suggestions specific to your code.",
+            
+            "That's an interesting piece of code! For detailed analysis and debugging help, please configure your AI settings so I can provide proper assistance."
+        ];
+        
+        return new Promise(resolve => {
+            setTimeout(() => {
+                const randomResponse = responses[Math.floor(Math.random() * responses.length)];
+                resolve(randomResponse);
+            }, 1000); // Simulate API delay
+        });
+    }
+    
+    // === SUPABASE API KEY MANAGEMENT ===
+    
+    async loadApiConfig() {
+        if (this.isLoadingConfig) return;
+        this.isLoadingConfig = true;
+        
+        try {
+            // Check if user is authenticated and we have Supabase
+            const storage = window.documentStorage;
+            if (!storage || !storage.supabase || !storage.currentUser) {
+                console.log('🤖 AI: No authenticated user, using local fallback');
+                this.loadLocalApiConfig();
+                return;
+            }
+            
+            console.log('🤖 AI: Loading API config from Supabase...');
+            
+            // Load all API configurations for the user
+            const { data, error } = await storage.supabase
+                .from('user_api_keys')
+                .select('*')
+                .eq('user_id', storage.currentUser.id);
+                
+            if (error) {
+                console.error('Failed to load API config from Supabase:', error);
+                this.loadLocalApiConfig();
+                return;
+            }
+            
+            if (data && data.length > 0) {
+                // Use the first configured provider (or find a preferred one)
+                const config = data[0];
+                this.apiProvider = config.provider;
+                this.apiKey = config.api_key;
+                this.apiEndpoint = config.endpoint_url || '';
+                
+                console.log(`🤖 AI: Loaded ${this.apiProvider} configuration from Supabase`);
+            } else {
+                console.log('🤖 AI: No API config found in Supabase');
+            }
+            
+        } catch (error) {
+            console.error('Error loading API config:', error);
+            this.loadLocalApiConfig();
+        } finally {
+            this.isLoadingConfig = false;
+        }
+    }
+    
+    loadLocalApiConfig() {
+        // Fallback to localStorage for backward compatibility or when offline
+        this.apiKey = localStorage.getItem('ai-api-key') || '';
+        this.apiProvider = localStorage.getItem('ai-provider') || 'openai';
+        this.apiEndpoint = localStorage.getItem('ai-endpoint') || '';
+        
+        if (this.apiKey) {
+            console.log('🤖 AI: Loaded configuration from localStorage (fallback)');
+        }
+    }
+    
+    async saveApiConfig(provider, apiKey, endpoint = '') {
+        try {
+            // Save to Supabase if user is authenticated
+            const storage = window.documentStorage;
+            if (storage && storage.supabase && storage.currentUser) {
+                console.log(`🤖 AI: Saving ${provider} config to Supabase...`);
+                
+                const { data, error } = await storage.supabase
+                    .from('user_api_keys')
+                    .upsert({
+                        user_id: storage.currentUser.id,
+                        provider: provider,
+                        api_key: apiKey,
+                        endpoint_url: endpoint || null,
+                        updated_at: new Date().toISOString()
+                    }, {
+                        onConflict: 'user_id,provider'
+                    });
+                    
+                if (error) {
+                    console.error('Failed to save API config to Supabase:', error);
+                    throw error;
+                }
+                
+                console.log('🤖 AI: Configuration saved to Supabase successfully');
+            } else {
+                // Fallback to localStorage
+                console.log('🤖 AI: Saving to localStorage (fallback)');
+                localStorage.setItem('ai-provider', provider);
+                localStorage.setItem('ai-api-key', apiKey);
+                if (endpoint) {
+                    localStorage.setItem('ai-endpoint', endpoint);
+                }
+            }
+            
+            // Update current configuration
+            this.apiProvider = provider;
+            this.apiKey = apiKey;
+            this.apiEndpoint = endpoint;
+            
+            return true;
+            
+        } catch (error) {
+            console.error('Error saving API config:', error);
+            return false;
+        }
+    }
+    
+    async deleteApiConfig(provider) {
+        try {
+            const storage = window.documentStorage;
+            if (storage && storage.supabase && storage.currentUser) {
+                const { error } = await storage.supabase
+                    .from('user_api_keys')
+                    .delete()
+                    .eq('user_id', storage.currentUser.id)
+                    .eq('provider', provider);
+                    
+                if (error) {
+                    console.error('Failed to delete API config:', error);
+                    return false;
+                }
+                
+                console.log(`🤖 AI: Deleted ${provider} config from Supabase`);
+            }
+            
+            // Also clear localStorage
+            localStorage.removeItem('ai-api-key');
+            localStorage.removeItem('ai-provider');
+            localStorage.removeItem('ai-endpoint');
+            
+            // Clear current config if it matches
+            if (this.apiProvider === provider) {
+                this.apiKey = '';
+                this.apiProvider = 'openai';
+                this.apiEndpoint = '';
+            }
+            
+            return true;
+            
+        } catch (error) {
+            console.error('Error deleting API config:', error);
+            return false;
+        }
+    }
+    
+    showApiSetup() {
+        const setupMessage = `
+            <div class="ai-setup-notice">
+                <h4>🤖 AI Assistant Setup</h4>
+                <p>To start using your AI coding buddy, you'll need to configure an API provider:</p>
+                <ul>
+                    <li><strong>OpenAI:</strong> Get an API key from <a href="https://platform.openai.com" target="_blank">platform.openai.com</a></li>
+                    <li><strong>Anthropic:</strong> Get an API key from <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a></li>
+                    <li><strong>Custom:</strong> Use your own AI endpoint</li>
+                </ul>
+                <button onclick="window.aiAssistant.openSettings()" class="ai-setup-btn">Configure API</button>
+            </div>
+        `;
+        
+        this.addAIMessage(setupMessage);
+    }
+    
+    async openSettings() {
+        // Check if user is authenticated for Supabase storage
+        const storage = window.documentStorage;
+        const isAuthenticated = storage && storage.supabase && storage.currentUser;
+        
+        if (!isAuthenticated) {
+            this.addAIMessage('To save your API keys securely, please sign in first. You can still use the AI assistant with temporary configuration.');
+        }
+        
+        // Simple prompt-based configuration (could be replaced with a modal in the future)
+        const provider = prompt('Enter AI provider (openai/anthropic/custom):', this.apiProvider);
+        if (!provider) return;
+        
+        let endpoint = '';
+        if (provider === 'custom') {
+            endpoint = prompt('Enter your custom AI endpoint URL:', this.apiEndpoint);
+            if (!endpoint) return;
+        }
+        
+        const apiKey = prompt('Enter your API key:');
+        if (!apiKey) return;
+        
+        // Show loading message
+        this.addAIMessage('Configuring your AI assistant...');
+        
+        try {
+            const success = await this.saveApiConfig(provider, apiKey, endpoint);
+            
+            if (success) {
+                const storageType = isAuthenticated ? 'Supabase (synced across devices)' : 'local storage';
+                this.addAIMessage(`Great! Your AI assistant is now configured and saved to ${storageType}. Try asking me a question or use the quick action buttons!`);
+            } else {
+                this.addAIMessage('Configuration saved locally, but there was an issue saving to the cloud. Your API key will work for this session.');
+            }
+        } catch (error) {
+            console.error('Settings save error:', error);
+            this.addAIMessage('There was an error saving your configuration. Please try again or check the browser console for details.');
+        }
+    }
+}
+
+// Initialize AI Assistant when DOM is loaded
+document.addEventListener('DOMContentLoaded', () => {
+    // Wait for Monaco Editor to be ready
+    setTimeout(async () => {
+        window.aiAssistant = new AIAssistant();
+        console.log('🤖 AI Assistant initialized');
+        
+        // Listen for authentication state changes to reload API config
+        if (window.documentStorage && window.documentStorage.supabase) {
+            window.documentStorage.supabase.auth.onAuthStateChange(async (event, session) => {
+                if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
+                    console.log('🤖 AI: Auth state changed, reloading API config...');
+                    await window.aiAssistant.loadApiConfig();
+                    
+                    if (event === 'SIGNED_IN' && (!window.aiAssistant.apiKey && !window.aiAssistant.apiEndpoint)) {
+                        setTimeout(() => {
+                            window.aiAssistant.addAIMessage('Welcome! Since you\'re now signed in, your AI assistant configuration will be securely synced across all your devices. Click "Configure API" to set up your AI provider.');
+                        }, 2000);
+                    }
+                }
+            });
+        }
+    }, 1000);
+});
+

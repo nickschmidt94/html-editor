@@ -69,6 +69,21 @@ CREATE TABLE public.categories (
 ALTER TABLE public.documents ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.categories ENABLE ROW LEVEL SECURITY;
 
+-- Create user_api_keys table for storing AI provider keys
+CREATE TABLE public.user_api_keys (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+    provider TEXT NOT NULL, -- 'openai', 'anthropic', 'custom'
+    api_key TEXT NOT NULL,
+    endpoint_url TEXT, -- For custom providers
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(user_id, provider)
+);
+
+-- Enable Row Level Security on api keys table
+ALTER TABLE public.user_api_keys ENABLE ROW LEVEL SECURITY;
+
 -- Create policies for documents table
 CREATE POLICY "Users can view their own documents" ON public.documents
     FOR SELECT USING (auth.uid() = user_id);
@@ -93,6 +108,19 @@ CREATE POLICY "Users can update their own categories" ON public.categories
     FOR UPDATE USING (auth.uid() = user_id);
 
 CREATE POLICY "Users can delete their own categories" ON public.categories
+    FOR DELETE USING (auth.uid() = user_id);
+
+-- Create policies for user_api_keys table
+CREATE POLICY "Users can view their own API keys" ON public.user_api_keys
+    FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert their own API keys" ON public.user_api_keys
+    FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own API keys" ON public.user_api_keys
+    FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete their own API keys" ON public.user_api_keys
     FOR DELETE USING (auth.uid() = user_id);
 
 -- Create indexes for better performance
