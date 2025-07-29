@@ -628,7 +628,7 @@
         0 15px 30px rgba(0, 0, 0, 0.4),
         inset 0 1px 0 rgba(255, 255, 255, 0.03);
     min-width: 160px;
-    z-index: 999999;
+    z-index: 99999;
     opacity: 0;
     visibility: hidden;
     transform: translateY(-4px) scale(0.95);
@@ -849,7 +849,7 @@
         0 15px 30px rgba(0, 0, 0, 0.4),
         inset 0 1px 0 rgba(255, 255, 255, 0.03);
     min-width: 220px;
-    z-index: 999999;
+    z-index: 99999;
     opacity: 0;
     visibility: hidden;
     transform: translateY(-4px) scale(0.95);

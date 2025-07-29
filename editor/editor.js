@@ -2632,6 +2632,11 @@ class DocumentStorage {
         }
         this.renderSidebar();
         this.setupEventListeners();
+        
+        // Initialize space dropdown on startup
+        setTimeout(() => {
+            this.updateSpaceSelector();
+        }, 100);
     }
     
     migrateExistingDocuments() {
@@ -3164,7 +3169,11 @@ class DocumentStorage {
             `;
             
             // Add drop zone functionality
-            this.addDropZoneListeners(categoryHeader, category);
+            try {
+                this.addDropZoneListeners(categoryHeader, category);
+            } catch (error) {
+                console.error('Error adding drop zone listeners in DocumentStorage:', error);
+            }
 
             const categoryDocuments = document.createElement('div');
             categoryDocuments.className = 'category-documents';
@@ -3193,7 +3202,11 @@ class DocumentStorage {
                 `;
                 
                 // Add drag event listeners
-                this.addDragEventListeners(docItem, doc);
+                try {
+                    this.addDragEventListeners(docItem, doc);
+                } catch (error) {
+                    console.error('Error adding drag listeners in DocumentStorage:', error);
+                }
                 
                 categoryDocuments.appendChild(docItem);
             });
@@ -3212,21 +3225,39 @@ class DocumentStorage {
 
     updateSpaceSelector() {
         const spaceSelector = document.getElementById('currentSpaceSelector');
-        if (!spaceSelector) return;
+        if (!spaceSelector) {
+            console.error('Space selector element not found');
+            return;
+        }
         
-        const spaces = this.getSpaces();
         const currentSpace = this.currentSpace;
         
         if (currentSpace) {
-            spaceSelector.textContent = currentSpace.name;
+            // Update the text content but preserve the chevron icon
+            const chevronSvg = spaceSelector.querySelector('.space-chevron');
+            spaceSelector.innerHTML = `${currentSpace.name}`;
+            if (chevronSvg) {
+                spaceSelector.appendChild(chevronSvg);
+            } else {
+                spaceSelector.innerHTML += `
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="space-chevron">
+                        <polyline points="6,9 12,15 18,9" stroke="currentColor" stroke-width="2"/>
+                    </svg>
+                `;
+            }
             spaceSelector.title = currentSpace.description || currentSpace.name;
+        } else {
+            console.warn('No current space set');
         }
     }
 
     // === DRAG AND DROP METHODS ===
     
     addDragEventListeners(docItem, doc) {
+        console.log('Adding drag listeners for document:', doc.name);
+        
         docItem.addEventListener('dragstart', (e) => {
+            console.log('Drag started for document:', doc.name);
             e.dataTransfer.setData('text/plain', JSON.stringify({
                 docId: doc.id,
                 fromCategory: doc.category
@@ -3234,12 +3265,15 @@ class DocumentStorage {
             docItem.classList.add('dragging');
             
             // Show all category headers as potential drop zones
-            document.querySelectorAll('.category-header').forEach(header => {
+            const headers = document.querySelectorAll('.category-header');
+            console.log('Found', headers.length, 'category headers for drop zones');
+            headers.forEach(header => {
                 header.classList.add('drop-zone-visible');
             });
         });
         
         docItem.addEventListener('dragend', (e) => {
+            console.log('Drag ended for document:', doc.name);
             docItem.classList.remove('dragging');
             
             // Hide drop zone indicators
@@ -3250,6 +3284,8 @@ class DocumentStorage {
     }
     
     addDropZoneListeners(categoryHeader, category) {
+        console.log('Adding drop zone listeners for category:', category);
+        
         categoryHeader.addEventListener('dragover', (e) => {
             e.preventDefault();
             categoryHeader.classList.add('drop-zone-active');
@@ -3263,6 +3299,7 @@ class DocumentStorage {
         });
         
         categoryHeader.addEventListener('drop', (e) => {
+            console.log('Drop event on category:', category);
             e.preventDefault();
             categoryHeader.classList.remove('drop-zone-active');
             
@@ -3270,8 +3307,12 @@ class DocumentStorage {
                 const data = JSON.parse(e.dataTransfer.getData('text/plain'));
                 const { docId, fromCategory } = data;
                 
+                console.log('Moving document from', fromCategory, 'to', category);
+                
                 if (fromCategory !== category) {
                     this.moveDocumentToCategory(docId, category);
+                } else {
+                    console.log('Document already in target category');
                 }
             } catch (error) {
                 console.error('Error processing drop:', error);
@@ -3280,11 +3321,17 @@ class DocumentStorage {
     }
     
     moveDocumentToCategory(docId, newCategory) {
+        console.log('Moving document with ID:', docId, 'to category:', newCategory);
+        
         const documents = JSON.parse(localStorage.getItem(this.storageKey) || '[]');
         const docIndex = documents.findIndex(doc => doc.id === docId);
         
+        console.log('Found document at index:', docIndex);
+        
         if (docIndex >= 0) {
             const oldCategory = documents[docIndex].category;
+            console.log('Moving from:', oldCategory, 'to:', newCategory);
+            
             documents[docIndex].category = newCategory;
             documents[docIndex].updatedAt = new Date().toISOString();
             
@@ -3292,6 +3339,8 @@ class DocumentStorage {
             this.renderSidebar();
             
             this.showNotification(`Moved document to "${newCategory}"`, 'success');
+        } else {
+            console.error('Document not found with ID:', docId);
         }
     }
 
@@ -3424,6 +3473,11 @@ function createInlineCategory() {
 
 function toggleSpaceDropdown() {
     const dropdown = document.getElementById('spaceDropdown');
+    if (!dropdown) {
+        console.error('Space dropdown element not found');
+        return;
+    }
+    
     const isVisible = dropdown.classList.contains('show');
     
     if (isVisible) {
@@ -3452,10 +3506,20 @@ function populateSpaceDropdown() {
     const container = document.getElementById('spacesList');
     const storage = window.documentStorage;
     
-    if (!storage) return;
+    if (!container) {
+        console.error('Spaces list container not found');
+        return;
+    }
+    
+    if (!storage) {
+        console.error('Document storage not available');
+        return;
+    }
     
     const spaces = storage.getSpaces();
     const currentSpace = storage.currentSpace;
+    
+    console.log('Populating spaces dropdown with:', spaces.length, 'spaces');
     
     container.innerHTML = '';
     
@@ -3540,13 +3604,31 @@ function createSpace() {
     
     if (!name) {
         nameInput.focus();
+        nameInput.style.borderColor = '#ef4444';
         return;
     }
     
+    // Reset border color
+    nameInput.style.borderColor = '';
+    
     const storage = window.documentStorage;
     if (storage) {
-        storage.addSpace(name, description, true);
-        closeSpaceModal();
+        try {
+            const newSpace = storage.addSpace(name, description, true);
+            closeSpaceModal();
+            
+            // Refresh the space dropdown
+            setTimeout(() => {
+                populateSpaceDropdown();
+            }, 100);
+            
+            console.log('Space created successfully:', newSpace);
+        } catch (error) {
+            console.error('Error creating space:', error);
+            storage.showNotification('Failed to create space', 'error');
+        }
+    } else {
+        console.error('Storage not available');
     }
 }
 
@@ -4437,7 +4519,11 @@ class SupabaseDocumentStorage {
             `;
             
             // Add drop zone functionality
-            this.addDropZoneListeners(categoryHeader, category);
+            try {
+                this.addDropZoneListeners(categoryHeader, category);
+            } catch (error) {
+                console.error('Error adding drop zone listeners in SupabaseDocumentStorage:', error);
+            }
 
             const categoryDocuments = document.createElement('div');
             categoryDocuments.className = 'category-documents';
@@ -4466,7 +4552,11 @@ class SupabaseDocumentStorage {
                 `;
                 
                 // Add drag event listeners
-                this.addDragEventListeners(docItem, doc);
+                try {
+                    this.addDragEventListeners(docItem, doc);
+                } catch (error) {
+                    console.error('Error adding drag listeners in SupabaseDocumentStorage:', error);
+                }
                 
                 categoryDocuments.appendChild(docItem);
             });
