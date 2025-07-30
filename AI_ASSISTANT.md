@@ -58,6 +58,12 @@ The AI assistant supports multiple providers:
 3. Choose "anthropic" as provider
 4. Enter your API key
 
+#### **Google Gemini**
+1. Get an API key from [Google AI Studio](https://aistudio.google.com/app/apikey)
+2. Click the AI button and configure
+3. Choose "gemini" as provider
+4. Enter your API key
+
 #### **Custom Endpoint**
 1. Set up your own AI endpoint (local LLM, custom API, etc.)
 2. Choose "custom" as provider

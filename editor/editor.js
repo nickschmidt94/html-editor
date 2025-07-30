@@ -4096,7 +4096,7 @@ class AIAssistant {
         
         // AI Configuration - now stored in Supabase
         this.apiKey = '';
-        this.apiProvider = 'openai'; // openai, anthropic, or custom
+        this.apiProvider = 'openai'; // openai, anthropic, gemini, or custom
         this.apiEndpoint = '';
         this.isLoadingConfig = false;
         
@@ -4382,6 +4382,13 @@ class AIAssistant {
         
         try {
             // Save to the existing system
+            console.log('🔧 AI Settings: Attempting to save configuration...', {
+                provider: this.apiProvider,
+                hasApiKey: !!apiKey,
+                hasEndpoint: !!endpoint,
+                isSignedIn: !!(window.documentStorage && window.documentStorage.currentUser)
+            });
+            
             const success = await this.saveApiConfig(this.apiProvider, apiKey, endpoint);
             
             if (success) {
@@ -4391,11 +4398,12 @@ class AIAssistant {
                 // Update welcome message if this is first time setup
                 this.updateWelcomeMessage();
             } else {
-                this.showNotification('Failed to save configuration', 'error');
+                console.error('🔧 AI Settings: saveApiConfig returned false');
+                this.showNotification('Failed to save configuration - check browser console for details', 'error');
             }
         } catch (error) {
-            console.error('Error saving configuration:', error);
-            this.showNotification('Error saving configuration', 'error');
+            console.error('🔧 AI Settings: Error saving configuration:', error);
+            this.showNotification(`Error saving configuration: ${error.message}`, 'error');
         } finally {
             if (saveBtn) {
                 saveBtn.disabled = false;
@@ -4800,6 +4808,8 @@ class AIAssistant {
             return await this.callOpenAI(systemPrompt, contextualPrompt);
         } else if (this.apiProvider === 'anthropic') {
             return await this.callAnthropic(systemPrompt, contextualPrompt);
+        } else if (this.apiProvider === 'gemini') {
+            return await this.callGemini(systemPrompt, contextualPrompt);
         } else if (this.apiEndpoint) {
             return await this.callCustomEndpoint(systemPrompt, contextualPrompt);
         }
@@ -4891,6 +4901,45 @@ You have access to the user's current code and can see what they're working on. 
         
         const data = await response.json();
         return data.content[0].text;
+    }
+    
+    async callGemini(systemPrompt, message) {
+        const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-goog-api-key': this.apiKey
+            },
+            body: JSON.stringify({
+                contents: [
+                    {
+                        parts: [
+                            {
+                                text: message
+                            }
+                        ]
+                    }
+                ],
+                systemInstruction: {
+                    parts: [
+                        {
+                            text: systemPrompt
+                        }
+                    ]
+                },
+                generationConfig: {
+                    temperature: 0.7,
+                    maxOutputTokens: 500
+                }
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error(`Gemini API error: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        return data.candidates[0].content.parts[0].text;
     }
     
     async callCustomEndpoint(systemPrompt, message) {
@@ -5016,18 +5065,17 @@ You have access to the user's current code and can see what they're working on. 
                     
                 if (error) {
                     console.error('Failed to save API config to Supabase:', error);
-                    throw error;
+                    console.log('🤖 AI: Falling back to localStorage due to Supabase error');
+                    
+                    // Fall back to localStorage if Supabase fails
+                    this.saveToLocalStorage(provider, apiKey, endpoint);
+                } else {
+                    console.log('🤖 AI: Configuration saved to Supabase successfully');
                 }
-                
-                console.log('🤖 AI: Configuration saved to Supabase successfully');
             } else {
-                // Fallback to localStorage
-                console.log('🤖 AI: Saving to localStorage (fallback)');
-                localStorage.setItem('ai-provider', provider);
-                localStorage.setItem('ai-api-key', apiKey);
-                if (endpoint) {
-                    localStorage.setItem('ai-endpoint', endpoint);
-                }
+                // Save to localStorage when not authenticated
+                console.log('🤖 AI: User not authenticated, saving to localStorage');
+                this.saveToLocalStorage(provider, apiKey, endpoint);
             }
             
             // Update current configuration
@@ -5038,9 +5086,32 @@ You have access to the user's current code and can see what they're working on. 
             return true;
             
         } catch (error) {
-            console.error('Error saving API config:', error);
-            return false;
+            console.error('🤖 AI: Error saving API config:', error);
+            
+            // Always try localStorage as final fallback
+            try {
+                console.log('🤖 AI: Attempting localStorage fallback...');
+                this.saveToLocalStorage(provider, apiKey, endpoint);
+                
+                // Update current configuration
+                this.apiProvider = provider;
+                this.apiKey = apiKey;
+                this.apiEndpoint = endpoint;
+                
+                console.log('🤖 AI: Successfully saved to localStorage as fallback');
+                return true;
+            } catch (localError) {
+                console.error('🤖 AI: Even localStorage fallback failed:', localError);
+                return false;
+            }
         }
+    }
+    
+    saveToLocalStorage(provider, apiKey, endpoint) {
+        localStorage.setItem('ai-provider', provider);
+        localStorage.setItem('ai-api-key', apiKey);
+        localStorage.setItem('ai-endpoint', endpoint || '');
+        console.log('🤖 AI: Configuration saved to localStorage');
     }
     
     async deleteApiConfig(provider) {
@@ -5089,6 +5160,7 @@ You have access to the user's current code and can see what they're working on. 
                 <ul>
                     <li><strong>OpenAI:</strong> Get an API key from <a href="https://platform.openai.com" target="_blank">platform.openai.com</a></li>
                     <li><strong>Anthropic:</strong> Get an API key from <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a></li>
+                    <li><strong>Gemini:</strong> Get an API key from <a href="https://aistudio.google.com/app/apikey" target="_blank">Google AI Studio</a></li>
                     <li><strong>Custom:</strong> Use your own AI endpoint</li>
                 </ul>
                 <button onclick="window.aiAssistant.openSettings()" class="ai-setup-btn">Configure API</button>
@@ -5108,7 +5180,7 @@ You have access to the user's current code and can see what they're working on. 
         }
         
         // Simple prompt-based configuration (could be replaced with a modal in the future)
-        const provider = prompt('Enter AI provider (openai/anthropic/custom):', this.apiProvider);
+        const provider = prompt('Enter AI provider (openai/anthropic/gemini/custom):', this.apiProvider);
         if (!provider) return;
         
         let endpoint = '';

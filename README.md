@@ -6,6 +6,7 @@ A modern, feature-rich HTML editor with real-time preview and a dedicated learni
 
 - **Real-time HTML Editor**: Monaco-powered editor with syntax highlighting, auto-completion, and formatting
 - **Live Preview**: Instant preview of your HTML with desktop and mobile device views
+- **AI Assistant**: Context-aware coding assistant with support for OpenAI, Anthropic, Google Gemini, and custom endpoints
 - **Separate Pages**: Editor and Learn sections are independent applications
 - **Mobile Preview**: iPhone 15 Pro simulation for mobile testing
 - **Export Tools**: Download HTML files and OpenGraph screenshot overlay
