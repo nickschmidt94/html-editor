@@ -139,7 +139,8 @@
                 </svg>
                 Editor
             </a>
-            <a href="learn.html" class="nav-link">
+            <!-- Learn tab hidden with CSS - to restore, remove style="display: none;" -->
+            <a href="learn.html" class="nav-link" style="display: none;">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M12 2L2 7V17C2 17.5304 2.21071 18.0391 2.58579 18.4142C2.96086 18.7893 3.46957 19 4 19H20C20.5304 19 21.0391 18.7893 21.4142 18.4142C21.7893 18.0391 22 17.5304 22 17V7L12 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                     <polyline points="9,10 12,13 15,10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -187,6 +188,13 @@
                                         <path d="m18.5 2.5 a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                                     </svg>
                                     Edit Profile
+                                </button>
+                                <button onclick="showAIAssistant()" class="user-menu-item">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M12 2L2 7V17C2 17.5304 2.21071 18.0391 2.58579 18.4142C2.96086 18.7893 3.46957 19 4 19H20C20.5304 19 21.0391 18.7893 21.4142 18.4142C21.7893 18.0391 22 17.5304 22 17V7L12 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                        <circle cx="12" cy="13" r="2" fill="currentColor"/>
+                                    </svg>
+                                    AI Assistant
                                 </button>
                                 <button onclick="toggleAuth()" class="user-menu-item sign-out">
                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -560,14 +568,7 @@
         </div>
     </div>
 
-    <!-- AI Assistant Toggle Button -->
-    <button id="aiAssistantToggle" class="ai-assistant-toggle" title="Open AI Assistant">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M12 2L2 7V17C2 17.5304 2.21071 18.0391 2.58579 18.4142C2.96086 18.7893 3.46957 19 4 19H20C20.5304 19 21.0391 18.7893 21.4142 18.4142C21.7893 18.0391 22 17.5304 22 17V7L12 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            <circle cx="12" cy="13" r="2" fill="currentColor"/>
-        </svg>
-        <span class="ai-toggle-text">AI</span>
-    </button>
+
 
     <!-- AI Explain Tooltip -->
     <div id="aiExplainTooltip" class="ai-explain-tooltip" style="display: none;">
@@ -756,20 +757,71 @@
     <div id="profileModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3>Edit Profile</h3>
+                <h3>Account Settings</h3>
                 <button class="modal-close" onclick="closeProfileModal()">&times;</button>
             </div>
             <div class="modal-body">
-                <form onsubmit="updateProfile(); return false;">
+                <!-- Profile Settings -->
+                <div class="settings-section">
+                    <h4>Profile Information</h4>
+                    <form onsubmit="updateProfile(); return false;">
+                        <div class="form-group">
+                            <label for="profileName">Full Name</label>
+                            <input type="text" id="profileName" placeholder="Enter your full name..." required />
+                        </div>
+                    </form>
+                </div>
+                
+                <!-- AI Configuration -->
+                <div class="settings-section">
+                    <h4>AI Assistant Configuration</h4>
+                    <div class="ai-connection-status" id="profileAiConnectionStatus">
+                        <span class="status-indicator"></span>
+                        <span class="status-text">Not configured</span>
+                    </div>
+                    
                     <div class="form-group">
-                        <label for="profileName">Full Name</label>
-                        <input type="text" id="profileName" placeholder="Enter your full name..." required />
+                        <label for="profileAiProvider">AI Provider</label>
+                        <select id="profileAiProvider" onchange="handleProfileAiProviderChange()">
+                            <option value="openai">OpenAI (GPT-4, GPT-3.5)</option>
+                            <option value="anthropic">Anthropic (Claude)</option>
+                            <option value="gemini">Google Gemini</option>
+                            <option value="custom">Custom Endpoint</option>
+                        </select>
                     </div>
-                    <div class="form-actions">
-                        <button type="button" class="btn secondary" onclick="closeProfileModal()">Cancel</button>
-                        <button type="submit" class="btn primary">Update Profile</button>
+                    
+                    <div class="form-group">
+                        <label for="profileAiApiKey">API Key</label>
+                        <div class="api-key-input-group">
+                            <input type="password" id="profileAiApiKey" placeholder="Enter your API key..." />
+                            <button type="button" id="profileAiApiKeyToggle" class="api-key-toggle" onclick="toggleProfileApiKeyVisibility()" title="Show/hide API key">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke="currentColor" stroke-width="2"/>
+                                    <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/>
+                                </svg>
+                            </button>
+                        </div>
+                        <small class="ai-help-text">
+                            Get your API key from <a href="https://platform.openai.com" target="_blank" id="profileAiProviderLink">platform.openai.com</a>
+                        </small>
                     </div>
-                </form>
+                    
+                    <div class="form-group" id="profileAiCustomEndpointSection" style="display: none;">
+                        <label for="profileAiCustomEndpoint">Custom Endpoint URL</label>
+                        <input type="url" id="profileAiCustomEndpoint" placeholder="https://your-api-endpoint.com/v1/chat/completions" />
+                    </div>
+                    
+                    <div class="ai-settings-actions">
+                        <button type="button" id="profileAiSaveConfig" class="btn primary" onclick="saveProfileAiConfig()">Save AI Configuration</button>
+                        <button type="button" id="profileAiTestConnection" class="btn secondary" onclick="testProfileAiConnection()">Test Connection</button>
+                        <button type="button" id="profileAiClearConfig" class="btn secondary" onclick="clearProfileAiConfig()">Clear</button>
+                    </div>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="button" class="btn secondary" onclick="closeProfileModal()">Close</button>
+                    <button type="button" class="btn primary" onclick="updateProfile()">Save Profile</button>
+                </div>
             </div>
         </div>
     </div>

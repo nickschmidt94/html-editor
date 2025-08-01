@@ -1637,6 +1637,9 @@ function showProfileModal() {
         nameInput.value = storage.currentUser.user_metadata.full_name;
     }
     
+    // Load AI configuration
+    loadProfileAiConfig();
+    
     modal.style.display = 'flex';
     nameInput.focus();
 }
@@ -1662,6 +1665,231 @@ function updateProfile() {
     if (storage && storage.updateUserProfile) {
         storage.updateUserProfile(name);
         closeProfileModal();
+    }
+}
+
+// AI Assistant Functions for Profile Modal
+function showAIAssistant() {
+    // Close user menu first
+    const userMenu = document.getElementById('userMenu');
+    if (userMenu) {
+        userMenu.classList.remove('show');
+    }
+    
+    // Open the AI assistant panel
+    if (window.aiAssistant) {
+        window.aiAssistant.toggle();
+    }
+}
+
+function handleProfileAiProviderChange() {
+    const provider = document.getElementById('profileAiProvider').value;
+    const customEndpointSection = document.getElementById('profileAiCustomEndpointSection');
+    const providerLink = document.getElementById('profileAiProviderLink');
+    
+    // Show/hide custom endpoint section
+    if (provider === 'custom') {
+        customEndpointSection.style.display = 'block';
+    } else {
+        customEndpointSection.style.display = 'none';
+    }
+    
+    // Update provider link
+    const links = {
+        'openai': 'https://platform.openai.com',
+        'anthropic': 'https://console.anthropic.com',
+        'gemini': 'https://aistudio.google.com/app/apikey',
+        'custom': '#'
+    };
+    
+    const linkTexts = {
+        'openai': 'platform.openai.com',
+        'anthropic': 'console.anthropic.com',
+        'gemini': 'Google AI Studio',
+        'custom': 'your custom endpoint'
+    };
+    
+    providerLink.href = links[provider];
+    providerLink.textContent = linkTexts[provider];
+}
+
+function toggleProfileApiKeyVisibility() {
+    const input = document.getElementById('profileAiApiKey');
+    const button = document.getElementById('profileAiApiKeyToggle');
+    
+    if (input.type === 'password') {
+        input.type = 'text';
+        button.innerHTML = `
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" stroke="currentColor" stroke-width="2"/>
+                <line x1="1" y1="1" x2="23" y2="23" stroke="currentColor" stroke-width="2"/>
+            </svg>
+        `;
+    } else {
+        input.type = 'password';
+        button.innerHTML = `
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke="currentColor" stroke-width="2"/>
+                <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/>
+            </svg>
+        `;
+    }
+}
+
+async function saveProfileAiConfig() {
+    const provider = document.getElementById('profileAiProvider').value;
+    const apiKey = document.getElementById('profileAiApiKey').value.trim();
+    const endpoint = document.getElementById('profileAiCustomEndpoint').value.trim();
+    
+    if (!apiKey) {
+        alert('Please enter an API key');
+        return;
+    }
+    
+    if (provider === 'custom' && !endpoint) {
+        alert('Please enter a custom endpoint URL');
+        return;
+    }
+    
+    try {
+        updateProfileAiStatus('Saving configuration...', 'connecting');
+        
+        // Save using the AI assistant's save method
+        if (window.aiAssistant) {
+            const success = await window.aiAssistant.saveApiConfig(provider, apiKey, endpoint);
+            
+            if (success) {
+                updateProfileAiStatus('Connected', 'connected');
+                showCopyNotification('AI configuration saved successfully!', 'success');
+            } else {
+                updateProfileAiStatus('Failed to save configuration', 'error');
+                showCopyNotification('Failed to save AI configuration', 'error');
+            }
+        } else {
+            updateProfileAiStatus('AI Assistant not available', 'error');
+        }
+    } catch (error) {
+        console.error('Error saving AI config:', error);
+        updateProfileAiStatus('Configuration error', 'error');
+        showCopyNotification('Error saving AI configuration', 'error');
+    }
+}
+
+async function testProfileAiConnection() {
+    const provider = document.getElementById('profileAiProvider').value;
+    const apiKey = document.getElementById('profileAiApiKey').value.trim();
+    const endpoint = document.getElementById('profileAiCustomEndpoint').value.trim();
+    
+    if (!apiKey) {
+        alert('Please enter an API key first');
+        return;
+    }
+    
+    if (provider === 'custom' && !endpoint) {
+        alert('Please enter a custom endpoint URL first');
+        return;
+    }
+    
+    try {
+        updateProfileAiStatus('Testing connection...', 'connecting');
+        
+        // Temporarily set the config for testing
+        if (window.aiAssistant) {
+            const originalProvider = window.aiAssistant.apiProvider;
+            const originalKey = window.aiAssistant.apiKey;
+            const originalEndpoint = window.aiAssistant.apiEndpoint;
+            
+            // Set temporary config
+            window.aiAssistant.apiProvider = provider;
+            window.aiAssistant.apiKey = apiKey;
+            window.aiAssistant.apiEndpoint = endpoint;
+            
+            // Test the connection
+            const response = await window.aiAssistant.callAI('Test connection', {});
+            
+            // Restore original config
+            window.aiAssistant.apiProvider = originalProvider;
+            window.aiAssistant.apiKey = originalKey;
+            window.aiAssistant.apiEndpoint = originalEndpoint;
+            
+            updateProfileAiStatus('Connection successful', 'connected');
+            showCopyNotification('AI connection test successful!', 'success');
+        } else {
+            updateProfileAiStatus('AI Assistant not available', 'error');
+        }
+    } catch (error) {
+        console.error('Connection test failed:', error);
+        updateProfileAiStatus('Connection failed', 'error');
+        showCopyNotification('AI connection test failed', 'error');
+    }
+}
+
+function clearProfileAiConfig() {
+    if (confirm('Are you sure you want to clear your AI configuration?')) {
+        document.getElementById('profileAiProvider').value = 'openai';
+        document.getElementById('profileAiApiKey').value = '';
+        document.getElementById('profileAiCustomEndpoint').value = '';
+        
+        // Hide custom endpoint section
+        document.getElementById('profileAiCustomEndpointSection').style.display = 'none';
+        
+        // Reset provider link
+        const providerLink = document.getElementById('profileAiProviderLink');
+        providerLink.href = 'https://platform.openai.com';
+        providerLink.textContent = 'platform.openai.com';
+        
+        // Clear from AI assistant
+        if (window.aiAssistant) {
+            window.aiAssistant.deleteApiConfig('openai');
+            window.aiAssistant.deleteApiConfig('anthropic');
+            window.aiAssistant.deleteApiConfig('gemini');
+            window.aiAssistant.deleteApiConfig('custom');
+        }
+        
+        updateProfileAiStatus('Not configured', 'not-configured');
+        showCopyNotification('AI configuration cleared', 'success');
+    }
+}
+
+function updateProfileAiStatus(text, status) {
+    const statusElement = document.getElementById('profileAiConnectionStatus');
+    const indicator = statusElement.querySelector('.status-indicator');
+    const textElement = statusElement.querySelector('.status-text');
+    
+    textElement.textContent = text;
+    
+    // Remove all status classes
+    indicator.classList.remove('connected', 'error', 'connecting');
+    
+    // Add appropriate class
+    if (status === 'connected') {
+        indicator.classList.add('connected');
+    } else if (status === 'error') {
+        indicator.classList.add('error');
+    } else if (status === 'connecting') {
+        indicator.classList.add('connecting');
+    }
+}
+
+function loadProfileAiConfig() {
+    if (window.aiAssistant) {
+        const provider = window.aiAssistant.apiProvider || 'openai';
+        const apiKey = window.aiAssistant.apiKey || '';
+        const endpoint = window.aiAssistant.apiEndpoint || '';
+        
+        document.getElementById('profileAiProvider').value = provider;
+        document.getElementById('profileAiApiKey').value = apiKey;
+        document.getElementById('profileAiCustomEndpoint').value = endpoint;
+        
+        // Update UI based on provider
+        handleProfileAiProviderChange();
+        
+        // Update status
+        if (apiKey) {
+            updateProfileAiStatus('Configured', 'connected');
+        } else {
+            updateProfileAiStatus('Not configured', 'not-configured');
+        }
     }
 }
 
@@ -4117,12 +4345,6 @@ class AIAssistant {
     }
     
     setupEventListeners() {
-        // Toggle button
-        const toggleBtn = document.getElementById('aiAssistantToggle');
-        if (toggleBtn) {
-            toggleBtn.addEventListener('click', () => this.toggle());
-        }
-        
         // Close button
         const closeBtn = document.getElementById('aiPanelClose');
         if (closeBtn) {
@@ -4529,15 +4751,10 @@ class AIAssistant {
     
     open() {
         const panel = document.getElementById('aiAssistantPanel');
-        const toggleBtn = document.getElementById('aiAssistantToggle');
         
         if (panel) {
             panel.classList.add('open');
             this.isOpen = true;
-            
-            if (toggleBtn) {
-                toggleBtn.classList.add('active');
-            }
             
             // Focus chat input
             setTimeout(() => {
@@ -4552,15 +4769,10 @@ class AIAssistant {
     
     close() {
         const panel = document.getElementById('aiAssistantPanel');
-        const toggleBtn = document.getElementById('aiAssistantToggle');
         
         if (panel) {
             panel.classList.remove('open');
             this.isOpen = false;
-            
-            if (toggleBtn) {
-                toggleBtn.classList.remove('active');
-            }
         }
         
         this.hideExplainTooltip();
