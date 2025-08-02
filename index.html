@@ -607,6 +607,11 @@
                     <div class="form-group">
                         <label for="authPassword">Password</label>
                         <input type="password" id="authPassword" placeholder="Your password" required />
+                        <div id="forgotPasswordLink" style="margin-top: 8px; display: block;">
+                            <a href="#" onclick="showForgotPasswordModal(); return false;" style="font-size: 14px; color: var(--primary-color); text-decoration: none;">
+                                Forgot your password?
+                            </a>
+                        </div>
                     </div>
                     <div class="form-actions">
                         <button type="button" class="btn secondary" onclick="closeAuthModal()">Cancel</button>
@@ -772,6 +777,26 @@
                     </form>
                 </div>
                 
+                <!-- Security Settings -->
+                <div class="settings-section">
+                    <h4>Security</h4>
+                    <form onsubmit="updatePassword(); return false;">
+                        <div class="form-group">
+                            <label for="currentPassword">Current Password</label>
+                            <input type="password" id="currentPassword" placeholder="Enter current password..." />
+                        </div>
+                        <div class="form-group">
+                            <label for="newPassword">New Password</label>
+                            <input type="password" id="newPassword" placeholder="Enter new password..." />
+                        </div>
+                        <div class="form-group">
+                            <label for="confirmPassword">Confirm New Password</label>
+                            <input type="password" id="confirmPassword" placeholder="Confirm new password..." />
+                        </div>
+                        <button type="submit" class="btn primary">Update Password</button>
+                    </form>
+                </div>
+                
                 <!-- AI Configuration -->
                 <div class="settings-section">
                     <h4>AI Assistant Configuration</h4>
@@ -822,6 +847,31 @@
                     <button type="button" class="btn secondary" onclick="closeProfileModal()">Close</button>
                     <button type="button" class="btn primary" onclick="updateProfile()">Save Profile</button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Forgot Password Modal -->
+    <div id="forgotPasswordModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Reset Your Password</h3>
+                <button class="modal-close" onclick="closeForgotPasswordModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p style="margin-bottom: 20px; color: var(--text-secondary);">
+                    Enter your email address and we'll send you a link to reset your password.
+                </p>
+                <form onsubmit="handlePasswordReset(event)">
+                    <div class="form-group">
+                        <label for="resetEmail">Email Address</label>
+                        <input type="email" id="resetEmail" placeholder="your@email.com" required />
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn secondary" onclick="closeForgotPasswordModal()">Cancel</button>
+                        <button type="submit" class="btn primary">Send Reset Link</button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>

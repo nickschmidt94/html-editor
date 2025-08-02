@@ -1647,9 +1647,17 @@ function showProfileModal() {
 function closeProfileModal() {
     const modal = document.getElementById('profileModal');
     const nameInput = document.getElementById('profileName');
+    const currentPasswordInput = document.getElementById('currentPassword');
+    const newPasswordInput = document.getElementById('newPassword');
+    const confirmPasswordInput = document.getElementById('confirmPassword');
     
     modal.style.display = 'none';
+    
+    // Clear form fields for security
     nameInput.value = '';
+    if (currentPasswordInput) currentPasswordInput.value = '';
+    if (newPasswordInput) newPasswordInput.value = '';
+    if (confirmPasswordInput) confirmPasswordInput.value = '';
 }
 
 function updateProfile() {
@@ -1665,6 +1673,104 @@ function updateProfile() {
     if (storage && storage.updateUserProfile) {
         storage.updateUserProfile(name);
         closeProfileModal();
+    }
+}
+
+function updatePassword() {
+    const currentPasswordInput = document.getElementById('currentPassword');
+    const newPasswordInput = document.getElementById('newPassword');
+    const confirmPasswordInput = document.getElementById('confirmPassword');
+    
+    const currentPassword = currentPasswordInput.value.trim();
+    const newPassword = newPasswordInput.value.trim();
+    const confirmPassword = confirmPasswordInput.value.trim();
+    
+    // Validation
+    if (!currentPassword) {
+        alert('Please enter your current password.');
+        currentPasswordInput.focus();
+        return;
+    }
+    
+    if (!newPassword) {
+        alert('Please enter a new password.');
+        newPasswordInput.focus();
+        return;
+    }
+    
+    if (newPassword.length < 8) {
+        alert('New password must be at least 8 characters long.');
+        newPasswordInput.focus();
+        return;
+    }
+    
+    if (newPassword !== confirmPassword) {
+        alert('New password and confirmation do not match.');
+        confirmPasswordInput.focus();
+        return;
+    }
+    
+    if (currentPassword === newPassword) {
+        alert('New password must be different from your current password.');
+        newPasswordInput.focus();
+        return;
+    }
+    
+    const storage = window.documentStorage;
+    if (storage && storage.updateUserPassword) {
+        storage.updateUserPassword(currentPassword, newPassword).then(success => {
+            if (success) {
+                // Clear the form on success
+                currentPasswordInput.value = '';
+                newPasswordInput.value = '';
+                confirmPasswordInput.value = '';
+            }
+        });
+    }
+}
+
+function showForgotPasswordModal() {
+    const authModal = document.getElementById('authModal');
+    const forgotPasswordModal = document.getElementById('forgotPasswordModal');
+    const resetEmailInput = document.getElementById('resetEmail');
+    
+    // Close auth modal first
+    authModal.style.display = 'none';
+    
+    // Show forgot password modal
+    forgotPasswordModal.style.display = 'flex';
+    resetEmailInput.focus();
+}
+
+function closeForgotPasswordModal() {
+    const forgotPasswordModal = document.getElementById('forgotPasswordModal');
+    const resetEmailInput = document.getElementById('resetEmail');
+    
+    forgotPasswordModal.style.display = 'none';
+    resetEmailInput.value = '';
+}
+
+function handlePasswordReset(event) {
+    event.preventDefault();
+    
+    const resetEmailInput = document.getElementById('resetEmail');
+    const email = resetEmailInput.value.trim();
+    
+    if (!email) {
+        alert('Please enter your email address.');
+        resetEmailInput.focus();
+        return;
+    }
+    
+    const storage = window.documentStorage;
+    if (storage && storage.resetPassword) {
+        storage.resetPassword(email).then(success => {
+            if (success) {
+                // Close modal and show success message
+                closeForgotPasswordModal();
+                storage.showNotification('Password reset link sent! Check your email.', 'success');
+            }
+        });
     }
 }
 
@@ -1952,12 +2058,18 @@ function switchAuthTab(tab) {
     const nameGroup = document.getElementById('nameGroup');
     const submitBtn = document.getElementById('authSubmitBtn');
     const resendSection = document.getElementById('resendConfirmationSection');
+    const forgotPasswordLink = document.getElementById('forgotPasswordLink');
     
     if (tab === 'signin') {
         signInTab.classList.add('active');
         signUpTab.classList.remove('active');
         nameGroup.style.display = 'none';
         submitBtn.textContent = 'Sign In';
+        
+        // Show forgot password link for sign in
+        if (forgotPasswordLink) {
+            forgotPasswordLink.style.display = 'block';
+        }
         
         // Show resend section if there's a pending email
         const pendingEmail = localStorage.getItem('pendingSignupEmail');
@@ -1971,6 +2083,12 @@ function switchAuthTab(tab) {
         signUpTab.classList.add('active');
         nameGroup.style.display = 'block';
         submitBtn.textContent = 'Sign Up';
+        
+        // Hide forgot password link for sign up
+        if (forgotPasswordLink) {
+            forgotPasswordLink.style.display = 'none';
+        }
+        
         resendSection.style.display = 'none';
     }
 }
@@ -3499,6 +3617,100 @@ class SupabaseDocumentStorage {
             console.error('Profile update error:', error);
             this.showNotification('Failed to update profile', 'error');
             return { data: null, error };
+        }
+    }
+
+    async updateUserPassword(currentPassword, newPassword) {
+        if (this.demoMode || !this.currentUser) {
+            this.showNotification('Password update not available in demo mode', 'error');
+            return false;
+        }
+        
+        try {
+            // First verify the current password by attempting to sign in
+            const { data: signInData, error: signInError } = await this.supabase.auth.signInWithPassword({
+                email: this.currentUser.email,
+                password: currentPassword
+            });
+            
+            if (signInError) {
+                this.showNotification('Current password is incorrect', 'error');
+                return false;
+            }
+            
+            // If current password is correct, update to new password
+            const { data, error } = await this.supabase.auth.updateUser({
+                password: newPassword
+            });
+            
+            if (error) throw error;
+            
+            this.showNotification('Password updated successfully!', 'success');
+            return true;
+            
+        } catch (error) {
+            console.error('Password update error:', error);
+            
+            // Handle specific error cases
+            if (error.message.includes('Invalid login credentials')) {
+                this.showNotification('Current password is incorrect', 'error');
+            } else if (error.message.includes('Password should be at least')) {
+                this.showNotification('Password must be at least 6 characters long', 'error');
+            } else {
+                this.showNotification('Failed to update password. Please try again.', 'error');
+            }
+            
+            return false;
+        }
+    }
+
+    async resetPassword(email) {
+        if (this.demoMode) {
+            this.showNotification('Password reset not available in demo mode', 'error');
+            return false;
+        }
+        
+        try {
+            // Determine the redirect URL - use production URL if available, otherwise current location
+            let redirectUrl = window.location.origin;
+            
+            // If running on localhost, you might want to change this to your production URL
+            // For example: redirectUrl = 'https://your-domain.com';
+            if (redirectUrl.includes('localhost') || redirectUrl.includes('127.0.0.1')) {
+                // Option 1: Keep localhost (for local development)
+                redirectUrl = window.location.origin;
+                
+                // Option 2: Uncomment the line below and replace with your actual domain
+                // redirectUrl = 'https://nickschmidt94.github.io/html-editor/';
+            }
+            
+            const { error } = await this.supabase.auth.resetPasswordForEmail(email, {
+                redirectTo: `${redirectUrl}/index.html`
+            });
+            
+            if (error) throw error;
+            
+            let message = 'Password reset link sent! Check your email.';
+            if (redirectUrl.includes('localhost')) {
+                message += ' Note: The reset link will redirect to localhost - make sure your local server is running.';
+            }
+            
+            this.showNotification(message, 'success');pass reset
+            return true;
+            
+        } catch (error) {
+            console.error('Password reset error:', error);
+            
+            // Handle specific error cases
+            if (error.message.includes('Email not found')) {
+                this.showNotification('No account found with that email address', 'error');
+            } else if (error.message.includes('rate limit')) {
+                this.showNotification('Too many reset attempts. Please wait before trying again.', 'error');
+            } else {
+                this.showNotification('Failed to send reset email. Please try again.', 'error');
+            }
+            
+            return false;
         }
     }
 
