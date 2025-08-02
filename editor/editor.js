@@ -3695,7 +3695,7 @@ class SupabaseDocumentStorage {
                 message += ' Note: The reset link will redirect to localhost - make sure your local server is running.';
             }
             
-            this.showNotification(message, 'success');pass reset
+            this.showNotification(message, 'success');
             return true;
             
         } catch (error) {
