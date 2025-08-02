@@ -2305,14 +2305,15 @@ class DocumentStorage {
         if (existingIndex >= 0) {
             // Update existing document
             documents[existingIndex] = { ...documents[existingIndex], ...document, id: documents[existingIndex].id };
+            this.currentDocument = documents[existingIndex];
         } else {
             // Add new document
             documents.push(document);
+            this.currentDocument = document;
         }
 
         localStorage.setItem(this.storageKey, JSON.stringify(documents));
         this.renderSidebar();
-        this.currentDocument = document;
         
         // Show success feedback
         this.showNotification('Document saved successfully!', 'success');
@@ -3061,13 +3062,16 @@ function createSpace() {
     const storage = window.documentStorage;
     if (storage) {
         try {
-            const newSpace = storage.addSpace(name, description, true);
+            const newSpace = storage.addSpace(name, description, false);
             closeSpaceModal();
             
             // Refresh the space dropdown
             setTimeout(() => {
                 populateSpaceDropdown();
             }, 100);
+            
+            // Show notification that space was created
+            storage.showNotification(`Space "${name}" created successfully!`, 'success');
             
             console.log('Space created successfully:', newSpace);
         } catch (error) {
