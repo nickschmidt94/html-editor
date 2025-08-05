@@ -401,6 +401,9 @@ function buildElementPositionMap() {
     elementPositionMap = new WeakMap();
     sourceElementMap = [];
     
+    // Track element counts by tag name for better indexing
+    const elementCounts = {};
+    
     // Parse HTML and create element mappings
     const tagRegex = /<\/?([a-zA-Z][a-zA-Z0-9]*)\b[^>]*>/g;
     let match;
@@ -426,7 +429,8 @@ function buildElementPositionMap() {
             for (let i = elementStack.length - 1; i >= 0; i--) {
                 if (elementStack[i].tagName === tagName) {
                     const openTag = elementStack.splice(i, 1)[0];
-                    // Store complete element info
+                    
+                    // Store complete element info with improved indexing
                     sourceElementMap.push({
                         tagName: tagName,
                         startLine: openTag.lineNumber,
@@ -435,7 +439,11 @@ function buildElementPositionMap() {
                         endColumn: columnNumber + fullMatch.length,
                         fullStartPos: openTag.startPos,
                         fullEndPos: endPos,
-                        attributes: openTag.attributes
+                        attributes: openTag.attributes,
+                        elementIndex: openTag.elementIndex,
+                        documentOrder: sourceElementMap.length,
+                        depth: elementStack.length,
+                        parentElement: elementStack.length > 0 ? elementStack[elementStack.length - 1] : null
                     });
                     break;
                 }
@@ -449,12 +457,19 @@ function buildElementPositionMap() {
                 attributes[attrMatch[1]] = attrMatch[2] || '';
             }
             
+            // Track element index for this tag type
+            if (!elementCounts[tagName]) {
+                elementCounts[tagName] = 0;
+            }
+            const elementIndex = elementCounts[tagName]++;
+            
             const elementInfo = {
                 tagName: tagName,
                 lineNumber: lineNumber,
                 columnNumber: columnNumber,
                 startPos: startPos,
-                attributes: attributes
+                attributes: attributes,
+                elementIndex: elementIndex
             };
             
             if (isSelfClosing) {
@@ -467,7 +482,11 @@ function buildElementPositionMap() {
                     endColumn: columnNumber + fullMatch.length,
                     fullStartPos: startPos,
                     fullEndPos: endPos,
-                    attributes: attributes
+                    attributes: attributes,
+                    elementIndex: elementIndex,
+                    documentOrder: sourceElementMap.length,
+                    depth: elementStack.length,
+                    parentElement: elementStack.length > 0 ? elementStack[elementStack.length - 1] : null
                 });
             } else {
                 // Add to stack for later matching
@@ -476,7 +495,7 @@ function buildElementPositionMap() {
         }
     }
     
-    console.log(`📍 Mapped ${sourceElementMap.length} elements`);
+    console.log(`📍 Mapped ${sourceElementMap.length} elements with improved indexing`);
 }
 
 function addClickListeners(previewDoc) {
@@ -533,8 +552,10 @@ function findElementPosition(clickedElement) {
         elementAttributes[attr.name] = attr.value;
     }
     
-    // Find matching element in source map
-    // We'll use a scoring system to find the best match
+    // Calculate element index among siblings of the same type
+    const elementIndex = getElementIndex(clickedElement);
+    
+    // Find matching element in source map with improved scoring
     let bestMatch = null;
     let bestScore = 0;
     
@@ -566,11 +587,37 @@ function findElementPosition(clickedElement) {
         
         // Special scoring for unique identifiers
         if (elementAttributes.id && sourceAttrs.id === elementAttributes.id) {
-            score += 10; // Very high score for ID match
+            score += 20; // Very high score for ID match (increased from 10)
         }
         
         if (elementAttributes.class && sourceAttrs.class === elementAttributes.class) {
-            score += 5; // High score for class match
+            score += 8; // High score for class match (increased from 5)
+        }
+        
+        // NEW: Score based on element index matching
+        if (sourceElement.elementIndex === elementIndex) {
+            score += 15; // High score for matching element position
+        } else {
+            // Penalty for index mismatch decreases with distance
+            const indexDiff = Math.abs(sourceElement.elementIndex - elementIndex);
+            score += Math.max(0, 10 - indexDiff * 2);
+        }
+        
+        // NEW: Consider parent element context if available
+        if (clickedElement.parentElement && sourceElement.parentElement) {
+            const parentTagName = clickedElement.parentElement.tagName?.toLowerCase();
+            if (parentTagName === sourceElement.parentElement.tagName) {
+                score += 3; // Bonus for matching parent context
+            }
+        }
+        
+        // NEW: Perfect match bonus - if all major factors align
+        const hasIdMatch = elementAttributes.id && sourceAttrs.id === elementAttributes.id;
+        const hasClassMatch = elementAttributes.class && sourceAttrs.class === elementAttributes.class;
+        const hasIndexMatch = sourceElement.elementIndex === elementIndex;
+        
+        if ((hasIdMatch || hasClassMatch) && hasIndexMatch) {
+            score += 10; // Perfect match bonus
         }
         
         if (score > bestScore) {
@@ -579,7 +626,69 @@ function findElementPosition(clickedElement) {
         }
     }
     
+    // Fallback mechanism for edge cases
+    if (!bestMatch || bestScore < 5) {
+        console.log(`🔄 Trying fallback matching for ${tagName} at index ${elementIndex}`);
+        bestMatch = findFallbackMatch(tagName, elementIndex, elementAttributes);
+    }
+    
+    // Enhanced debugging information
+    if (bestMatch) {
+        console.log(`🎯 Element match found:`, {
+            tagName,
+            elementIndex,
+            bestScore,
+            matchedIndex: bestMatch.elementIndex,
+            line: bestMatch.startLine,
+            hasId: !!elementAttributes.id,
+            hasClass: !!elementAttributes.class
+        });
+    } else {
+        console.warn(`❌ No match found for:`, { tagName, elementIndex, attributes: elementAttributes });
+    }
+    
     return bestMatch;
+}
+
+// Helper function to calculate element index among siblings of same type
+function getElementIndex(element) {
+    if (!element || !element.parentElement) return 0;
+    
+    const siblings = Array.from(element.parentElement.children);
+    const sameTypeSiblings = siblings.filter(sibling => 
+        sibling.tagName.toLowerCase() === element.tagName.toLowerCase()
+    );
+    
+    return sameTypeSiblings.indexOf(element);
+}
+
+// Fallback matching for edge cases
+function findFallbackMatch(tagName, elementIndex, elementAttributes) {
+    const candidates = sourceElementMap.filter(el => el.tagName === tagName);
+    
+    if (candidates.length === 0) return null;
+    
+    // Strategy 1: Exact index match
+    let match = candidates.find(el => el.elementIndex === elementIndex);
+    if (match) {
+        console.log(`📍 Fallback: Found exact index match for ${tagName}[${elementIndex}]`);
+        return match;
+    }
+    
+    // Strategy 2: Closest index match
+    if (elementIndex < candidates.length) {
+        match = candidates[elementIndex];
+        console.log(`📍 Fallback: Using position-based match for ${tagName}[${elementIndex}]`);
+        return match;
+    }
+    
+    // Strategy 3: Document order fallback
+    candidates.sort((a, b) => a.documentOrder - b.documentOrder);
+    const adjustedIndex = Math.min(elementIndex, candidates.length - 1);
+    match = candidates[adjustedIndex];
+    
+    console.log(`📍 Fallback: Using document order match for ${tagName}[${adjustedIndex}]`);
+    return match;
 }
 
 function highlightInEditor(position) {
@@ -3671,18 +3780,13 @@ class SupabaseDocumentStorage {
         }
         
         try {
-            // Determine the redirect URL - use production URL if available, otherwise current location
-            let redirectUrl = window.location.origin;
+            // Always use production URL for password reset redirects
+            let redirectUrl = 'https://nickschmidt94.github.io/html-editor';
             
-            // If running on localhost, you might want to change this to your production URL
-            // For example: redirectUrl = 'https://your-domain.com';
-            if (redirectUrl.includes('localhost') || redirectUrl.includes('127.0.0.1')) {
-                // Option 1: Keep localhost (for local development)
-                redirectUrl = window.location.origin;
-                
-                // Option 2: Uncomment the line below and replace with your actual domain
-                // redirectUrl = 'https://nickschmidt94.github.io/html-editor/';
-            }
+            // If testing locally and need localhost redirect, uncomment the line below
+            // if (window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1')) {
+            //     redirectUrl = window.location.origin;
+            // }
             
             const { error } = await this.supabase.auth.resetPasswordForEmail(email, {
                 redirectTo: `${redirectUrl}/index.html`
