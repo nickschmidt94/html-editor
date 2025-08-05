@@ -42,8 +42,8 @@ This guide will help you set up Supabase for cloud storage and sync with your HT
 3. Copy and paste the following SQL:
 
 ```sql
--- Enable Row Level Security
-ALTER TABLE auth.users ENABLE ROW LEVEL SECURITY;
+-- NOTE: Do NOT enable RLS on auth.users - it's managed by Supabase internally
+-- ALTER TABLE auth.users ENABLE ROW LEVEL SECURITY; ← This causes signup errors!
 
 -- Create documents table
 CREATE TABLE public.documents (
@@ -187,6 +187,16 @@ CREATE TRIGGER update_documents_updated_at
 - Check Row Level Security policies are in place
 - Verify the user is authenticated
 - Check browser network tab for API errors
+
+### "Database error saving new user" (500 error)
+This error occurs when Row Level Security is incorrectly enabled on the `auth.users` table.
+
+**Fix**: Run this SQL command in your Supabase dashboard:
+```sql
+ALTER TABLE auth.users DISABLE ROW LEVEL SECURITY;
+```
+
+**Prevention**: Never enable RLS on the `auth.users` table - it's managed by Supabase internally.
 
 ### Demo Mode Fallback
 If Supabase isn't configured or there are connection issues, the editor automatically falls back to "Demo Mode" using localStorage. You can always use the "Try Demo Mode" button to test locally.
