@@ -1883,6 +1883,74 @@ function handlePasswordReset(event) {
     }
 }
 
+function showNewPasswordModal() {
+    const modal = document.getElementById('newPasswordModal');
+    if (modal) {
+        modal.style.display = 'flex';
+        // Focus on the first password input
+        const passwordInput = document.getElementById('newPasswordReset');
+        if (passwordInput) {
+            passwordInput.focus();
+        }
+    }
+}
+
+function closeNewPasswordModal() {
+    const modal = document.getElementById('newPasswordModal');
+    if (modal) {
+        modal.style.display = 'none';
+        // Clear the form
+        const newPasswordInput = document.getElementById('newPasswordReset');
+        const confirmPasswordInput = document.getElementById('confirmPasswordReset');
+        if (newPasswordInput) newPasswordInput.value = '';
+        if (confirmPasswordInput) confirmPasswordInput.value = '';
+        
+        // Clear the hash from URL
+        if (window.location.hash.includes('type=recovery')) {
+            history.replaceState(null, null, window.location.pathname);
+        }
+    }
+}
+
+function handleNewPassword(event) {
+    event.preventDefault();
+    
+    const newPasswordInput = document.getElementById('newPasswordReset');
+    const confirmPasswordInput = document.getElementById('confirmPasswordReset');
+    
+    const newPassword = newPasswordInput.value.trim();
+    const confirmPassword = confirmPasswordInput.value.trim();
+    
+    // Validation
+    if (!newPassword) {
+        alert('Please enter a new password.');
+        newPasswordInput.focus();
+        return;
+    }
+    
+    if (newPassword.length < 8) {
+        alert('Password must be at least 8 characters long.');
+        newPasswordInput.focus();
+        return;
+    }
+    
+    if (newPassword !== confirmPassword) {
+        alert('Passwords do not match.');
+        confirmPasswordInput.focus();
+        return;
+    }
+    
+    const storage = window.documentStorage;
+    if (storage && storage.updatePasswordFromRecovery) {
+        storage.updatePasswordFromRecovery(newPassword).then(success => {
+            if (success) {
+                closeNewPasswordModal();
+                storage.showNotification('Password updated successfully! You are now signed in.', 'success');
+            }
+        });
+    }
+}
+
 // AI Assistant Functions for Profile Modal
 function showAIAssistant() {
     // Close user menu first
@@ -3818,6 +3886,44 @@ class SupabaseDocumentStorage {
         }
     }
 
+    async updatePasswordFromRecovery(newPassword) {
+        if (this.demoMode) {
+            this.showNotification('Password update not available in demo mode', 'error');
+            return false;
+        }
+        
+        try {
+            // Update the user's password - Supabase automatically handles the recovery token
+            const { data, error } = await this.supabase.auth.updateUser({
+                password: newPassword
+            });
+            
+            if (error) throw error;
+            
+            console.log('Password updated successfully from recovery link');
+            this.showNotification('Password updated successfully! You are now signed in.', 'success');
+            
+            // The user should now be authenticated, refresh their session
+            await this.checkAuthStatus();
+            
+            return true;
+            
+        } catch (error) {
+            console.error('Password update from recovery error:', error);
+            
+            // Handle specific error cases
+            if (error.message.includes('weak password') || error.message.includes('password')) {
+                this.showNotification('Password is too weak. Please choose a stronger password.', 'error');
+            } else if (error.message.includes('session')) {
+                this.showNotification('Reset link has expired. Please request a new password reset.', 'error');
+            } else {
+                this.showNotification('Failed to update password. Please try again.', 'error');
+            }
+            
+            return false;
+        }
+    }
+
     async loadUserData() {
         if (this.demoMode || !this.currentUser) return;
         
@@ -4438,6 +4544,16 @@ class SupabaseDocumentStorage {
             
             // The auth state change handler will pick up the confirmation automatically
             // and show the success message
+        } else if (hash && hash.includes('type=recovery')) {
+            console.log('🔑 Detected password recovery link, showing password reset form...');
+            
+            // Show loading message
+            this.showNotification('Password reset link confirmed! Please enter your new password.', 'success');
+            
+            // Show the new password modal
+            setTimeout(() => {
+                showNewPasswordModal();
+            }, 1000);
         }
     }
 

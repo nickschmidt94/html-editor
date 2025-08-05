@@ -876,6 +876,35 @@
         </div>
     </div>
 
+    <!-- New Password Modal (for password reset) -->
+    <div id="newPasswordModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Set New Password</h3>
+                <button class="modal-close" onclick="closeNewPasswordModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p style="margin-bottom: 20px; color: var(--text-secondary);">
+                    Enter your new password below.
+                </p>
+                <form onsubmit="handleNewPassword(event)">
+                    <div class="form-group">
+                        <label for="newPasswordReset">New Password</label>
+                        <input type="password" id="newPasswordReset" placeholder="Enter new password (min 8 characters)" required minlength="8" />
+                    </div>
+                    <div class="form-group">
+                        <label for="confirmPasswordReset">Confirm New Password</label>
+                        <input type="password" id="confirmPasswordReset" placeholder="Confirm new password" required />
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn secondary" onclick="closeNewPasswordModal()">Cancel</button>
+                        <button type="submit" class="btn primary">Update Password</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     
     <!-- Scripts -->
     <script src="editor/editor.js"></script>
