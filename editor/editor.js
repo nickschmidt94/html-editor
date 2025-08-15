@@ -2322,6 +2322,50 @@ function useDemoMode() {
     }
 }
 
+// Helper function to reset authentication (can be called from console)
+window.resetAuth = function() {
+    console.log('🔄 Resetting authentication...');
+    
+    // Clear all localStorage items related to Supabase
+    const keysToRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && (key.includes('supabase') || key.includes('sb-') || key.includes('pendingSignup'))) {
+            keysToRemove.push(key);
+        }
+    }
+    keysToRemove.forEach(key => {
+        localStorage.removeItem(key);
+        console.log(`  Removed localStorage: ${key}`);
+    });
+    
+    // Clear session storage
+    const sessionKeysToRemove = [];
+    for (let i = 0; i < sessionStorage.length; i++) {
+        const key = sessionStorage.key(i);
+        if (key && (key.includes('supabase') || key.includes('sb-'))) {
+            sessionKeysToRemove.push(key);
+        }
+    }
+    sessionKeysToRemove.forEach(key => {
+        sessionStorage.removeItem(key);
+        console.log(`  Removed sessionStorage: ${key}`);
+    });
+    
+    // Clear cookies
+    document.cookie.split(";").forEach(cookie => {
+        const eqPos = cookie.indexOf("=");
+        const name = eqPos > -1 ? cookie.substr(0, eqPos).trim() : cookie.trim();
+        if (name.includes('sb-') || name.includes('supabase')) {
+            document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
+            console.log(`  Removed cookie: ${name}`);
+        }
+    });
+    
+    console.log('✅ Authentication reset complete. Please refresh the page.');
+    console.log('📝 You may also need to run the SQL cleanup script in Supabase if the issue persists.');
+};
+
 // Initialize storage systems when page loads
 window.addEventListener('DOMContentLoaded', () => {
     // Try to initialize Supabase storage first, falls back to local storage
@@ -3650,6 +3694,13 @@ class SupabaseDocumentStorage {
         if (this.demoMode) return;
         
         try {
+            console.log('🔐 Attempting to sign up user:', email);
+            
+            // First, check if we can connect to Supabase
+            if (!this.supabase) {
+                throw new Error('Supabase connection not available');
+            }
+            
             const { data, error } = await this.supabase.auth.signUp({
                 email,
                 password,
@@ -3660,7 +3711,35 @@ class SupabaseDocumentStorage {
                 }
             });
             
-            if (error) throw error;
+            if (error) {
+                console.error('Supabase signup error:', error);
+                
+                // Handle specific error cases
+                if (error.message.includes('User already registered') || 
+                    error.message.includes('already been registered') ||
+                    error.status === 422) {
+                    // User exists but might be in a bad state
+                    this.showNotification(
+                        'This email appears to be already registered. If you deleted your account, please try: ' +
+                        '1) Clear your browser cookies for this site, 2) Try signing in instead, or ' +
+                        '3) Contact support if the issue persists.', 
+                        'warning', 
+                        10000
+                    );
+                    
+                    // Try to help the user by showing the sign-in tab
+                    setTimeout(() => {
+                        const signinTab = document.querySelector('.auth-tab:first-child');
+                        if (signinTab) {
+                            signinTab.click();
+                        }
+                    }, 2000);
+                    
+                    return { data: null, error };
+                }
+                
+                throw error;
+            }
             
             // Check if email confirmation is required
             if (data.user && !data.session) {
@@ -3689,16 +3768,23 @@ class SupabaseDocumentStorage {
             console.error('Sign up error:', error);
             
             // Provide more helpful error messages
-            let errorMessage = 'Sign up failed. Please try again.';
-            if (error.message.includes('already registered')) {
-                errorMessage = 'This email is already registered. Try signing in instead.';
+            let errorMessage = 'Sign up failed. ';
+            
+            if (error.message.includes('already registered') || error.message.includes('already been registered')) {
+                errorMessage = 'This email is already registered. Try signing in instead, or if you deleted your account, clear your browser data and try again.';
             } else if (error.message.includes('Invalid email')) {
                 errorMessage = 'Please enter a valid email address.';
             } else if (error.message.includes('Password')) {
                 errorMessage = 'Password must be at least 6 characters long.';
+            } else if (error.message.includes('Database error')) {
+                errorMessage = 'Database error: The user profile may be corrupted. Please try clearing your browser data or contact support.';
+            } else if (error.message.includes('fetch')) {
+                errorMessage = 'Network error: Please check your internet connection and try again.';
+            } else {
+                errorMessage += error.message || 'Please try again later.';
             }
             
-            this.showNotification(errorMessage, 'error');
+            this.showNotification(errorMessage, 'error', 8000);
             return { data: null, error };
         }
     }
@@ -3766,10 +3852,51 @@ class SupabaseDocumentStorage {
             const { error } = await this.supabase.auth.signOut();
             if (error) throw error;
             
+            // Clear all authentication data
+            this.clearAuthData();
+            
             this.showNotification('Signed out successfully', 'success');
         } catch (error) {
             console.error('Sign out error:', error);
         }
+    }
+    
+    // Helper function to clear all authentication-related data
+    clearAuthData() {
+        // Clear localStorage items related to authentication
+        localStorage.removeItem('pendingSignupEmail');
+        localStorage.removeItem('supabase.auth.token');
+        
+        // Clear all Supabase-related items from localStorage
+        const keysToRemove = [];
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && (key.includes('supabase') || key.includes('sb-'))) {
+                keysToRemove.push(key);
+            }
+        }
+        keysToRemove.forEach(key => localStorage.removeItem(key));
+        
+        // Clear session storage as well
+        const sessionKeysToRemove = [];
+        for (let i = 0; i < sessionStorage.length; i++) {
+            const key = sessionStorage.key(i);
+            if (key && (key.includes('supabase') || key.includes('sb-'))) {
+                sessionKeysToRemove.push(key);
+            }
+        }
+        sessionKeysToRemove.forEach(key => sessionStorage.removeItem(key));
+        
+        // Clear cookies related to Supabase
+        document.cookie.split(";").forEach(cookie => {
+            const eqPos = cookie.indexOf("=");
+            const name = eqPos > -1 ? cookie.substr(0, eqPos).trim() : cookie.trim();
+            if (name.includes('sb-') || name.includes('supabase')) {
+                document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
+            }
+        });
+        
+        console.log('🧹 Cleared all authentication data from browser storage');
     }
 
     async updateUserProfile(name) {
