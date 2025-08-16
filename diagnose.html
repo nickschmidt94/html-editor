@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supabase Diagnostic Tool</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .diagnostic {
+            background: white;
+            padding: 20px;
+            margin: 10px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .status {
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .warning { background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+        .info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        pre {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+        .test-result { margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Supabase Connection Diagnostic Tool</h1>
+    
+    <div class="diagnostic">
+        <h2>Step 1: Environment Check</h2>
+        <div id="envCheck"></div>
+    </div>
+
+    <div class="diagnostic">
+        <h2>Step 2: Supabase Library Loading</h2>
+        <div id="libraryCheck"></div>
+        <button onclick="checkSupabaseLibrary()">Test Library Loading</button>
+    </div>
+
+    <div class="diagnostic">
+        <h2>Step 3: Supabase Connection Test</h2>
+        <div id="connectionCheck"></div>
+        <button onclick="testSupabaseConnection()">Test Connection</button>
+    </div>
+
+    <div class="diagnostic">
+        <h2>Step 4: Authentication Test</h2>
+        <div id="authCheck"></div>
+        <button onclick="testAuthentication()">Test Auth System</button>
+    </div>
+
+    <div class="diagnostic">
+        <h2>Logs</h2>
+        <pre id="logs"></pre>
+        <button onclick="clearLogs()">Clear Logs</button>
+    </div>
+
+    <script>
+        const supabaseUrl = 'https://tpeotxhvlhijpboqtxzr.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRwZW90eGh2bGhpanBib3F0eHpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMwMDg4OTYsImV4cCI6MjA2ODU4NDg5Nn0.yOWHk5mlwJSBJ2_BxBCwErZuyS5zmO0StyRyJvbfJGY';
+
+        let supabaseClient = null;
+        let logs = [];
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            logs.push(`[${timestamp}] ${type.toUpperCase()}: ${message}`);
+            updateLogs();
+            console.log(`[DIAGNOSTIC] ${message}`);
+        }
+
+        function updateLogs() {
+            document.getElementById('logs').textContent = logs.join('\n');
+        }
+
+        function clearLogs() {
+            logs = [];
+            updateLogs();
+        }
+
+        function showResult(elementId, message, type) {
+            const element = document.getElementById(elementId);
+            element.innerHTML = `<div class="status ${type}">${message}</div>`;
+        }
+
+        // Step 1: Environment Check
+        function checkEnvironment() {
+            log('Checking environment...');
+            
+            let results = [];
+            results.push(`User Agent: ${navigator.userAgent}`);
+            results.push(`Online: ${navigator.onLine}`);
+            results.push(`Local Storage Available: ${typeof Storage !== 'undefined'}`);
+            results.push(`Fetch API Available: ${typeof fetch !== 'undefined'}`);
+            results.push(`Console Available: ${typeof console !== 'undefined'}`);
+            
+            showResult('envCheck', results.join('<br>'), 'info');
+            log('Environment check completed');
+        }
+
+        // Step 2: Library Loading Test
+        async function checkSupabaseLibrary() {
+            log('Testing Supabase library loading...');
+            showResult('libraryCheck', 'Testing...', 'info');
+
+            try {
+                // Method 1: Check if already loaded
+                if (window.supabase && typeof window.supabase.createClient === 'function') {
+                    showResult('libraryCheck', '✅ Supabase library already loaded!', 'success');
+                    log('Supabase library found at window.supabase');
+                    return true;
+                }
+
+                // Method 2: Try loading via script tag
+                await loadSupabaseScript();
+                
+                // Wait and check again
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                if (window.supabase && typeof window.supabase.createClient === 'function') {
+                    showResult('libraryCheck', '✅ Supabase library loaded successfully!', 'success');
+                    log('Supabase library loaded via script injection');
+                    return true;
+                } else {
+                    throw new Error('Library failed to load');
+                }
+            } catch (error) {
+                showResult('libraryCheck', `❌ Failed to load Supabase library: ${error.message}`, 'error');
+                log(`Supabase library loading failed: ${error.message}`, 'error');
+                return false;
+            }
+        }
+
+        function loadSupabaseScript() {
+            return new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = 'https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js';
+                script.onload = () => {
+                    log('Supabase script loaded from CDN');
+                    // Check for Supabase in different locations
+                    if (window.supabase) {
+                        log('Found Supabase at window.supabase');
+                    } else if (window.createClient) {
+                        window.supabase = { createClient: window.createClient };
+                        log('Found createClient at window level, created wrapper');
+                    }
+                    resolve();
+                };
+                script.onerror = () => {
+                    log('Failed to load Supabase script from CDN', 'error');
+                    reject(new Error('CDN script loading failed'));
+                };
+                document.head.appendChild(script);
+            });
+        }
+
+        // Step 3: Connection Test
+        async function testSupabaseConnection() {
+            log('Testing Supabase connection...');
+            showResult('connectionCheck', 'Testing connection...', 'info');
+
+            try {
+                if (!window.supabase || typeof window.supabase.createClient !== 'function') {
+                    throw new Error('Supabase library not loaded');
+                }
+
+                log('Creating Supabase client...');
+                supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
+                
+                if (!supabaseClient) {
+                    throw new Error('Failed to create Supabase client');
+                }
+
+                log('Testing basic API call...');
+                const { data, error } = await supabaseClient.auth.getSession();
+                
+                if (error) {
+                    throw error;
+                }
+
+                showResult('connectionCheck', '✅ Supabase connection successful!', 'success');
+                log('Supabase connection test passed');
+                return true;
+            } catch (error) {
+                showResult('connectionCheck', `❌ Connection failed: ${error.message}`, 'error');
+                log(`Supabase connection failed: ${error.message}`, 'error');
+                return false;
+            }
+        }
+
+        // Step 4: Authentication Test
+        async function testAuthentication() {
+            log('Testing authentication system...');
+            showResult('authCheck', 'Testing authentication...', 'info');
+
+            if (!supabaseClient) {
+                showResult('authCheck', '❌ No Supabase client available. Run connection test first.', 'error');
+                return;
+            }
+
+            try {
+                // Test 1: Check current session
+                const { data: sessionData, error: sessionError } = await supabaseClient.auth.getSession();
+                if (sessionError) throw sessionError;
+                
+                log(`Current session: ${sessionData.session ? 'Active' : 'None'}`);
+
+                // Test 2: Try to get current user
+                const { data: userData, error: userError } = await supabaseClient.auth.getUser();
+                if (userError) {
+                    log(`User check failed: ${userError.message}`, 'warning');
+                } else {
+                    log(`Current user: ${userData.user ? userData.user.email : 'None'}`);
+                }
+
+                // Test 3: Check if tables exist
+                const { data: tableData, error: tableError } = await supabaseClient
+                    .from('documents')
+                    .select('count', { count: 'exact', head: true });
+                
+                if (tableError) {
+                    log(`Database table check failed: ${tableError.message}`, 'warning');
+                    showResult('authCheck', '⚠️ Authentication works but database tables may need setup', 'warning');
+                } else {
+                    log('Database tables accessible');
+                    showResult('authCheck', '✅ Authentication system fully operational!', 'success');
+                }
+
+            } catch (error) {
+                showResult('authCheck', `❌ Authentication test failed: ${error.message}`, 'error');
+                log(`Authentication test failed: ${error.message}`, 'error');
+            }
+        }
+
+        // Auto-run environment check on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            checkEnvironment();
+            log('Diagnostic tool initialized');
+        });
+    </script>
+</body>
+</html>

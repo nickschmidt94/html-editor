@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Force Fix Supabase Auth</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .fix-panel {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin: 20px 0;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 16px;
+        }
+        button:hover { background: #0056b3; }
+        .success { background: #28a745; }
+        .danger { background: #dc3545; }
+        .warning { background: #ffc107; color: #000; }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .status.success { background: #d4edda; color: #155724; }
+        .status.error { background: #f8d7da; color: #721c24; }
+        .status.info { background: #d1ecf1; color: #0c5460; }
+        pre {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            max-height: 200px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔧 Force Fix Authentication</h1>
+    <p>This tool will force your HTML editor out of demo mode and back to normal authentication.</p>
+
+    <div class="fix-panel">
+        <h3>Quick Fix</h3>
+        <button onclick="forceFixAuth()" class="success">Force Exit Demo Mode</button>
+        <button onclick="resetEverything()" class="danger">Complete Reset</button>
+        <button onclick="testConnection()" class="warning">Test Supabase</button>
+        <div id="status"></div>
+    </div>
+
+    <div class="fix-panel">
+        <h3>Manual Override</h3>
+        <p>If the automatic fix doesn't work, use these manual commands:</p>
+        <button onclick="manualCommands()">Show Manual Commands</button>
+        <div id="manualSteps" style="display: none;">
+            <h4>Run these in your browser console (F12):</h4>
+            <pre id="commands"></pre>
+        </div>
+    </div>
+
+    <div class="fix-panel">
+        <h3>Diagnostic Info</h3>
+        <button onclick="showDiagnostics()">Show Current State</button>
+        <pre id="diagnostics"></pre>
+    </div>
+
+    <script>
+        const supabaseUrl = 'https://tpeotxhvlhijpboqtxzr.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRwZW90eGh2bGhpanBib3F0eHpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMwMDg4OTYsImV4cCI6MjA2ODU4NDg5Nn0.yOWHk5mlwJSBJ2_BxBCwErZuyS5zmO0StyRyJvbfJGY';
+
+        function showStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('status');
+            statusDiv.innerHTML = `<div class="status ${type}">${message}</div>`;
+        }
+
+        async function forceFixAuth() {
+            showStatus('Attempting to force exit demo mode...', 'info');
+            
+            try {
+                // Method 1: Load Supabase library
+                await loadSupabaseLibrary();
+                
+                // Method 2: Create client directly
+                if (window.supabase && typeof window.supabase.createClient === 'function') {
+                    const client = window.supabase.createClient(supabaseUrl, supabaseKey);
+                    
+                    // Test connection
+                    const { data, error } = await client.auth.getSession();
+                    if (error) throw error;
+                    
+                    // Success! Now we need to update the main app
+                    showStatus('✅ Supabase connection successful! Now updating main app...', 'success');
+                    
+                    // Open main app and inject fix
+                    const fixScript = `
+                        // Force exit demo mode
+                        if (window.documentStorage) {
+                            console.log('Found documentStorage, forcing out of demo mode...');
+                            if (window.documentStorage.demoMode) {
+                                window.documentStorage.demoMode = false;
+                                window.documentStorage.updateAuthUI();
+                                console.log('✅ Demo mode disabled!');
+                            }
+                            
+                            // Reinitialize Supabase if needed
+                            if (!window.documentStorage.supabase) {
+                                window.documentStorage.init();
+                                console.log('🔄 Reinitializing Supabase...');
+                            }
+                        }
+                    `;
+                    
+                    // Try to communicate with main window if it's open
+                    try {
+                        const mainWindow = window.open('/', 'htmleditor');
+                        setTimeout(() => {
+                            mainWindow.eval(fixScript);
+                            showStatus('✅ Fix applied! Check your main HTML editor window.', 'success');
+                        }, 1000);
+                    } catch (e) {
+                        showStatus('⚠️ Cannot automatically fix. Please use manual commands below.', 'info');
+                        manualCommands();
+                    }
+                    
+                } else {
+                    throw new Error('Supabase library failed to load');
+                }
+                
+            } catch (error) {
+                showStatus(`❌ Fix failed: ${error.message}`, 'error');
+                console.error('Fix failed:', error);
+            }
+        }
+
+        async function loadSupabaseLibrary() {
+            return new Promise((resolve, reject) => {
+                if (window.supabase) {
+                    resolve();
+                    return;
+                }
+                
+                const script = document.createElement('script');
+                script.src = 'https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js';
+                script.onload = () => {
+                    setTimeout(() => {
+                        if (window.supabase || window.createClient) {
+                            if (!window.supabase && window.createClient) {
+                                window.supabase = { createClient: window.createClient };
+                            }
+                            resolve();
+                        } else {
+                            reject(new Error('Library loaded but Supabase not found'));
+                        }
+                    }, 500);
+                };
+                script.onerror = () => reject(new Error('Failed to load Supabase library'));
+                document.head.appendChild(script);
+            });
+        }
+
+        async function testConnection() {
+            showStatus('Testing Supabase connection...', 'info');
+            
+            try {
+                await loadSupabaseLibrary();
+                const client = window.supabase.createClient(supabaseUrl, supabaseKey);
+                const { data, error } = await client.auth.getSession();
+                
+                if (error) throw error;
+                
+                showStatus('✅ Supabase connection is working perfectly!', 'success');
+            } catch (error) {
+                showStatus(`❌ Connection failed: ${error.message}`, 'error');
+            }
+        }
+
+        function resetEverything() {
+            if (confirm('This will clear all local data and reset the app. Continue?')) {
+                localStorage.clear();
+                sessionStorage.clear();
+                showStatus('✅ All local data cleared. Refresh your main app to restart.', 'success');
+            }
+        }
+
+        function manualCommands() {
+            const commands = `// Open your main HTML editor, press F12, go to Console tab, and paste:
+
+// Step 1: Force exit demo mode
+if (window.documentStorage) {
+    window.documentStorage.demoMode = false;
+    window.documentStorage.updateAuthUI();
+    console.log('✅ Demo mode disabled');
+}
+
+// Step 2: Reinitialize Supabase
+if (window.documentStorage && window.documentStorage.init) {
+    window.documentStorage.init();
+    console.log('🔄 Reinitializing...');
+}
+
+// Step 3: Check status
+setTimeout(() => {
+    const btn = document.getElementById('authBtn');
+    console.log('Button text:', btn ? btn.textContent : 'Button not found');
+    console.log('Demo mode:', window.documentStorage ? window.documentStorage.demoMode : 'No storage');
+}, 2000);`;
+
+            document.getElementById('commands').textContent = commands;
+            document.getElementById('manualSteps').style.display = 'block';
+        }
+
+        function showDiagnostics() {
+            const info = `
+Current URL: ${window.location.href}
+User Agent: ${navigator.userAgent}
+Online: ${navigator.onLine}
+Local Storage: ${typeof Storage !== 'undefined'}
+Supabase Library: ${window.supabase ? 'Loaded' : 'Not loaded'}
+Supabase URL: ${supabaseUrl}
+Timestamp: ${new Date().toISOString()}
+            `;
+            document.getElementById('diagnostics').textContent = info.trim();
+        }
+    </script>
+</body>
+</html>

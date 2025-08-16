@@ -3481,12 +3481,21 @@ class SupabaseDocumentStorage {
 
     useDemoMode(showNotification = false) {
         console.log('⚠️ Switching to demo mode, showNotification:', showNotification);
+        console.log('💡 TIP: If this was unexpected, try refreshing the page or check browser console for errors');
         this.demoMode = true;
         this.localBackup.init();
         this.updateAuthUI();
         if (showNotification) {
-            this.showNotification('Running in demo mode - using local storage', 'info');
+            this.showNotification('Running in demo mode - using local storage. Click "Demo Mode" to try signing in.', 'info');
         }
+        
+        // Add a way to retry Supabase connection
+        window.retrySupabaseConnection = () => {
+            console.log('🔄 Retrying Supabase connection...');
+            this.demoMode = false;
+            this.init();
+        };
+        console.log('💡 To retry connection, run: retrySupabaseConnection() in console');
     }
 
     disableDemoMode() {
@@ -4171,8 +4180,16 @@ class SupabaseDocumentStorage {
             authBtn.style.display = 'block';
             userProfile.style.display = 'none';
             authBtn.textContent = 'Demo Mode';
-            authBtn.className = 'auth-btn';
-            authBtn.onclick = () => this.showAuthModal();
+            authBtn.className = 'auth-btn demo';
+            authBtn.onclick = () => {
+                // Try to reconnect to Supabase first
+                console.log('🔄 Demo Mode clicked - attempting to reconnect to Supabase...');
+                if (window.retrySupabaseConnection) {
+                    window.retrySupabaseConnection();
+                } else {
+                    this.showAuthModal();
+                }
+            };
         } else {
             // Not signed in
             authBtn.style.display = 'block';
