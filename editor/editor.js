@@ -379,16 +379,46 @@ function setupPreviewInteractivity() {
         // Parse the HTML and build position mapping
         buildElementPositionMap();
         
+        // Add DOM synchronization check
+        addDOMSyncValidation(previewDoc);
+        
         // Add click listeners to all elements
         addClickListeners(previewDoc);
         
         // Add visual feedback styles
         addInteractivityStyles(previewDoc);
         
-        console.log('✅ Preview interactivity enabled');
+        console.log('✅ Preview interactivity enabled with enhanced DOM mapping');
     } catch (error) {
         console.error('Failed to setup preview interactivity:', error);
     }
+}
+
+// Add DOM synchronization validation
+function addDOMSyncValidation(previewDoc) {
+    // Create a mapping of actual DOM elements for validation
+    const actualElements = previewDoc.querySelectorAll('*');
+    const domElementMap = new Map();
+    
+    actualElements.forEach((element, index) => {
+        const tagName = element.tagName.toLowerCase();
+        if (!domElementMap.has(tagName)) {
+            domElementMap.set(tagName, []);
+        }
+        domElementMap.get(tagName).push({
+            element: element,
+            globalIndex: index,
+            attributes: Array.from(element.attributes).reduce((attrs, attr) => {
+                attrs[attr.name] = attr.value;
+                return attrs;
+            }, {})
+        });
+    });
+    
+    // Store for later validation during click events
+    previewDoc._domElementMap = domElementMap;
+    
+    console.log(`🔍 DOM validation map created with ${actualElements.length} elements`);
 }
 
 function buildElementPositionMap() {
@@ -403,6 +433,7 @@ function buildElementPositionMap() {
     
     // Track element counts by tag name for better indexing
     const elementCounts = {};
+    const hierarchicalCounts = {}; // Track elements within their parent context
     
     // Parse HTML and create element mappings
     const tagRegex = /<\/?([a-zA-Z][a-zA-Z0-9]*)\b[^>]*>/g;
@@ -422,7 +453,7 @@ function buildElementPositionMap() {
         const columnNumber = linesBefore[linesBefore.length - 1].length + 1;
         
         const isClosingTag = fullMatch.startsWith('</');
-        const isSelfClosing = fullMatch.endsWith('/>') || ['img', 'br', 'hr', 'input', 'meta', 'link'].includes(tagName);
+        const isSelfClosing = fullMatch.endsWith('/>') || ['img', 'br', 'hr', 'input', 'meta', 'link', 'area', 'base', 'col', 'embed', 'source', 'track', 'wbr'].includes(tagName);
         
         if (isClosingTag) {
             // Find matching opening tag
@@ -441,27 +472,36 @@ function buildElementPositionMap() {
                         fullEndPos: endPos,
                         attributes: openTag.attributes,
                         elementIndex: openTag.elementIndex,
+                        siblingIndex: openTag.siblingIndex,
+                        globalIndex: openTag.globalIndex,
                         documentOrder: sourceElementMap.length,
-                        depth: elementStack.length,
-                        parentElement: elementStack.length > 0 ? elementStack[elementStack.length - 1] : null
+                        depth: openTag.depth,
+                        parentElement: openTag.parentElement,
+                        parentKey: openTag.parentKey
                     });
                     break;
                 }
             }
         } else {
-            // Extract attributes
-            const attributeRegex = /\s+([a-zA-Z-]+)(?:=["']([^"']*)["'])?/g;
-            const attributes = {};
-            let attrMatch;
-            while ((attrMatch = attributeRegex.exec(fullMatch)) !== null) {
-                attributes[attrMatch[1]] = attrMatch[2] || '';
-            }
+            // Enhanced attribute parsing
+            const attributes = parseElementAttributes(fullMatch);
             
-            // Track element index for this tag type
+            // Get parent context for hierarchical indexing
+            const parentElement = elementStack.length > 0 ? elementStack[elementStack.length - 1] : null;
+            const parentKey = parentElement ? `${parentElement.tagName}_${parentElement.elementIndex}` : 'root';
+            
+            // Track global element index for this tag type
             if (!elementCounts[tagName]) {
                 elementCounts[tagName] = 0;
             }
-            const elementIndex = elementCounts[tagName]++;
+            const globalIndex = elementCounts[tagName]++;
+            
+            // Track sibling index within parent context
+            const siblingKey = `${parentKey}_${tagName}`;
+            if (!hierarchicalCounts[siblingKey]) {
+                hierarchicalCounts[siblingKey] = 0;
+            }
+            const siblingIndex = hierarchicalCounts[siblingKey]++;
             
             const elementInfo = {
                 tagName: tagName,
@@ -469,7 +509,12 @@ function buildElementPositionMap() {
                 columnNumber: columnNumber,
                 startPos: startPos,
                 attributes: attributes,
-                elementIndex: elementIndex
+                elementIndex: globalIndex, // Global index for compatibility
+                siblingIndex: siblingIndex, // Sibling index for accurate matching
+                globalIndex: globalIndex,
+                depth: elementStack.length,
+                parentElement: parentElement,
+                parentKey: parentKey
             };
             
             if (isSelfClosing) {
@@ -483,10 +528,13 @@ function buildElementPositionMap() {
                     fullStartPos: startPos,
                     fullEndPos: endPos,
                     attributes: attributes,
-                    elementIndex: elementIndex,
+                    elementIndex: globalIndex,
+                    siblingIndex: siblingIndex,
+                    globalIndex: globalIndex,
                     documentOrder: sourceElementMap.length,
                     depth: elementStack.length,
-                    parentElement: elementStack.length > 0 ? elementStack[elementStack.length - 1] : null
+                    parentElement: parentElement,
+                    parentKey: parentKey
                 });
             } else {
                 // Add to stack for later matching
@@ -495,7 +543,33 @@ function buildElementPositionMap() {
         }
     }
     
-    console.log(`📍 Mapped ${sourceElementMap.length} elements with improved indexing`);
+    console.log(`📍 Mapped ${sourceElementMap.length} elements with enhanced indexing`);
+}
+
+// Enhanced attribute parsing function
+function parseElementAttributes(htmlTag) {
+    const attributes = {};
+    
+    // Remove tag name and brackets
+    const tagContent = htmlTag.replace(/^<[^>\s]+\s*/, '').replace(/\/?>$/, '');
+    
+    // Enhanced regex to handle various attribute formats
+    const attrRegex = /([a-zA-Z][\w-]*)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))|([a-zA-Z][\w-]*)\s*(?=\s|$)/g;
+    let match;
+    
+    while ((match = attrRegex.exec(tagContent)) !== null) {
+        if (match[5]) {
+            // Boolean attribute (no value)
+            attributes[match[5]] = '';
+        } else {
+            // Attribute with value
+            const attrName = match[1];
+            const attrValue = match[2] || match[3] || match[4] || '';
+            attributes[attrName] = attrValue;
+        }
+    }
+    
+    return attributes;
 }
 
 function addClickListeners(previewDoc) {
@@ -552,8 +626,21 @@ function findElementPosition(clickedElement) {
         elementAttributes[attr.name] = attr.value;
     }
     
-    // Calculate element index among siblings of the same type
-    const elementIndex = getElementIndex(clickedElement);
+    // Calculate element indices using enhanced method
+    const indices = getElementIndex(clickedElement);
+    const { siblingIndex, globalIndex } = indices;
+    
+    // Use DOM validation mapping if available for additional accuracy
+    const previewDoc = clickedElement.ownerDocument;
+    let domValidatedIndex = null;
+    if (previewDoc && previewDoc._domElementMap) {
+        const domElements = previewDoc._domElementMap.get(tagName) || [];
+        const elementIndex = domElements.findIndex(item => item.element === clickedElement);
+        if (elementIndex !== -1) {
+            domValidatedIndex = elementIndex;
+            console.log(`🔍 DOM validation: found element at validated index ${domValidatedIndex}`);
+        }
+    }
     
     // Find matching element in source map with improved scoring
     let bestMatch = null;
@@ -576,7 +663,7 @@ function findElementPosition(clickedElement) {
             for (const [key, value] of Object.entries(elementAttributes)) {
                 if (sourceAttrs[key] === value) {
                     attrMatches++;
-                    score += 3; // High score for exact attribute match
+                    score += 4; // High score for exact attribute match
                 }
             }
             
@@ -587,37 +674,59 @@ function findElementPosition(clickedElement) {
         
         // Special scoring for unique identifiers
         if (elementAttributes.id && sourceAttrs.id === elementAttributes.id) {
-            score += 20; // Very high score for ID match (increased from 10)
+            score += 30; // Very high score for ID match - should be definitive
         }
         
         if (elementAttributes.class && sourceAttrs.class === elementAttributes.class) {
-            score += 8; // High score for class match (increased from 5)
+            score += 12; // High score for class match
         }
         
-        // NEW: Score based on element index matching
-        if (sourceElement.elementIndex === elementIndex) {
-            score += 15; // High score for matching element position
+        // Enhanced index matching - use sibling index primarily, DOM validation when available
+        if (domValidatedIndex !== null && (sourceElement.globalIndex || sourceElement.elementIndex) === domValidatedIndex) {
+            score += 25; // Highest score for DOM-validated match
+        } else if (sourceElement.siblingIndex === siblingIndex) {
+            score += 20; // Very high score for sibling index match
+        } else if (sourceElement.globalIndex === globalIndex) {
+            score += 15; // Good score for global index match
         } else {
-            // Penalty for index mismatch decreases with distance
-            const indexDiff = Math.abs(sourceElement.elementIndex - elementIndex);
-            score += Math.max(0, 10 - indexDiff * 2);
+            // Penalty decreases with distance from indices
+            const siblingDiff = Math.abs((sourceElement.siblingIndex || 0) - siblingIndex);
+            const globalDiff = Math.abs((sourceElement.globalIndex || sourceElement.elementIndex) - globalIndex);
+            
+            // Additional check against DOM validated index if available
+            if (domValidatedIndex !== null) {
+                const domDiff = Math.abs((sourceElement.globalIndex || sourceElement.elementIndex) - domValidatedIndex);
+                score += Math.max(0, 10 - domDiff * 2);
+            }
+            
+            // Prefer sibling index matching over global
+            score += Math.max(0, 12 - siblingDiff * 3);
+            score += Math.max(0, 8 - globalDiff * 2);
         }
         
-        // NEW: Consider parent element context if available
+        // Enhanced parent context matching
         if (clickedElement.parentElement && sourceElement.parentElement) {
             const parentTagName = clickedElement.parentElement.tagName?.toLowerCase();
             if (parentTagName === sourceElement.parentElement.tagName) {
-                score += 3; // Bonus for matching parent context
+                score += 5; // Bonus for matching parent context
+                
+                // Additional bonus if parent has unique attributes
+                const parentAttrs = clickedElement.parentElement.attributes;
+                if (parentAttrs && parentAttrs.length > 0) {
+                    score += 3;
+                }
             }
         }
         
-        // NEW: Perfect match bonus - if all major factors align
+        // Perfect match bonus - if all major factors align
         const hasIdMatch = elementAttributes.id && sourceAttrs.id === elementAttributes.id;
         const hasClassMatch = elementAttributes.class && sourceAttrs.class === elementAttributes.class;
-        const hasIndexMatch = sourceElement.elementIndex === elementIndex;
+        const hasSiblingMatch = sourceElement.siblingIndex === siblingIndex;
         
-        if ((hasIdMatch || hasClassMatch) && hasIndexMatch) {
-            score += 10; // Perfect match bonus
+        if (hasIdMatch) {
+            score += 15; // Massive bonus for ID match
+        } else if (hasClassMatch && hasSiblingMatch) {
+            score += 12; // Perfect match for class + position
         }
         
         if (score > bestScore) {
@@ -626,69 +735,116 @@ function findElementPosition(clickedElement) {
         }
     }
     
-    // Fallback mechanism for edge cases
-    if (!bestMatch || bestScore < 5) {
-        console.log(`🔄 Trying fallback matching for ${tagName} at index ${elementIndex}`);
-        bestMatch = findFallbackMatch(tagName, elementIndex, elementAttributes);
+    // Enhanced fallback mechanism
+    if (!bestMatch || bestScore < 8) {
+        console.log(`🔄 Trying enhanced fallback matching for ${tagName}`, { siblingIndex, globalIndex });
+        bestMatch = findEnhancedFallbackMatch(tagName, indices, elementAttributes);
     }
     
     // Enhanced debugging information
     if (bestMatch) {
         console.log(`🎯 Element match found:`, {
             tagName,
-            elementIndex,
+            siblingIndex,
+            globalIndex,
+            domValidatedIndex,
             bestScore,
-            matchedIndex: bestMatch.elementIndex,
+            matchedSiblingIndex: bestMatch.siblingIndex,
+            matchedGlobalIndex: bestMatch.globalIndex || bestMatch.elementIndex,
             line: bestMatch.startLine,
             hasId: !!elementAttributes.id,
-            hasClass: !!elementAttributes.class
+            hasClass: !!elementAttributes.class,
+            usedDOMValidation: domValidatedIndex !== null
         });
     } else {
-        console.warn(`❌ No match found for:`, { tagName, elementIndex, attributes: elementAttributes });
+        console.warn(`❌ No match found for:`, { 
+            tagName, 
+            siblingIndex, 
+            globalIndex,
+            domValidatedIndex,
+            attributes: elementAttributes 
+        });
     }
     
     return bestMatch;
 }
 
-// Helper function to calculate element index among siblings of same type
+// Enhanced helper function to calculate element index among siblings of same type
 function getElementIndex(element) {
-    if (!element || !element.parentElement) return 0;
+    if (!element || !element.parentElement) return { siblingIndex: 0, globalIndex: 0 };
     
+    const tagName = element.tagName.toLowerCase();
+    
+    // Get sibling index (index among same-type siblings in the same parent)
     const siblings = Array.from(element.parentElement.children);
     const sameTypeSiblings = siblings.filter(sibling => 
-        sibling.tagName.toLowerCase() === element.tagName.toLowerCase()
+        sibling.tagName.toLowerCase() === tagName
     );
+    const siblingIndex = sameTypeSiblings.indexOf(element);
     
-    return sameTypeSiblings.indexOf(element);
+    // Calculate global index by traversing the entire document
+    const allElements = Array.from(element.ownerDocument.getElementsByTagName(tagName));
+    const globalIndex = allElements.indexOf(element);
+    
+    return { siblingIndex, globalIndex };
 }
 
-// Fallback matching for edge cases
-function findFallbackMatch(tagName, elementIndex, elementAttributes) {
+// Enhanced fallback matching for edge cases
+function findEnhancedFallbackMatch(tagName, indices, elementAttributes) {
+    const { siblingIndex, globalIndex } = indices;
     const candidates = sourceElementMap.filter(el => el.tagName === tagName);
     
     if (candidates.length === 0) return null;
     
-    // Strategy 1: Exact index match
-    let match = candidates.find(el => el.elementIndex === elementIndex);
+    // Strategy 1: Exact sibling index match
+    let match = candidates.find(el => el.siblingIndex === siblingIndex);
     if (match) {
-        console.log(`📍 Fallback: Found exact index match for ${tagName}[${elementIndex}]`);
+        console.log(`📍 Enhanced Fallback: Found exact sibling index match for ${tagName}[${siblingIndex}]`);
         return match;
     }
     
-    // Strategy 2: Closest index match
-    if (elementIndex < candidates.length) {
-        match = candidates[elementIndex];
-        console.log(`📍 Fallback: Using position-based match for ${tagName}[${elementIndex}]`);
+    // Strategy 2: Exact global index match
+    match = candidates.find(el => (el.globalIndex || el.elementIndex) === globalIndex);
+    if (match) {
+        console.log(`📍 Enhanced Fallback: Found exact global index match for ${tagName}[${globalIndex}]`);
         return match;
     }
     
-    // Strategy 3: Document order fallback
+    // Strategy 3: Attribute-based matching
+    if (elementAttributes.class || elementAttributes.id) {
+        for (const candidate of candidates) {
+            const sourceAttrs = candidate.attributes || {};
+            if (elementAttributes.id && sourceAttrs.id === elementAttributes.id) {
+                console.log(`📍 Enhanced Fallback: Found ID match for ${tagName}#${elementAttributes.id}`);
+                return candidate;
+            }
+            if (elementAttributes.class && sourceAttrs.class === elementAttributes.class) {
+                console.log(`📍 Enhanced Fallback: Found class match for ${tagName}.${elementAttributes.class}`);
+                return candidate;
+            }
+        }
+    }
+    
+    // Strategy 4: Closest sibling index match
+    if (siblingIndex < candidates.length) {
+        candidates.sort((a, b) => (a.siblingIndex || 0) - (b.siblingIndex || 0));
+        match = candidates[Math.min(siblingIndex, candidates.length - 1)];
+        console.log(`📍 Enhanced Fallback: Using closest sibling position for ${tagName}[${siblingIndex}]`);
+        return match;
+    }
+    
+    // Strategy 5: Document order fallback with global index consideration
     candidates.sort((a, b) => a.documentOrder - b.documentOrder);
-    const adjustedIndex = Math.min(elementIndex, candidates.length - 1);
+    const adjustedIndex = Math.min(globalIndex, candidates.length - 1);
     match = candidates[adjustedIndex];
     
-    console.log(`📍 Fallback: Using document order match for ${tagName}[${adjustedIndex}]`);
+    console.log(`📍 Enhanced Fallback: Using document order match for ${tagName}[${adjustedIndex}]`);
     return match;
+}
+
+// Legacy fallback function for compatibility
+function findFallbackMatch(tagName, elementIndex, elementAttributes) {
+    return findEnhancedFallbackMatch(tagName, { siblingIndex: 0, globalIndex: elementIndex }, elementAttributes);
 }
 
 function highlightInEditor(position) {
@@ -1746,8 +1902,7 @@ function showProfileModal() {
         nameInput.value = storage.currentUser.user_metadata.full_name;
     }
     
-    // Load AI configuration
-    loadProfileAiConfig();
+    // AI configuration removed
     
     modal.style.display = 'flex';
     nameInput.focus();
@@ -1951,230 +2106,11 @@ function handleNewPassword(event) {
     }
 }
 
-// AI Assistant Functions for Profile Modal
-function showAIAssistant() {
-    // Close user menu first
-    const userMenu = document.getElementById('userMenu');
-    if (userMenu) {
-        userMenu.classList.remove('show');
-    }
-    
-    // Open the AI assistant panel
-    if (window.aiAssistant) {
-        window.aiAssistant.toggle();
-    }
-}
+// Profile Modal Functions (AI functionality removed)
 
-function handleProfileAiProviderChange() {
-    const provider = document.getElementById('profileAiProvider').value;
-    const customEndpointSection = document.getElementById('profileAiCustomEndpointSection');
-    const providerLink = document.getElementById('profileAiProviderLink');
-    
-    // Show/hide custom endpoint section
-    if (provider === 'custom') {
-        customEndpointSection.style.display = 'block';
-    } else {
-        customEndpointSection.style.display = 'none';
-    }
-    
-    // Update provider link
-    const links = {
-        'openai': 'https://platform.openai.com',
-        'anthropic': 'https://console.anthropic.com',
-        'gemini': 'https://aistudio.google.com/app/apikey',
-        'custom': '#'
-    };
-    
-    const linkTexts = {
-        'openai': 'platform.openai.com',
-        'anthropic': 'console.anthropic.com',
-        'gemini': 'Google AI Studio',
-        'custom': 'your custom endpoint'
-    };
-    
-    providerLink.href = links[provider];
-    providerLink.textContent = linkTexts[provider];
-}
 
-function toggleProfileApiKeyVisibility() {
-    const input = document.getElementById('profileAiApiKey');
-    const button = document.getElementById('profileAiApiKeyToggle');
-    
-    if (input.type === 'password') {
-        input.type = 'text';
-        button.innerHTML = `
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" stroke="currentColor" stroke-width="2"/>
-                <line x1="1" y1="1" x2="23" y2="23" stroke="currentColor" stroke-width="2"/>
-            </svg>
-        `;
-    } else {
-        input.type = 'password';
-        button.innerHTML = `
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke="currentColor" stroke-width="2"/>
-                <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/>
-            </svg>
-        `;
-    }
-}
 
-async function saveProfileAiConfig() {
-    const provider = document.getElementById('profileAiProvider').value;
-    const apiKey = document.getElementById('profileAiApiKey').value.trim();
-    const endpoint = document.getElementById('profileAiCustomEndpoint').value.trim();
-    
-    if (!apiKey) {
-        alert('Please enter an API key');
-        return;
-    }
-    
-    if (provider === 'custom' && !endpoint) {
-        alert('Please enter a custom endpoint URL');
-        return;
-    }
-    
-    try {
-        updateProfileAiStatus('Saving configuration...', 'connecting');
-        
-        // Save using the AI assistant's save method
-        if (window.aiAssistant) {
-            const success = await window.aiAssistant.saveApiConfig(provider, apiKey, endpoint);
-            
-            if (success) {
-                updateProfileAiStatus('Connected', 'connected');
-                showCopyNotification('AI configuration saved successfully!', 'success');
-            } else {
-                updateProfileAiStatus('Failed to save configuration', 'error');
-                showCopyNotification('Failed to save AI configuration', 'error');
-            }
-        } else {
-            updateProfileAiStatus('AI Assistant not available', 'error');
-        }
-    } catch (error) {
-        console.error('Error saving AI config:', error);
-        updateProfileAiStatus('Configuration error', 'error');
-        showCopyNotification('Error saving AI configuration', 'error');
-    }
-}
 
-async function testProfileAiConnection() {
-    const provider = document.getElementById('profileAiProvider').value;
-    const apiKey = document.getElementById('profileAiApiKey').value.trim();
-    const endpoint = document.getElementById('profileAiCustomEndpoint').value.trim();
-    
-    if (!apiKey) {
-        alert('Please enter an API key first');
-        return;
-    }
-    
-    if (provider === 'custom' && !endpoint) {
-        alert('Please enter a custom endpoint URL first');
-        return;
-    }
-    
-    try {
-        updateProfileAiStatus('Testing connection...', 'connecting');
-        
-        // Temporarily set the config for testing
-        if (window.aiAssistant) {
-            const originalProvider = window.aiAssistant.apiProvider;
-            const originalKey = window.aiAssistant.apiKey;
-            const originalEndpoint = window.aiAssistant.apiEndpoint;
-            
-            // Set temporary config
-            window.aiAssistant.apiProvider = provider;
-            window.aiAssistant.apiKey = apiKey;
-            window.aiAssistant.apiEndpoint = endpoint;
-            
-            // Test the connection
-            const response = await window.aiAssistant.callAI('Test connection', {});
-            
-            // Restore original config
-            window.aiAssistant.apiProvider = originalProvider;
-            window.aiAssistant.apiKey = originalKey;
-            window.aiAssistant.apiEndpoint = originalEndpoint;
-            
-            updateProfileAiStatus('Connection successful', 'connected');
-            showCopyNotification('AI connection test successful!', 'success');
-        } else {
-            updateProfileAiStatus('AI Assistant not available', 'error');
-        }
-    } catch (error) {
-        console.error('Connection test failed:', error);
-        updateProfileAiStatus('Connection failed', 'error');
-        showCopyNotification('AI connection test failed', 'error');
-    }
-}
-
-function clearProfileAiConfig() {
-    if (confirm('Are you sure you want to clear your AI configuration?')) {
-        document.getElementById('profileAiProvider').value = 'openai';
-        document.getElementById('profileAiApiKey').value = '';
-        document.getElementById('profileAiCustomEndpoint').value = '';
-        
-        // Hide custom endpoint section
-        document.getElementById('profileAiCustomEndpointSection').style.display = 'none';
-        
-        // Reset provider link
-        const providerLink = document.getElementById('profileAiProviderLink');
-        providerLink.href = 'https://platform.openai.com';
-        providerLink.textContent = 'platform.openai.com';
-        
-        // Clear from AI assistant
-        if (window.aiAssistant) {
-            window.aiAssistant.deleteApiConfig('openai');
-            window.aiAssistant.deleteApiConfig('anthropic');
-            window.aiAssistant.deleteApiConfig('gemini');
-            window.aiAssistant.deleteApiConfig('custom');
-        }
-        
-        updateProfileAiStatus('Not configured', 'not-configured');
-        showCopyNotification('AI configuration cleared', 'success');
-    }
-}
-
-function updateProfileAiStatus(text, status) {
-    const statusElement = document.getElementById('profileAiConnectionStatus');
-    const indicator = statusElement.querySelector('.status-indicator');
-    const textElement = statusElement.querySelector('.status-text');
-    
-    textElement.textContent = text;
-    
-    // Remove all status classes
-    indicator.classList.remove('connected', 'error', 'connecting');
-    
-    // Add appropriate class
-    if (status === 'connected') {
-        indicator.classList.add('connected');
-    } else if (status === 'error') {
-        indicator.classList.add('error');
-    } else if (status === 'connecting') {
-        indicator.classList.add('connecting');
-    }
-}
-
-function loadProfileAiConfig() {
-    if (window.aiAssistant) {
-        const provider = window.aiAssistant.apiProvider || 'openai';
-        const apiKey = window.aiAssistant.apiKey || '';
-        const endpoint = window.aiAssistant.apiEndpoint || '';
-        
-        document.getElementById('profileAiProvider').value = provider;
-        document.getElementById('profileAiApiKey').value = apiKey;
-        document.getElementById('profileAiCustomEndpoint').value = endpoint;
-        
-        // Update UI based on provider
-        handleProfileAiProviderChange();
-        
-        // Update status
-        if (apiKey) {
-            updateProfileAiStatus('Configured', 'connected');
-        } else {
-            updateProfileAiStatus('Not configured', 'not-configured');
-        }
-    }
-}
 
 function toggleSidebar() {
     const sidebar = document.getElementById('documentsSidebar');
@@ -4737,1138 +4673,4 @@ class SupabaseDocumentStorage {
     }
 }
 
-// === AI ASSISTANT SYSTEM ===
-
-class AIAssistant {
-    constructor() {
-        this.isOpen = false;
-        this.currentContext = null;
-        this.selectedText = '';
-        this.selectionPosition = null;
-        
-        // AI Configuration - now stored in Supabase
-        this.apiKey = '';
-        this.apiProvider = 'openai'; // openai, anthropic, gemini, or custom
-        this.apiEndpoint = '';
-        this.isLoadingConfig = false;
-        
-        this.init();
-    }
-    
-    async init() {
-        this.setupEventListeners();
-        this.initializeSelectionHandling();
-        
-        // Load API configuration from Supabase if user is authenticated
-        await this.loadApiConfig();
-        
-        // Show API key setup if not configured
-        if (!this.apiKey && !this.apiEndpoint) {
-            setTimeout(() => this.showApiSetup(), 2000);
-        }
-    }
-    
-    setupEventListeners() {
-        // Close button
-        const closeBtn = document.getElementById('aiPanelClose');
-        if (closeBtn) {
-            closeBtn.addEventListener('click', () => this.close());
-        }
-        
-        // Quick action buttons
-        document.querySelectorAll('.ai-quick-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const action = e.currentTarget.getAttribute('data-action');
-                this.handleQuickAction(action);
-            });
-        });
-        
-        // Chat input
-        const chatInput = document.getElementById('aiChatInput');
-        const sendButton = document.getElementById('aiSendButton');
-        
-        if (chatInput) {
-            chatInput.addEventListener('input', () => this.updateSendButton());
-            chatInput.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    this.sendMessage();
-                }
-            });
-            
-            // Auto-resize textarea
-            chatInput.addEventListener('input', this.autoResizeTextarea);
-        }
-        
-        if (sendButton) {
-            sendButton.addEventListener('click', () => this.sendMessage());
-        }
-        
-        // Explain tooltip
-        const explainBtn = document.getElementById('aiExplainSelected');
-        if (explainBtn) {
-            explainBtn.addEventListener('click', () => this.explainSelectedCode());
-        }
-        
-        // Close tooltip when clicking outside
-        document.addEventListener('click', (e) => {
-            const tooltip = document.getElementById('aiExplainTooltip');
-            if (tooltip && !tooltip.contains(e.target) && !e.target.closest('.monaco-editor')) {
-                this.hideExplainTooltip();
-            }
-        });
-        
-        // Settings functionality
-        this.setupSettingsUI();
-    }
-    
-    setupSettingsUI() {
-        // Settings button
-        const settingsBtn = document.getElementById('aiSettingsBtn');
-        if (settingsBtn) {
-            settingsBtn.addEventListener('click', () => this.toggleSettings());
-        }
-        
-        // Provider selection
-        const providerSelect = document.getElementById('aiProviderSelect');
-        if (providerSelect) {
-            providerSelect.addEventListener('change', (e) => this.handleProviderChange(e.target.value));
-        }
-        
-        // API key toggle visibility
-        const apiKeyToggle = document.getElementById('aiApiKeyToggle');
-        if (apiKeyToggle) {
-            apiKeyToggle.addEventListener('click', () => this.toggleApiKeyVisibility());
-        }
-        
-        // Action buttons
-        const saveBtn = document.getElementById('aiSaveConfig');
-        if (saveBtn) {
-            saveBtn.addEventListener('click', () => this.saveConfiguration());
-        }
-        
-        const testBtn = document.getElementById('aiTestConnection');
-        if (testBtn) {
-            testBtn.addEventListener('click', () => this.testConnection());
-        }
-        
-        const clearBtn = document.getElementById('aiClearConfig');
-        if (clearBtn) {
-            clearBtn.addEventListener('click', () => this.clearConfiguration());
-        }
-        
-        // Load current configuration into UI
-        this.updateSettingsUI();
-    }
-    
-    toggleSettings() {
-        const settingsSection = document.getElementById('aiSettingsSection');
-        const settingsBtn = document.getElementById('aiSettingsBtn');
-        
-        if (settingsSection && settingsBtn) {
-            const isVisible = settingsSection.style.display !== 'none';
-            settingsSection.style.display = isVisible ? 'none' : 'block';
-            settingsBtn.classList.toggle('active', !isVisible);
-            
-            if (!isVisible) {
-                this.updateSettingsUI();
-            }
-        }
-    }
-    
-    handleProviderChange(provider) {
-        this.apiProvider = provider;
-        
-        // Update help text and custom endpoint visibility
-        const helpText = document.getElementById('aiProviderLink');
-        const customEndpointSection = document.getElementById('aiCustomEndpointSection');
-        
-        if (helpText) {
-            switch (provider) {
-                case 'openai':
-                    helpText.textContent = 'platform.openai.com';
-                    helpText.href = 'https://platform.openai.com';
-                    break;
-                case 'anthropic':
-                    helpText.textContent = 'console.anthropic.com';
-                    helpText.href = 'https://console.anthropic.com';
-                    break;
-                case 'custom':
-                    helpText.textContent = 'your API provider';
-                    helpText.href = '#';
-                    break;
-            }
-        }
-        
-        if (customEndpointSection) {
-            customEndpointSection.style.display = provider === 'custom' ? 'block' : 'none';
-        }
-    }
-    
-    toggleApiKeyVisibility() {
-        const apiKeyInput = document.getElementById('aiApiKeyInput');
-        const toggleBtn = document.getElementById('aiApiKeyToggle');
-        
-        if (apiKeyInput && toggleBtn) {
-            const isPassword = apiKeyInput.type === 'password';
-            apiKeyInput.type = isPassword ? 'text' : 'password';
-            
-            // Update icon
-            const icon = isPassword ? 
-                `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
-                    <line x1="1" y1="1" x2="23" y2="23"/>
-                </svg>` :
-                `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                    <circle cx="12" cy="12" r="3"/>
-                </svg>`;
-            
-            toggleBtn.innerHTML = icon;
-        }
-    }
-    
-    updateSettingsUI() {
-        // Update provider select
-        const providerSelect = document.getElementById('aiProviderSelect');
-        if (providerSelect) {
-            providerSelect.value = this.apiProvider;
-            this.handleProviderChange(this.apiProvider);
-        }
-        
-        // Update API key input
-        const apiKeyInput = document.getElementById('aiApiKeyInput');
-        if (apiKeyInput) {
-            apiKeyInput.value = this.apiKey;
-        }
-        
-        // Update custom endpoint
-        const customEndpoint = document.getElementById('aiCustomEndpoint');
-        if (customEndpoint) {
-            customEndpoint.value = this.apiEndpoint;
-        }
-        
-        // Update connection status and security info
-        this.updateConnectionStatus();
-    }
-    
-    updateConnectionStatus() {
-        const statusIndicator = document.querySelector('#aiConnectionStatus .status-indicator');
-        const statusText = document.querySelector('#aiConnectionStatus .status-text');
-        
-        if (statusIndicator && statusText) {
-            const isConfigured = this.apiKey || this.apiEndpoint;
-            const storage = window.documentStorage;
-            const isSupabaseUser = storage && storage.supabase && storage.currentUser;
-            
-            if (isConfigured) {
-                statusIndicator.className = 'status-indicator connected';
-                const storageLocation = isSupabaseUser ? 'Supabase' : 'Local';
-                statusText.textContent = `Connected (${this.apiProvider}) • ${storageLocation}`;
-            } else {
-                statusIndicator.className = 'status-indicator';
-                statusText.textContent = 'Not configured';
-            }
-        }
-        
-        // Update security info based on authentication status
-        this.updateSecurityInfo();
-    }
-    
-    updateSecurityInfo() {
-        const securityInfo = document.getElementById('aiSecurityInfo');
-        if (!securityInfo) return;
-        
-        const storage = window.documentStorage;
-        const isSupabaseUser = storage && storage.supabase && storage.currentUser;
-        
-        if (isSupabaseUser) {
-            securityInfo.innerHTML = `
-                <li>✅ Stored securely in your Supabase database</li>
-                <li>🔒 Protected with Row Level Security</li>
-                <li>🌐 Synced across all your devices</li>
-                <li>🚫 Never sent to our servers</li>
-                <li>➡️ Only sent directly to your chosen AI provider</li>
-            `;
-        } else {
-            securityInfo.innerHTML = `
-                <li>📱 Stored locally in your browser</li>
-                <li>💡 Sign in to sync across devices with Supabase</li>
-                <li>🚫 Never sent to our servers</li>
-                <li>➡️ Only sent directly to your chosen AI provider</li>
-            `;
-        }
-    }
-    
-    async saveConfiguration() {
-        const apiKeyInput = document.getElementById('aiApiKeyInput');
-        const customEndpoint = document.getElementById('aiCustomEndpoint');
-        const saveBtn = document.getElementById('aiSaveConfig');
-        
-        if (!apiKeyInput) return;
-        
-        const apiKey = apiKeyInput.value.trim();
-        const endpoint = customEndpoint ? customEndpoint.value.trim() : '';
-        
-        if (!apiKey && this.apiProvider !== 'custom') {
-            this.showNotification('Please enter an API key', 'error');
-            return;
-        }
-        
-        if (this.apiProvider === 'custom' && !endpoint) {
-            this.showNotification('Please enter a custom endpoint URL', 'error');
-            return;
-        }
-        
-        // Show loading state
-        if (saveBtn) {
-            saveBtn.disabled = true;
-            saveBtn.textContent = 'Saving...';
-        }
-        
-        try {
-            // Save to the existing system
-            console.log('🔧 AI Settings: Attempting to save configuration...', {
-                provider: this.apiProvider,
-                hasApiKey: !!apiKey,
-                hasEndpoint: !!endpoint,
-                isSignedIn: !!(window.documentStorage && window.documentStorage.currentUser)
-            });
-            
-            const success = await this.saveApiConfig(this.apiProvider, apiKey, endpoint);
-            
-            if (success) {
-                this.showNotification('Configuration saved successfully!', 'success');
-                this.updateConnectionStatus();
-                
-                // Update welcome message if this is first time setup
-                this.updateWelcomeMessage();
-            } else {
-                console.error('🔧 AI Settings: saveApiConfig returned false');
-                this.showNotification('Failed to save configuration - check browser console for details', 'error');
-            }
-        } catch (error) {
-            console.error('🔧 AI Settings: Error saving configuration:', error);
-            this.showNotification(`Error saving configuration: ${error.message}`, 'error');
-        } finally {
-            if (saveBtn) {
-                saveBtn.disabled = false;
-                saveBtn.textContent = 'Save Configuration';
-            }
-        }
-    }
-    
-    async testConnection() {
-        const testBtn = document.getElementById('aiTestConnection');
-        
-        if (!this.apiKey && !this.apiEndpoint) {
-            this.showNotification('Please configure your API settings first', 'error');
-            return;
-        }
-        
-        if (testBtn) {
-            testBtn.disabled = true;
-            testBtn.textContent = 'Testing...';
-        }
-        
-        try {
-            // Test with a simple message
-            const testMessage = "Hello! This is a test message. Please respond with 'Test successful' if you receive this.";
-            const response = await this.makeAIRequest('You are a helpful assistant.', testMessage);
-            
-            if (response && response.trim().length > 0) {
-                this.showNotification('Connection test successful!', 'success');
-                this.updateConnectionStatus();
-            } else {
-                this.showNotification('Connection test failed - no response', 'error');
-            }
-        } catch (error) {
-            console.error('Connection test error:', error);
-            this.showNotification(`Connection test failed: ${error.message}`, 'error');
-        } finally {
-            if (testBtn) {
-                testBtn.disabled = false;
-                testBtn.textContent = 'Test Connection';
-            }
-        }
-    }
-    
-    clearConfiguration() {
-        if (confirm('Are you sure you want to clear your API configuration?')) {
-            // Clear the existing system
-            this.deleteApiConfig(this.apiProvider);
-            
-            // Clear UI
-            const apiKeyInput = document.getElementById('aiApiKeyInput');
-            const customEndpoint = document.getElementById('aiCustomEndpoint');
-            
-            if (apiKeyInput) apiKeyInput.value = '';
-            if (customEndpoint) customEndpoint.value = '';
-            
-            this.apiKey = '';
-            this.apiEndpoint = '';
-            this.updateConnectionStatus();
-            
-            this.showNotification('Configuration cleared', 'success');
-        }
-    }
-    
-    updateWelcomeMessage() {
-        const welcomeMessage = document.querySelector('.ai-welcome-message .ai-message-content');
-        if (welcomeMessage && (this.apiKey || this.apiEndpoint)) {
-            welcomeMessage.innerHTML = `
-                <p>Hey! I'm your AI coding assistant. I can help you:</p>
-                <ul>
-                    <li>🔍 Explain any code you highlight</li>
-                    <li>🐛 Debug issues and fix errors</li>
-                    <li>💡 Suggest improvements</li>
-                    <li>💬 Answer questions about your HTML/CSS</li>
-                </ul>
-                <p>✅ API configured! Try highlighting some code and clicking "Explain This", or just ask me anything!</p>
-            `;
-        }
-    }
-    
-    showNotification(message, type = 'info') {
-        // Reuse the existing notification system
-        if (typeof showCopyNotification === 'function') {
-            showCopyNotification(message, type);
-        } else {
-            // Fallback alert
-            alert(message);
-        }
-    }
-    
-    initializeSelectionHandling() {
-        if (!editor) return;
-        
-        // Listen for selection changes in Monaco Editor
-        editor.onDidChangeCursorSelection((e) => {
-            const selection = editor.getSelection();
-            if (selection && !selection.isEmpty()) {
-                const selectedText = editor.getModel().getValueInRange(selection);
-                if (selectedText.trim().length > 2) {
-                    this.selectedText = selectedText;
-                    this.selectionPosition = selection;
-                    this.showExplainTooltip(e);
-                    this.updateContextIndicator('Code selected');
-                } else {
-                    this.hideExplainTooltip();
-                    this.clearContextIndicator();
-                }
-            } else {
-                this.selectedText = '';
-                this.selectionPosition = null;
-                this.hideExplainTooltip();
-                this.clearContextIndicator();
-            }
-        });
-    }
-    
-    toggle() {
-        if (this.isOpen) {
-            this.close();
-        } else {
-            this.open();
-        }
-    }
-    
-    open() {
-        const panel = document.getElementById('aiAssistantPanel');
-        
-        if (panel) {
-            panel.classList.add('open');
-            this.isOpen = true;
-            
-            // Focus chat input
-            setTimeout(() => {
-                const chatInput = document.getElementById('aiChatInput');
-                if (chatInput) chatInput.focus();
-            }, 300);
-            
-            // Update context
-            this.updateCurrentContext();
-        }
-    }
-    
-    close() {
-        const panel = document.getElementById('aiAssistantPanel');
-        
-        if (panel) {
-            panel.classList.remove('open');
-            this.isOpen = false;
-        }
-        
-        this.hideExplainTooltip();
-    }
-    
-    updateCurrentContext() {
-        if (!editor) return;
-        
-        const fullCode = editor.getValue();
-        const cursorPosition = editor.getPosition();
-        
-        this.currentContext = {
-            fullCode: fullCode,
-            codeLength: fullCode.length,
-            cursorLine: cursorPosition ? cursorPosition.lineNumber : 1,
-            selectedText: this.selectedText,
-            language: 'html',
-            hasSelection: !!this.selectedText
-        };
-    }
-    
-    updateContextIndicator(text) {
-        const indicator = document.getElementById('aiContextIndicator');
-        const contextText = document.getElementById('aiContextText');
-        
-        if (indicator && contextText) {
-            contextText.textContent = text;
-            indicator.style.display = 'flex';
-        }
-    }
-    
-    clearContextIndicator() {
-        const indicator = document.getElementById('aiContextIndicator');
-        if (indicator) {
-            indicator.style.display = 'none';
-        }
-    }
-    
-    showExplainTooltip(event) {
-        if (!this.selectedText) return;
-        
-        const tooltip = document.getElementById('aiExplainTooltip');
-        if (!tooltip) return;
-        
-        // Position tooltip near the selection
-        const editorContainer = document.getElementById('editor-container');
-        if (editorContainer) {
-            const rect = editorContainer.getBoundingClientRect();
-            const x = Math.min(event.target?.getBoundingClientRect?.()?.left || rect.left + 100, window.innerWidth - 150);
-            const y = Math.min(event.target?.getBoundingClientRect?.()?.top || rect.top + 100, window.innerHeight - 100);
-            
-            tooltip.style.left = x + 'px';
-            tooltip.style.top = y + 'px';
-            tooltip.style.display = 'block';
-        }
-    }
-    
-    hideExplainTooltip() {
-        const tooltip = document.getElementById('aiExplainTooltip');
-        if (tooltip) {
-            tooltip.style.display = 'none';
-        }
-    }
-    
-    updateSendButton() {
-        const chatInput = document.getElementById('aiChatInput');
-        const sendButton = document.getElementById('aiSendButton');
-        
-        if (chatInput && sendButton) {
-            const hasContent = chatInput.value.trim().length > 0;
-            sendButton.disabled = !hasContent;
-        }
-    }
-    
-    autoResizeTextarea(event) {
-        const textarea = event.target;
-        textarea.style.height = 'auto';
-        textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
-    }
-    
-    async handleQuickAction(action) {
-        this.updateCurrentContext();
-        
-        let prompt = '';
-        switch (action) {
-            case 'explain-code':
-                if (this.selectedText) {
-                    prompt = `Please explain this HTML/CSS code:\n\n${this.selectedText}`;
-                } else {
-                    prompt = 'Please explain the current HTML/CSS code and what it does.';
-                }
-                break;
-                
-            case 'debug-code':
-                prompt = 'Please review this HTML/CSS code for any errors, missing elements, or potential issues and suggest fixes.';
-                break;
-                
-            case 'improve-code':
-                prompt = 'Please suggest improvements for this HTML/CSS code in terms of best practices, accessibility, and performance.';
-                break;
-        }
-        
-        if (prompt) {
-            await this.sendAIMessage(prompt);
-        }
-    }
-    
-    async explainSelectedCode() {
-        if (!this.selectedText) return;
-        
-        this.hideExplainTooltip();
-        if (!this.isOpen) this.open();
-        
-        await this.sendAIMessage(`Please explain this code:\n\n${this.selectedText}`);
-    }
-    
-    async sendMessage() {
-        const chatInput = document.getElementById('aiChatInput');
-        if (!chatInput || !chatInput.value.trim()) return;
-        
-        const userMessage = chatInput.value.trim();
-        chatInput.value = '';
-        this.updateSendButton();
-        
-        await this.sendAIMessage(userMessage);
-    }
-    
-    async sendAIMessage(message) {
-        this.updateCurrentContext();
-        this.addUserMessage(message);
-        this.showLoading(true);
-        
-        try {
-            const response = await this.callAI(message, this.currentContext);
-            this.addAIMessage(response);
-        } catch (error) {
-            console.error('AI request failed:', error);
-            this.addAIMessage('Sorry, I encountered an error. Please check your API configuration or try again later.');
-        }
-        
-        this.showLoading(false);
-    }
-    
-    addUserMessage(message) {
-        const messagesContainer = document.getElementById('aiChatMessages');
-        if (!messagesContainer) return;
-        
-        const messageDiv = document.createElement('div');
-        messageDiv.className = 'ai-user-message';
-        messageDiv.innerHTML = `
-            <div class="ai-user-avatar">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M20 21V19C20 17.9391 19.5786 16.9217 18.8284 16.1716C18.0783 15.4214 17.0609 15 16 15H8C6.93913 15 5.92172 15.4214 5.17157 16.1716C4.42143 16.9217 4 17.9391 4 19V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    <circle cx="12" cy="7" r="4" stroke="currentColor" stroke-width="2"/>
-                </svg>
-            </div>
-            <div class="ai-user-message-content">
-                <p>${this.escapeHtml(message)}</p>
-            </div>
-        `;
-        
-        messagesContainer.appendChild(messageDiv);
-        this.scrollToBottom();
-    }
-    
-    addAIMessage(message) {
-        const messagesContainer = document.getElementById('aiChatMessages');
-        if (!messagesContainer) return;
-        
-        const messageDiv = document.createElement('div');
-        messageDiv.className = 'ai-message';
-        messageDiv.innerHTML = `
-            <div class="ai-avatar">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <circle cx="12" cy="12" r="3" fill="currentColor"/>
-                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" stroke="currentColor" stroke-width="2"/>
-                </svg>
-            </div>
-            <div class="ai-message-content">
-                ${this.formatAIResponse(message)}
-            </div>
-        `;
-        
-        messagesContainer.appendChild(messageDiv);
-        this.scrollToBottom();
-    }
-    
-    formatAIResponse(message) {
-        // Basic markdown-like formatting
-        let formatted = this.escapeHtml(message);
-        
-        // Code blocks
-        formatted = formatted.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
-        
-        // Inline code
-        formatted = formatted.replace(/`([^`]+)`/g, '<code>$1</code>');
-        
-        // Bold text
-        formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-        
-        // Convert line breaks to paragraphs
-        const paragraphs = formatted.split('\n\n').filter(p => p.trim());
-        if (paragraphs.length > 1) {
-            formatted = paragraphs.map(p => `<p>${p.replace(/\n/g, '<br>')}</p>`).join('');
-        } else {
-            formatted = `<p>${formatted.replace(/\n/g, '<br>')}</p>`;
-        }
-        
-        return formatted;
-    }
-    
-    escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
-    
-    scrollToBottom() {
-        const messagesContainer = document.getElementById('aiChatMessages');
-        if (messagesContainer) {
-            setTimeout(() => {
-                messagesContainer.scrollTop = messagesContainer.scrollHeight;
-            }, 100);
-        }
-    }
-    
-    showLoading(show) {
-        const overlay = document.getElementById('aiLoadingOverlay');
-        if (overlay) {
-            overlay.style.display = show ? 'flex' : 'none';
-        }
-    }
-    
-    async callAI(message, context) {
-        // If no API key is configured, show demo response
-        if (!this.apiKey && !this.apiEndpoint) {
-            return this.getDemoResponse(message, context);
-        }
-        
-        // Build the prompt with context
-        const systemPrompt = this.buildSystemPrompt();
-        const contextualPrompt = this.buildContextualPrompt(message, context);
-        
-        if (this.apiProvider === 'openai') {
-            return await this.callOpenAI(systemPrompt, contextualPrompt);
-        } else if (this.apiProvider === 'anthropic') {
-            return await this.callAnthropic(systemPrompt, contextualPrompt);
-        } else if (this.apiProvider === 'gemini') {
-            return await this.callGemini(systemPrompt, contextualPrompt);
-        } else if (this.apiEndpoint) {
-            return await this.callCustomEndpoint(systemPrompt, contextualPrompt);
-        }
-        
-        throw new Error('No valid AI provider configured');
-    }
-    
-    buildSystemPrompt() {
-        return `You are a helpful AI coding assistant integrated into an HTML/CSS editor. Your role is to:
-1. Explain HTML and CSS code in a clear, beginner-friendly way
-2. Help debug issues like missing brackets, syntax errors, or styling problems
-3. Suggest improvements and best practices
-4. Be encouraging and supportive, like a friendly dev mentor
-5. Keep responses concise but thorough
-6. Use simple language and provide examples when helpful
-
-You have access to the user's current code and can see what they're working on. Be contextual and specific in your responses.`;
-    }
-    
-    buildContextualPrompt(message, context) {
-        let prompt = message;
-        
-        if (context) {
-            prompt += '\n\n--- Current Context ---\n';
-            
-            if (context.selectedText) {
-                prompt += `Selected code:\n${context.selectedText}\n\n`;
-            }
-            
-            if (context.fullCode && context.fullCode.trim()) {
-                // Include relevant parts of the full code
-                const codePreview = context.fullCode.length > 1000 
-                    ? context.fullCode.substring(0, 1000) + '...\n(code truncated)'
-                    : context.fullCode;
-                prompt += `Full document code:\n${codePreview}`;
-            }
-        }
-        
-        return prompt;
-    }
-    
-    async callOpenAI(systemPrompt, message) {
-        const response = await fetch('https://api.openai.com/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${this.apiKey}`
-            },
-            body: JSON.stringify({
-                model: 'gpt-3.5-turbo',
-                messages: [
-                    { role: 'system', content: systemPrompt },
-                    { role: 'user', content: message }
-                ],
-                max_tokens: 500,
-                temperature: 0.7
-            })
-        });
-        
-        if (!response.ok) {
-            throw new Error(`OpenAI API error: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        return data.choices[0].message.content;
-    }
-    
-    async callAnthropic(systemPrompt, message) {
-        const response = await fetch('https://api.anthropic.com/v1/messages', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'x-api-key': this.apiKey,
-                'anthropic-version': '2023-06-01'
-            },
-            body: JSON.stringify({
-                model: 'claude-3-haiku-20240307',
-                max_tokens: 500,
-                system: systemPrompt,
-                messages: [
-                    { role: 'user', content: message }
-                ]
-            })
-        });
-        
-        if (!response.ok) {
-            throw new Error(`Anthropic API error: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        return data.content[0].text;
-    }
-    
-    async callGemini(systemPrompt, message) {
-        const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'x-goog-api-key': this.apiKey
-            },
-            body: JSON.stringify({
-                contents: [
-                    {
-                        parts: [
-                            {
-                                text: message
-                            }
-                        ]
-                    }
-                ],
-                systemInstruction: {
-                    parts: [
-                        {
-                            text: systemPrompt
-                        }
-                    ]
-                },
-                generationConfig: {
-                    temperature: 0.7,
-                    maxOutputTokens: 500
-                }
-            })
-        });
-        
-        if (!response.ok) {
-            throw new Error(`Gemini API error: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        return data.candidates[0].content.parts[0].text;
-    }
-    
-    async callCustomEndpoint(systemPrompt, message) {
-        const response = await fetch(this.apiEndpoint, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                ...(this.apiKey && { 'Authorization': `Bearer ${this.apiKey}` })
-            },
-            body: JSON.stringify({
-                system: systemPrompt,
-                message: message,
-                context: this.currentContext
-            })
-        });
-        
-        if (!response.ok) {
-            throw new Error(`Custom API error: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        return data.response || data.message || data.content;
-    }
-    
-    getDemoResponse(message, context) {
-        // Demo responses for when no API is configured
-        const responses = [
-            "I'd love to help you with that! However, I need an API key to provide real AI assistance. Click the settings button to configure your OpenAI, Anthropic, or custom AI endpoint.",
-            
-            "Great question! To get personalized help with your code, please set up your AI API configuration. I can work with OpenAI, Anthropic Claude, or any custom endpoint you prefer.",
-            
-            "I can see you're working on some HTML/CSS! Once you configure an AI provider, I'll be able to give you detailed explanations, debug help, and suggestions specific to your code.",
-            
-            "That's an interesting piece of code! For detailed analysis and debugging help, please configure your AI settings so I can provide proper assistance."
-        ];
-        
-        return new Promise(resolve => {
-            setTimeout(() => {
-                const randomResponse = responses[Math.floor(Math.random() * responses.length)];
-                resolve(randomResponse);
-            }, 1000); // Simulate API delay
-        });
-    }
-    
-    // === SUPABASE API KEY MANAGEMENT ===
-    
-    async loadApiConfig() {
-        if (this.isLoadingConfig) return;
-        this.isLoadingConfig = true;
-        
-        try {
-            // Check if user is authenticated and we have Supabase
-            const storage = window.documentStorage;
-            if (!storage || !storage.supabase || !storage.currentUser) {
-                console.log('🤖 AI: No authenticated user, using local fallback');
-                this.loadLocalApiConfig();
-                return;
-            }
-            
-            console.log('🤖 AI: Loading API config from Supabase...');
-            
-            // Load all API configurations for the user
-            const { data, error } = await storage.supabase
-                .from('user_api_keys')
-                .select('*')
-                .eq('user_id', storage.currentUser.id);
-                
-            if (error) {
-                console.error('Failed to load API config from Supabase:', error);
-                this.loadLocalApiConfig();
-                return;
-            }
-            
-            if (data && data.length > 0) {
-                // Use the first configured provider (or find a preferred one)
-                const config = data[0];
-                this.apiProvider = config.provider;
-                this.apiKey = config.api_key;
-                this.apiEndpoint = config.endpoint_url || '';
-                
-                console.log(`🤖 AI: Loaded ${this.apiProvider} configuration from Supabase`);
-            } else {
-                console.log('🤖 AI: No API config found in Supabase');
-            }
-            
-        } catch (error) {
-            console.error('Error loading API config:', error);
-            this.loadLocalApiConfig();
-        } finally {
-            this.isLoadingConfig = false;
-        }
-    }
-    
-    loadLocalApiConfig() {
-        // Fallback to localStorage for backward compatibility or when offline
-        this.apiKey = localStorage.getItem('ai-api-key') || '';
-        this.apiProvider = localStorage.getItem('ai-provider') || 'openai';
-        this.apiEndpoint = localStorage.getItem('ai-endpoint') || '';
-        
-        if (this.apiKey) {
-            console.log('🤖 AI: Loaded configuration from localStorage (fallback)');
-        }
-    }
-    
-    async saveApiConfig(provider, apiKey, endpoint = '') {
-        try {
-            // Save to Supabase if user is authenticated
-            const storage = window.documentStorage;
-            if (storage && storage.supabase && storage.currentUser) {
-                console.log(`🤖 AI: Saving ${provider} config to Supabase...`);
-                
-                const { data, error } = await storage.supabase
-                    .from('user_api_keys')
-                    .upsert({
-                        user_id: storage.currentUser.id,
-                        provider: provider,
-                        api_key: apiKey,
-                        endpoint_url: endpoint || null,
-                        updated_at: new Date().toISOString()
-                    }, {
-                        onConflict: 'user_id,provider'
-                    });
-                    
-                if (error) {
-                    console.error('Failed to save API config to Supabase:', error);
-                    console.log('🤖 AI: Falling back to localStorage due to Supabase error');
-                    
-                    // Fall back to localStorage if Supabase fails
-                    this.saveToLocalStorage(provider, apiKey, endpoint);
-                } else {
-                    console.log('🤖 AI: Configuration saved to Supabase successfully');
-                }
-            } else {
-                // Save to localStorage when not authenticated
-                console.log('🤖 AI: User not authenticated, saving to localStorage');
-                this.saveToLocalStorage(provider, apiKey, endpoint);
-            }
-            
-            // Update current configuration
-            this.apiProvider = provider;
-            this.apiKey = apiKey;
-            this.apiEndpoint = endpoint;
-            
-            return true;
-            
-        } catch (error) {
-            console.error('🤖 AI: Error saving API config:', error);
-            
-            // Always try localStorage as final fallback
-            try {
-                console.log('🤖 AI: Attempting localStorage fallback...');
-                this.saveToLocalStorage(provider, apiKey, endpoint);
-                
-                // Update current configuration
-                this.apiProvider = provider;
-                this.apiKey = apiKey;
-                this.apiEndpoint = endpoint;
-                
-                console.log('🤖 AI: Successfully saved to localStorage as fallback');
-                return true;
-            } catch (localError) {
-                console.error('🤖 AI: Even localStorage fallback failed:', localError);
-                return false;
-            }
-        }
-    }
-    
-    saveToLocalStorage(provider, apiKey, endpoint) {
-        localStorage.setItem('ai-provider', provider);
-        localStorage.setItem('ai-api-key', apiKey);
-        localStorage.setItem('ai-endpoint', endpoint || '');
-        console.log('🤖 AI: Configuration saved to localStorage');
-    }
-    
-    async deleteApiConfig(provider) {
-        try {
-            const storage = window.documentStorage;
-            if (storage && storage.supabase && storage.currentUser) {
-                const { error } = await storage.supabase
-                    .from('user_api_keys')
-                    .delete()
-                    .eq('user_id', storage.currentUser.id)
-                    .eq('provider', provider);
-                    
-                if (error) {
-                    console.error('Failed to delete API config:', error);
-                    return false;
-                }
-                
-                console.log(`🤖 AI: Deleted ${provider} config from Supabase`);
-            }
-            
-            // Also clear localStorage
-            localStorage.removeItem('ai-api-key');
-            localStorage.removeItem('ai-provider');
-            localStorage.removeItem('ai-endpoint');
-            
-            // Clear current config if it matches
-            if (this.apiProvider === provider) {
-                this.apiKey = '';
-                this.apiProvider = 'openai';
-                this.apiEndpoint = '';
-            }
-            
-            return true;
-            
-        } catch (error) {
-            console.error('Error deleting API config:', error);
-            return false;
-        }
-    }
-    
-    showApiSetup() {
-        const setupMessage = `
-            <div class="ai-setup-notice">
-                <h4>🤖 AI Assistant Setup</h4>
-                <p>To start using your AI coding buddy, you'll need to configure an API provider:</p>
-                <ul>
-                    <li><strong>OpenAI:</strong> Get an API key from <a href="https://platform.openai.com" target="_blank">platform.openai.com</a></li>
-                    <li><strong>Anthropic:</strong> Get an API key from <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a></li>
-                    <li><strong>Gemini:</strong> Get an API key from <a href="https://aistudio.google.com/app/apikey" target="_blank">Google AI Studio</a></li>
-                    <li><strong>Custom:</strong> Use your own AI endpoint</li>
-                </ul>
-                <button onclick="window.aiAssistant.openSettings()" class="ai-setup-btn">Configure API</button>
-            </div>
-        `;
-        
-        this.addAIMessage(setupMessage);
-    }
-    
-    async openSettings() {
-        // Check if user is authenticated for Supabase storage
-        const storage = window.documentStorage;
-        const isAuthenticated = storage && storage.supabase && storage.currentUser;
-        
-        if (!isAuthenticated) {
-            this.addAIMessage('To save your API keys securely, please sign in first. You can still use the AI assistant with temporary configuration.');
-        }
-        
-        // Simple prompt-based configuration (could be replaced with a modal in the future)
-        const provider = prompt('Enter AI provider (openai/anthropic/gemini/custom):', this.apiProvider);
-        if (!provider) return;
-        
-        let endpoint = '';
-        if (provider === 'custom') {
-            endpoint = prompt('Enter your custom AI endpoint URL:', this.apiEndpoint);
-            if (!endpoint) return;
-        }
-        
-        const apiKey = prompt('Enter your API key:');
-        if (!apiKey) return;
-        
-        // Show loading message
-        this.addAIMessage('Configuring your AI assistant...');
-        
-        try {
-            const success = await this.saveApiConfig(provider, apiKey, endpoint);
-            
-            if (success) {
-                const storageType = isAuthenticated ? 'Supabase (synced across devices)' : 'local storage';
-                this.addAIMessage(`Great! Your AI assistant is now configured and saved to ${storageType}. Try asking me a question or use the quick action buttons!`);
-            } else {
-                this.addAIMessage('Configuration saved locally, but there was an issue saving to the cloud. Your API key will work for this session.');
-            }
-        } catch (error) {
-            console.error('Settings save error:', error);
-            this.addAIMessage('There was an error saving your configuration. Please try again or check the browser console for details.');
-        }
-    }
-}
-
-// Initialize AI Assistant when DOM is loaded
-document.addEventListener('DOMContentLoaded', () => {
-    // Wait for Monaco Editor to be ready
-    setTimeout(async () => {
-        window.aiAssistant = new AIAssistant();
-        console.log('🤖 AI Assistant initialized');
-        
-        // Listen for authentication state changes to reload API config
-        if (window.documentStorage && window.documentStorage.supabase) {
-            window.documentStorage.supabase.auth.onAuthStateChange(async (event, session) => {
-                if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
-                    console.log('🤖 AI: Auth state changed, reloading API config...');
-                    await window.aiAssistant.loadApiConfig();
-                    
-                    if (event === 'SIGNED_IN' && (!window.aiAssistant.apiKey && !window.aiAssistant.apiEndpoint)) {
-                        setTimeout(() => {
-                            window.aiAssistant.addAIMessage('Welcome! Since you\'re now signed in, your AI assistant configuration will be securely synced across all your devices. Click "Configure API" to set up your AI provider.');
-                        }, 2000);
-                    }
-                }
-            });
-        }
-    }, 1000);
-});
-
+// === END OF EDITOR CODE ===
