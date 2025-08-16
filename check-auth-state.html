@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Check Authentication State</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .status-panel {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .warning { background: #fff3cd; color: #856404; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+        .fix { background: #28a745; }
+        pre {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 Authentication State Checker</h1>
+    
+    <div class="status-panel">
+        <h2>Current State</h2>
+        <button onclick="checkState()">Check Authentication State</button>
+        <button onclick="fixAuth()" class="fix">Fix Authentication UI</button>
+        <div id="currentState"></div>
+    </div>
+
+    <div class="status-panel">
+        <h2>Detailed Analysis</h2>
+        <div id="analysis"></div>
+    </div>
+
+    <div class="status-panel">
+        <h2>Browser Storage</h2>
+        <button onclick="checkStorage()">Check Stored Data</button>
+        <div id="storageInfo"></div>
+    </div>
+
+    <script>
+        function showStatus(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            element.innerHTML = `<div class="status ${type}">${message}</div>`;
+        }
+
+        function checkState() {
+            try {
+                // Open the main app window to check its state
+                const mainWindow = window.open('/', 'mainapp', 'width=1,height=1');
+                
+                setTimeout(() => {
+                    try {
+                        const storage = mainWindow.window.documentStorage;
+                        
+                        if (!storage) {
+                            showStatus('currentState', '❌ DocumentStorage not found in main app', 'error');
+                            return;
+                        }
+
+                        const currentUser = storage.currentUser;
+                        const demoMode = storage.demoMode;
+                        const supabase = storage.supabase;
+
+                        let status = '';
+                        status += `<strong>Current User:</strong> ${currentUser ? '✅ YES' : '❌ NO'}<br>`;
+                        if (currentUser) {
+                            status += `<strong>Email:</strong> ${currentUser.email}<br>`;
+                            status += `<strong>Name:</strong> ${currentUser.user_metadata?.full_name || 'Not set'}<br>`;
+                        }
+                        status += `<strong>Demo Mode:</strong> ${demoMode ? '⚠️ YES' : '✅ NO'}<br>`;
+                        status += `<strong>Supabase Client:</strong> ${supabase ? '✅ YES' : '❌ NO'}<br>`;
+
+                        // Check the actual button state
+                        const authBtn = mainWindow.document.getElementById('authBtn');
+                        const userProfile = mainWindow.document.getElementById('userProfile');
+                        
+                        status += `<br><strong>UI State:</strong><br>`;
+                        status += `Auth Button Text: "${authBtn ? authBtn.textContent : 'Not found'}"<br>`;
+                        status += `Auth Button Visible: ${authBtn && authBtn.style.display !== 'none' ? 'YES' : 'NO'}<br>`;
+                        status += `User Profile Visible: ${userProfile && userProfile.style.display !== 'none' ? 'YES' : 'NO'}<br>`;
+
+                        // Determine the issue
+                        let analysis = '';
+                        if (currentUser && demoMode) {
+                            analysis = `<div class="status warning">
+                                🎯 <strong>FOUND THE ISSUE!</strong><br>
+                                You ARE signed in (${currentUser.email}) but the app is stuck in demo mode.<br>
+                                This is why you see "Demo Mode" instead of your profile.
+                            </div>`;
+                        } else if (!currentUser && demoMode) {
+                            analysis = `<div class="status info">
+                                ℹ️ <strong>Normal Demo Mode</strong><br>
+                                You're not signed in and the app is in demo mode.
+                            </div>`;
+                        } else if (currentUser && !demoMode) {
+                            analysis = `<div class="status success">
+                                ✅ <strong>Everything Looks Good</strong><br>
+                                You're signed in and demo mode is disabled.
+                            </div>`;
+                        } else {
+                            analysis = `<div class="status error">
+                                ❌ <strong>Unexpected State</strong><br>
+                                Neither signed in nor in demo mode.
+                            </div>`;
+                        }
+
+                        showStatus('currentState', status, 'info');
+                        document.getElementById('analysis').innerHTML = analysis;
+                        
+                        mainWindow.close();
+                    } catch (error) {
+                        showStatus('currentState', `❌ Error checking state: ${error.message}`, 'error');
+                        mainWindow.close();
+                    }
+                }, 2000);
+                
+            } catch (error) {
+                showStatus('currentState', `❌ Error: ${error.message}`, 'error');
+            }
+        }
+
+        function fixAuth() {
+            try {
+                const mainWindow = window.open('/', 'mainapp', 'width=1,height=1');
+                
+                setTimeout(() => {
+                    try {
+                        const storage = mainWindow.window.documentStorage;
+                        
+                        if (!storage) {
+                            showStatus('currentState', '❌ Cannot access main app storage', 'error');
+                            mainWindow.close();
+                            return;
+                        }
+
+                        console.log('Before fix:', {
+                            currentUser: !!storage.currentUser,
+                            demoMode: storage.demoMode
+                        });
+
+                        // If user is signed in but demo mode is true, fix it
+                        if (storage.currentUser && storage.demoMode) {
+                            storage.demoMode = false;
+                            storage.updateAuthUI();
+                            showStatus('currentState', '✅ Fixed! Demo mode disabled for signed-in user.', 'success');
+                        } else if (!storage.currentUser) {
+                            // Try to get current session from Supabase
+                            if (storage.supabase) {
+                                storage.supabase.auth.getSession().then(({ data, error }) => {
+                                    if (data.session && data.session.user) {
+                                        storage.currentUser = data.session.user;
+                                        storage.demoMode = false;
+                                        storage.updateAuthUI();
+                                        showStatus('currentState', '✅ Found existing session and restored user!', 'success');
+                                    } else {
+                                        showStatus('currentState', 'ℹ️ No existing session found. You need to sign in.', 'info');
+                                    }
+                                });
+                            }
+                        } else {
+                            showStatus('currentState', 'ℹ️ Auth state looks correct already.', 'info');
+                        }
+
+                        setTimeout(() => mainWindow.close(), 1000);
+                        
+                    } catch (error) {
+                        showStatus('currentState', `❌ Fix failed: ${error.message}`, 'error');
+                        mainWindow.close();
+                    }
+                }, 2000);
+                
+            } catch (error) {
+                showStatus('currentState', `❌ Error: ${error.message}`, 'error');
+            }
+        }
+
+        function checkStorage() {
+            let storageData = '';
+            
+            // Check localStorage
+            storageData += '<strong>Local Storage:</strong><br>';
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key.includes('supabase') || key.includes('auth') || key.includes('user') || key.includes('demo')) {
+                    const value = localStorage.getItem(key);
+                    storageData += `${key}: ${value.substring(0, 100)}${value.length > 100 ? '...' : ''}<br>`;
+                }
+            }
+            
+            // Check sessionStorage  
+            storageData += '<br><strong>Session Storage:</strong><br>';
+            for (let i = 0; i < sessionStorage.length; i++) {
+                const key = sessionStorage.key(i);
+                if (key.includes('supabase') || key.includes('auth') || key.includes('user') || key.includes('demo')) {
+                    const value = sessionStorage.getItem(key);
+                    storageData += `${key}: ${value.substring(0, 100)}${value.length > 100 ? '...' : ''}<br>`;
+                }
+            }
+
+            if (!storageData.includes(':')) {
+                storageData = 'No relevant authentication data found in browser storage.';
+            }
+            
+            document.getElementById('storageInfo').innerHTML = `<pre>${storageData}</pre>`;
+        }
+    </script>
+</body>
+</html>

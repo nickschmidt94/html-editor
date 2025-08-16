@@ -4163,9 +4163,9 @@ class SupabaseDocumentStorage {
         const userMenuName = document.getElementById('userMenuName');
         const userMenuEmail = document.getElementById('userMenuEmail');
         
-        // If user is signed in with Supabase, prioritize that over demo mode
-        if (this.currentUser && !this.demoMode) {
-            // Real Supabase user signed in
+        // If user is signed in, ALWAYS show their profile (regardless of demo mode)
+        if (this.currentUser) {
+            // User signed in - show profile
             authBtn.style.display = 'none';
             userProfile.style.display = 'flex';
             
@@ -4175,6 +4175,12 @@ class SupabaseDocumentStorage {
             if (userMenuName) userMenuName.textContent = displayName;
             if (userMenuEmail) userMenuEmail.textContent = this.currentUser.email;
             console.log('🎯 UI updated for signed-in user:', this.currentUser.email);
+            
+            // If we have a real user but demo mode is still on, fix it
+            if (this.demoMode && this.supabase) {
+                console.log('🔧 User is signed in but demo mode is active - fixing...');
+                this.demoMode = false;
+            }
         } else if (this.demoMode) {
             // Demo mode
             authBtn.style.display = 'block';
