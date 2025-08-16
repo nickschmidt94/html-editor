@@ -2751,10 +2751,8 @@ class DocumentStorage {
     showSpaceModal() {
         const modal = document.getElementById('spaceModal');
         const nameInput = document.getElementById('spaceName');
-        const descriptionInput = document.getElementById('spaceDescription');
         
         nameInput.value = '';
-        descriptionInput.value = '';
         modal.classList.add('show');
         nameInput.focus();
     }
@@ -2765,10 +2763,8 @@ class DocumentStorage {
         
         const modal = document.getElementById('editSpaceModal');
         const nameInput = document.getElementById('editSpaceName');
-        const descriptionInput = document.getElementById('editSpaceDescription');
         
         nameInput.value = space.name;
-        descriptionInput.value = space.description || '';
         
         // Store space ID for updating
         modal.setAttribute('data-space-id', spaceId);
@@ -3341,9 +3337,7 @@ function closeEditSpaceModal() {
 
 function createSpace() {
     const nameInput = document.getElementById('spaceName');
-    const descriptionInput = document.getElementById('spaceDescription');
     const name = nameInput.value.trim();
-    const description = descriptionInput.value.trim();
     
     if (!name) {
         nameInput.focus();
@@ -3357,7 +3351,7 @@ function createSpace() {
     const storage = window.documentStorage;
     if (storage) {
         try {
-            const newSpace = storage.addSpace(name, description, false);
+            const newSpace = storage.addSpace(name, '', false);
             closeSpaceModal();
             
             // Refresh the space dropdown
@@ -3382,9 +3376,7 @@ function updateSpace() {
     const modal = document.getElementById('editSpaceModal');
     const spaceId = modal.getAttribute('data-space-id');
     const nameInput = document.getElementById('editSpaceName');
-    const descriptionInput = document.getElementById('editSpaceDescription');
     const name = nameInput.value.trim();
-    const description = descriptionInput.value.trim();
     
     if (!name) {
         nameInput.focus();
@@ -3393,7 +3385,7 @@ function updateSpace() {
     
     const storage = window.documentStorage;
     if (storage) {
-        storage.updateSpace(spaceId, { name, description });
+        storage.updateSpace(spaceId, { name });
         closeEditSpaceModal();
     }
 }
@@ -4651,10 +4643,8 @@ class SupabaseDocumentStorage {
         
         const modal = document.getElementById('spaceModal');
         const nameInput = document.getElementById('spaceName');
-        const descriptionInput = document.getElementById('spaceDescription');
         
         nameInput.value = '';
-        descriptionInput.value = '';
         modal.classList.add('show');
         nameInput.focus();
     }
@@ -4669,10 +4659,8 @@ class SupabaseDocumentStorage {
         
         const modal = document.getElementById('editSpaceModal');
         const nameInput = document.getElementById('editSpaceName');
-        const descriptionInput = document.getElementById('editSpaceDescription');
         
         nameInput.value = space.name;
-        descriptionInput.value = space.description || '';
         
         // Store space ID for updating
         modal.setAttribute('data-space-id', spaceId);
