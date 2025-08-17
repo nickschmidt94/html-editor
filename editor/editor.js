@@ -2725,7 +2725,6 @@ class DocumentStorage {
     updateAuthUI() {
         const authBtn = document.getElementById('authBtn');
         const userProfile = document.getElementById('userProfile');
-        const userEmail = document.getElementById('userEmail');
         const userMenuName = document.getElementById('userMenuName');
         const userMenuEmail = document.getElementById('userMenuEmail');
         
@@ -2736,7 +2735,6 @@ class DocumentStorage {
             
             // Use the full name if available, otherwise extract username from email
             const displayName = this.currentUser.user_metadata?.full_name || this.currentUser.email.split('@')[0];
-            userEmail.textContent = displayName;
             if (userMenuName) userMenuName.textContent = displayName;
             if (userMenuEmail) userMenuEmail.textContent = this.currentUser.email;
         } else {
@@ -4159,7 +4157,6 @@ class SupabaseDocumentStorage {
     updateAuthUI() {
         const authBtn = document.getElementById('authBtn');
         const userProfile = document.getElementById('userProfile');
-        const userEmail = document.getElementById('userEmail');
         const userMenuName = document.getElementById('userMenuName');
         const userMenuEmail = document.getElementById('userMenuEmail');
         
@@ -4171,7 +4168,6 @@ class SupabaseDocumentStorage {
             
             // Use the full name if available, otherwise extract username from email
             const displayName = this.currentUser.user_metadata?.full_name || this.currentUser.email.split('@')[0];
-            userEmail.textContent = displayName;
             if (userMenuName) userMenuName.textContent = displayName;
             if (userMenuEmail) userMenuEmail.textContent = this.currentUser.email;
             console.log('🎯 UI updated for signed-in user:', this.currentUser.email);
