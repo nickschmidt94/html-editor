@@ -3863,8 +3863,9 @@ class SupabaseDocumentStorage {
         if (this.demoMode || !this.currentUser) return;
         
         try {
-            // Load documents and categories
+            // Load spaces, documents and categories
             await Promise.all([
+                this.loadSpaces(),
                 this.loadDocuments(),
                 this.loadCategories()
             ]);
@@ -3881,11 +3882,18 @@ class SupabaseDocumentStorage {
         if (!this.currentUser) return [];
         
         try {
-            const { data, error } = await this.supabase
+            // Load documents for current space
+            const spaceId = this.currentSpace?.id;
+            let query = this.supabase
                 .from('documents')
                 .select('*')
-                .eq('user_id', this.currentUser.id)
-                .order('updated_at', { ascending: false });
+                .eq('user_id', this.currentUser.id);
+            
+            if (spaceId) {
+                query = query.eq('space_id', spaceId);
+            }
+            
+            const { data, error } = await query.order('updated_at', { ascending: false });
             
             if (error) throw error;
             
@@ -3897,23 +3905,59 @@ class SupabaseDocumentStorage {
         }
     }
 
-    async loadCategories() {
-        if (this.demoMode) return this.localBackup.getCategories();
+    async loadSpaces() {
+        if (this.demoMode) return this.localBackup.getSpaces();
         if (!this.currentUser) return [];
         
         try {
             const { data, error } = await this.supabase
-                .from('categories')
+                .from('spaces')
                 .select('*')
                 .eq('user_id', this.currentUser.id)
                 .order('name');
             
             if (error) throw error;
             
+            this.spaces = data || [];
+            
+            // Set current space if none is set
+            if (this.spaces.length > 0 && !this.currentSpace) {
+                // Try to find default space first
+                const defaultSpace = this.spaces.find(s => s.is_default) || this.spaces[0];
+                this.currentSpace = defaultSpace;
+            }
+            
+            return this.spaces;
+        } catch (error) {
+            console.error('Failed to load spaces:', error);
+            return [];
+        }
+    }
+
+    async loadCategories() {
+        if (this.demoMode) return this.localBackup.getCategories();
+        if (!this.currentUser) return [];
+        
+        try {
+            // Load categories for current space
+            const spaceId = this.currentSpace?.id;
+            let query = this.supabase
+                .from('categories')
+                .select('*')
+                .eq('user_id', this.currentUser.id);
+            
+            if (spaceId) {
+                query = query.eq('space_id', spaceId);
+            }
+            
+            const { data, error } = await query.order('name');
+            
+            if (error) throw error;
+            
             this.categories = data?.map(cat => cat.name) || [];
             
             // Ensure default categories exist (only on first load)
-            if (this.categories.length === 0) {
+            if (this.categories.length === 0 && spaceId) {
                 const defaults = ['Personal', 'Work', 'Learning'];
                 for (const defaultCat of defaults) {
                     await this.addCategory(defaultCat);
@@ -3923,6 +3967,7 @@ class SupabaseDocumentStorage {
                     .from('categories')
                     .select('*')
                     .eq('user_id', this.currentUser.id)
+                    .eq('space_id', spaceId)
                     .order('name');
                 this.categories = updatedData?.map(cat => cat.name) || [];
             }
@@ -3934,13 +3979,19 @@ class SupabaseDocumentStorage {
         }
     }
 
-    async saveDocument(name, category, content) {
+    async saveDocument(name, category, content, spaceId = null) {
         if (this.demoMode) {
-            return this.localBackup.saveDocument(name, category, content);
+            return this.localBackup.saveDocument(name, category, content, spaceId);
         }
         
         if (!this.currentUser) {
             this.showAuthModal();
+            return;
+        }
+
+        const targetSpaceId = spaceId || this.currentSpace?.id;
+        if (!targetSpaceId) {
+            this.showNotification('No space selected', 'error');
             return;
         }
 
@@ -3952,14 +4003,16 @@ class SupabaseDocumentStorage {
                 category: category || 'Uncategorized',
                 content,
                 user_id: this.currentUser.id,
+                space_id: targetSpaceId,
                 updated_at: new Date().toISOString()
             };
 
-            // Check if document exists
+            // Check if document exists in the same space
             const { data: existing } = await this.supabase
                 .from('documents')
                 .select('id')
                 .eq('user_id', this.currentUser.id)
+                .eq('space_id', targetSpaceId)
                 .eq('name', name)
                 .eq('category', category || 'Uncategorized')
                 .single();
@@ -4069,6 +4122,7 @@ class SupabaseDocumentStorage {
                 category: original.category,
                 content: original.content,
                 user_id: this.currentUser.id,
+                space_id: original.space_id,
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString()
             };
@@ -4096,12 +4150,19 @@ class SupabaseDocumentStorage {
         
         if (!this.currentUser) return;
         
+        const spaceId = this.currentSpace?.id;
+        if (!spaceId) {
+            this.showNotification('No space selected', 'error');
+            return;
+        }
+        
         try {
             const { error } = await this.supabase
                 .from('categories')
                 .insert({
                     name,
                     user_id: this.currentUser.id,
+                    space_id: spaceId,
                     created_at: new Date().toISOString()
                 });
             
@@ -4129,19 +4190,24 @@ class SupabaseDocumentStorage {
             return this.localBackup.deleteCategory(name);
         }
         
+        const spaceId = this.currentSpace?.id;
+        if (!spaceId) return;
+        
         try {
-            // Delete category
+            // Delete category from current space
             await this.supabase
                 .from('categories')
                 .delete()
                 .eq('user_id', this.currentUser.id)
+                .eq('space_id', spaceId)
                 .eq('name', name);
             
-            // Move documents to 'Uncategorized'
+            // Move documents to 'Uncategorized' in current space
             await this.supabase
                 .from('documents')
                 .update({ category: 'Uncategorized' })
                 .eq('user_id', this.currentUser.id)
+                .eq('space_id', spaceId)
                 .eq('category', name);
             
             await this.loadCategories();
@@ -4561,34 +4627,145 @@ class SupabaseDocumentStorage {
         }
     }
     
-    addSpace(name, description = '', setAsCurrent = false) {
+    async addSpace(name, description = '', setAsCurrent = false) {
         if (this.demoMode) {
             return this.localBackup.addSpace(name, description, setAsCurrent);
         }
         
-        // TODO: Implement Supabase space creation
-        // For now, delegate to local backup
-        return this.localBackup.addSpace(name, description, setAsCurrent);
+        if (!this.currentUser) {
+            this.showAuthModal();
+            return;
+        }
+
+        try {
+            const spaceData = {
+                user_id: this.currentUser.id,
+                name,
+                description,
+                is_default: setAsCurrent && this.spaces.length === 0,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+            };
+
+            const { data, error } = await this.supabase
+                .from('spaces')
+                .insert(spaceData)
+                .select()
+                .single();
+
+            if (error) throw error;
+
+            // Add to local spaces array
+            this.spaces = this.spaces || [];
+            this.spaces.push(data);
+
+            if (setAsCurrent) {
+                this.currentSpace = data;
+            }
+
+            this.renderSidebar();
+            this.showNotification(`Space "${name}" created successfully!`, 'success');
+            
+            return data;
+        } catch (error) {
+            console.error('Failed to create space:', error);
+            this.showNotification('Failed to create space', 'error');
+        }
     }
     
-    updateSpace(spaceId, updates) {
+    async updateSpace(spaceId, updates) {
         if (this.demoMode) {
             return this.localBackup.updateSpace(spaceId, updates);
         }
         
-        // TODO: Implement Supabase space update
-        // For now, delegate to local backup
-        return this.localBackup.updateSpace(spaceId, updates);
+        if (!this.currentUser) {
+            this.showAuthModal();
+            return;
+        }
+
+        try {
+            const updateData = {
+                ...updates,
+                updated_at: new Date().toISOString()
+            };
+
+            const { data, error } = await this.supabase
+                .from('spaces')
+                .update(updateData)
+                .eq('id', spaceId)
+                .eq('user_id', this.currentUser.id)
+                .select()
+                .single();
+
+            if (error) throw error;
+
+            // Update local spaces array
+            const spaceIndex = this.spaces.findIndex(s => s.id === spaceId);
+            if (spaceIndex >= 0) {
+                this.spaces[spaceIndex] = data;
+            }
+
+            // Update current space if it's the one being updated
+            if (this.currentSpace && this.currentSpace.id === spaceId) {
+                this.currentSpace = data;
+            }
+
+            this.renderSidebar();
+            this.showNotification(`Space updated successfully!`, 'success');
+            
+            return data;
+        } catch (error) {
+            console.error('Failed to update space:', error);
+            this.showNotification('Failed to update space', 'error');
+        }
     }
     
-    deleteSpace(spaceId) {
+    async deleteSpace(spaceId) {
         if (this.demoMode) {
             return this.localBackup.deleteSpace(spaceId);
         }
         
-        // TODO: Implement Supabase space deletion
-        // For now, delegate to local backup
-        return this.localBackup.deleteSpace(spaceId);
+        if (!this.currentUser) {
+            this.showAuthModal();
+            return;
+        }
+
+        try {
+            // First, check if this is the only space
+            if (this.spaces.length <= 1) {
+                this.showNotification('Cannot delete the last space', 'error');
+                return;
+            }
+
+            // Delete the space (cascade will handle documents and categories)
+            const { error } = await this.supabase
+                .from('spaces')
+                .delete()
+                .eq('id', spaceId)
+                .eq('user_id', this.currentUser.id);
+
+            if (error) throw error;
+
+            // Remove from local spaces array
+            this.spaces = this.spaces.filter(s => s.id !== spaceId);
+
+            // Switch to another space if this was current
+            if (this.currentSpace && this.currentSpace.id === spaceId) {
+                const newCurrentSpace = this.spaces[0];
+                this.currentSpace = newCurrentSpace;
+                
+                // Reload data for new space
+                await this.loadDocuments();
+                await this.loadCategories();
+            }
+
+            this.renderSidebar();
+            this.showNotification('Space deleted successfully', 'success');
+            
+        } catch (error) {
+            console.error('Failed to delete space:', error);
+            this.showNotification('Failed to delete space', 'error');
+        }
     }
     
     showSpaceModal() {
