@@ -3566,10 +3566,13 @@ function saveDocument() {
 class SupabaseDocumentStorage {
     constructor() {
         // ⚠️ IMPORTANT: Replace these with your actual Supabase credentials
-        // Security: Credentials moved to environment variables
-        // Set these in your hosting environment or create a config.js file (not committed to git)
-        this.supabaseUrl = window.SUPABASE_URL || 'YOUR_SUPABASE_URL';
-        this.supabaseKey = window.SUPABASE_ANON_KEY || 'YOUR_SUPABASE_ANON_KEY';
+        // Security: Credentials loaded from config.js or environment variables
+        this.supabaseUrl = window.SUPABASE_URL || process?.env?.SUPABASE_URL || 'YOUR_SUPABASE_URL';
+        this.supabaseKey = window.SUPABASE_ANON_KEY || process?.env?.SUPABASE_ANON_KEY || 'YOUR_SUPABASE_ANON_KEY';
+        
+        console.log('🔧 Supabase configuration check:');
+        console.log('URL configured:', this.supabaseUrl !== 'YOUR_SUPABASE_URL');
+        console.log('Key configured:', this.supabaseKey !== 'YOUR_SUPABASE_ANON_KEY');
         
         this.supabase = null;
         this.currentUser = null;
