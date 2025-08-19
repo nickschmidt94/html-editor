@@ -1,0 +1,27 @@
+# Security - Never commit actual credentials
+config.js
+
+# Environment files
+.env
+.env.local
+.env.production
+
+# Node modules (if using build tools)
+node_modules/
+
+# Build outputs
+dist/
+build/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

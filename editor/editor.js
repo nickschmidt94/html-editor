@@ -1,4 +1,181 @@
 // Editor-specific JavaScript
+// Security utility functions
+const SecurityUtils = {
+    // Escape HTML to prevent XSS
+    escapeHtml: function(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    },
+    
+    // Create element safely with text content
+    createElementWithText: function(tag, text, className = '') {
+        const element = document.createElement(tag);
+        if (className) element.className = className;
+        element.textContent = text;
+        return element;
+    },
+    
+    // Set innerHTML only for trusted content
+    setTrustedHTML: function(element, html) {
+        // Only use for trusted, static HTML content like icons
+        element.innerHTML = html;
+    },
+    
+    // Validate password strength
+    validatePassword: function(password) {
+        const errors = [];
+        
+        if (password.length < 8) {
+            errors.push('Password must be at least 8 characters long');
+        }
+        
+        if (password.length > 128) {
+            errors.push('Password must be less than 128 characters');
+        }
+        
+        if (!/[a-z]/.test(password)) {
+            errors.push('Password must contain at least one lowercase letter');
+        }
+        
+        if (!/[A-Z]/.test(password)) {
+            errors.push('Password must contain at least one uppercase letter');
+        }
+        
+        if (!/[0-9]/.test(password)) {
+            errors.push('Password must contain at least one number');
+        }
+        
+        if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
+            errors.push('Password must contain at least one special character');
+        }
+        
+        // Check for common weak patterns
+        const commonPatterns = [
+            /^(.)\1{7,}$/, // Same character repeated
+            /^(012345|123456|234567|345678|456789|567890|678901|789012|890123|901234)/, // Sequential numbers
+            /^(abcdef|bcdefg|cdefgh|defghi|efghij|fghijk|ghijkl|hijklm|ijklmn|jklmno|klmnop|lmnopq|mnopqr|nopqrs|opqrst|pqrstu|qrstuv|rstuvw|stuvwx|tuvwxy|uvwxyz)/, // Sequential letters
+            /password/i,
+            /123456/,
+            /qwerty/i,
+            /admin/i
+        ];
+        
+        for (const pattern of commonPatterns) {
+            if (pattern.test(password)) {
+                errors.push('Password contains common weak patterns');
+                break;
+            }
+        }
+        
+        return {
+            isValid: errors.length === 0,
+            errors: errors,
+            strength: this.calculatePasswordStrength(password)
+        };
+    },
+    
+    // Calculate password strength score
+    calculatePasswordStrength: function(password) {
+        let score = 0;
+        
+        // Length bonus
+        score += Math.min(password.length * 2, 20);
+        
+        // Character variety bonus
+        if (/[a-z]/.test(password)) score += 5;
+        if (/[A-Z]/.test(password)) score += 5;
+        if (/[0-9]/.test(password)) score += 5;
+        if (/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) score += 10;
+        
+        // Complexity bonus
+        let charTypes = 0;
+        if (/[a-z]/.test(password)) charTypes++;
+        if (/[A-Z]/.test(password)) charTypes++;
+        if (/[0-9]/.test(password)) charTypes++;
+        if (/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) charTypes++;
+        
+        score += charTypes * 5;
+        
+        // Penalize common patterns
+        if (/(.)\1{2,}/.test(password)) score -= 10; // Repeated characters
+        if (/123|abc|qwe/i.test(password)) score -= 10; // Sequential patterns
+        
+        return Math.min(Math.max(score, 0), 100);
+    },
+    
+    // Simple encryption for localStorage (basic obfuscation)
+    // Note: This is not cryptographically secure, just prevents casual viewing
+    encrypt: function(text) {
+        try {
+            const key = 'SnipDump2024'; // Simple key for basic obfuscation
+            let encrypted = '';
+            for (let i = 0; i < text.length; i++) {
+                encrypted += String.fromCharCode(
+                    text.charCodeAt(i) ^ key.charCodeAt(i % key.length)
+                );
+            }
+            return btoa(encrypted); // Base64 encode
+        } catch (e) {
+            console.warn('Encryption failed, storing as plain text');
+            return text;
+        }
+    },
+    
+    decrypt: function(encryptedText) {
+        try {
+            const key = 'SnipDump2024';
+            const encrypted = atob(encryptedText); // Base64 decode
+            let decrypted = '';
+            for (let i = 0; i < encrypted.length; i++) {
+                decrypted += String.fromCharCode(
+                    encrypted.charCodeAt(i) ^ key.charCodeAt(i % key.length)
+                );
+            }
+            return decrypted;
+        } catch (e) {
+            console.warn('Decryption failed, returning as-is');
+            return encryptedText;
+        }
+    },
+    
+    // Secure localStorage wrapper
+    secureStorage: {
+        setItem: function(key, value) {
+            try {
+                const encrypted = SecurityUtils.encrypt(JSON.stringify(value));
+                localStorage.setItem(key, encrypted);
+            } catch (e) {
+                console.error('Secure storage set failed:', e);
+                localStorage.setItem(key, JSON.stringify(value)); // Fallback
+            }
+        },
+        
+        getItem: function(key) {
+            try {
+                const stored = localStorage.getItem(key);
+                if (!stored) return null;
+                
+                // Try to decrypt first
+                try {
+                    const decrypted = SecurityUtils.decrypt(stored);
+                    return JSON.parse(decrypted);
+                } catch (e) {
+                    // If decryption fails, try parsing as plain JSON (backward compatibility)
+                    return JSON.parse(stored);
+                }
+            } catch (e) {
+                console.error('Secure storage get failed:', e);
+                return null;
+            }
+        },
+        
+        removeItem: function(key) {
+            localStorage.removeItem(key);
+        }
+    }
+};
+
 let editor;
 let isMobile = false;
 let ogOverlayVisible = false;
@@ -909,7 +1086,8 @@ function showElementInfo(element, position) {
         ? ` • ${Object.keys(position.attributes).length} attributes`
         : '';
     
-    notification.innerHTML = `${tagInfo} ${lineInfo}${attrInfo}`;
+    // Security: Use textContent to prevent XSS
+    notification.textContent = `${tagInfo} ${lineInfo}${attrInfo}`;
     
     document.body.appendChild(notification);
     
@@ -1760,7 +1938,13 @@ function showCopyNotification(message, type = 'success') {
         ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><polyline points="20,6 9,17 4,12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
         : '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/><line x1="15" y1="9" x2="9" y2="15" stroke="currentColor" stroke-width="2"/><line x1="9" y1="9" x2="15" y2="15" stroke="currentColor" stroke-width="2"/></svg>';
     
-    notification.innerHTML = `${icon}${message}`;
+    // Security: Safe HTML insertion for trusted icon content, sanitized message
+    const iconSpan = document.createElement('span');
+    iconSpan.innerHTML = icon; // Icons are trusted content
+    const messageSpan = document.createElement('span');
+    messageSpan.textContent = message; // User message is sanitized
+    notification.appendChild(iconSpan);
+    notification.appendChild(messageSpan);
     document.body.appendChild(notification);
     
     // Remove after delay
@@ -2231,6 +2415,32 @@ async function handleAuth(event) {
     const password = document.getElementById('authPassword').value;
     const name = document.getElementById('authName').value;
     
+    // Security: Validate input fields
+    if (!email || !password) {
+        alert('Please fill in all required fields.');
+        return;
+    }
+    
+    // Security: Validate password strength for sign up
+    if (isSignUp) {
+        if (!name) {
+            alert('Please enter your full name.');
+            return;
+        }
+        
+        const validation = SecurityUtils.validatePassword(password);
+        if (!validation.isValid) {
+            const errorMessage = 'Password requirements not met:\n• ' + validation.errors.join('\n• ');
+            alert(errorMessage);
+            return;
+        }
+        
+        if (validation.strength < 50) {
+            const proceed = confirm(`Your password strength is ${validation.strength}/100 (weak). We recommend a stronger password. Continue anyway?`);
+            if (!proceed) return;
+        }
+    }
+    
     try {
         let result;
         if (isSignUp) {
@@ -2666,7 +2876,10 @@ class DocumentStorage {
         
         const spaces = this.getSpaces();
         
-        select.innerHTML = '';
+        // Security: Clear content safely
+        while (select.firstChild) {
+            select.removeChild(select.firstChild);
+        }
         spaces.forEach(space => {
             const option = document.createElement('option');
             option.value = space.id;
@@ -3353,8 +3566,10 @@ function saveDocument() {
 class SupabaseDocumentStorage {
     constructor() {
         // ⚠️ IMPORTANT: Replace these with your actual Supabase credentials
-        this.supabaseUrl = 'https://tpeotxhvlhijpboqtxzr.supabase.co'; // e.g., 'https://abcdefghijklmnop.supabase.co'
-        this.supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRwZW90eGh2bGhpanBib3F0eHpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMwMDg4OTYsImV4cCI6MjA2ODU4NDg5Nn0.yOWHk5mlwJSBJ2_BxBCwErZuyS5zmO0StyRyJvbfJGY'; // Your anon/public key
+        // Security: Credentials moved to environment variables
+        // Set these in your hosting environment or create a config.js file (not committed to git)
+        this.supabaseUrl = window.SUPABASE_URL || 'YOUR_SUPABASE_URL';
+        this.supabaseKey = window.SUPABASE_ANON_KEY || 'YOUR_SUPABASE_ANON_KEY';
         
         this.supabase = null;
         this.currentUser = null;
@@ -4827,7 +5042,10 @@ class SupabaseDocumentStorage {
         
         const spaces = this.getSpaces();
         
-        select.innerHTML = '';
+        // Security: Clear content safely
+        while (select.firstChild) {
+            select.removeChild(select.firstChild);
+        }
         spaces.forEach(space => {
             const option = document.createElement('option');
             option.value = space.id;

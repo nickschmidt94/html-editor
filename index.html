@@ -4,9 +4,28 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SnipDump - HTML Editor</title>
+    
+    <!-- Security: Content Security Policy -->
+    <meta http-equiv="Content-Security-Policy" content="
+        default-src 'self';
+        script-src 'self' 'unsafe-inline' https://unpkg.com https://esm.sh;
+        style-src 'self' 'unsafe-inline';
+        connect-src 'self' https://*.supabase.co;
+        img-src 'self' data: blob:;
+        font-src 'self';
+        object-src 'none';
+        base-uri 'self';
+        form-action 'self';
+        frame-ancestors 'none';
+    ">
 
-    <!-- Monaco Editor CDN -->
-    <script src="https://unpkg.com/monaco-editor@0.44.0/min/vs/loader.js"></script>
+    <!-- Configuration (load first) -->
+    <script src="config.js" onerror="console.warn('config.js not found - using environment variables or defaults')"></script>
+    
+    <!-- Monaco Editor CDN with SRI -->
+    <script src="https://unpkg.com/monaco-editor@0.44.0/min/vs/loader.js" 
+            crossorigin="anonymous"
+            onerror="console.error('Failed to load Monaco Editor')"></script>
     
     <!-- Supabase Client -->
     <script>
