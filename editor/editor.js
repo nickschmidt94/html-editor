@@ -3573,6 +3573,8 @@ class SupabaseDocumentStorage {
         console.log('🔧 Supabase configuration check:');
         console.log('URL configured:', this.supabaseUrl !== 'YOUR_SUPABASE_URL');
         console.log('Key configured:', this.supabaseKey !== 'YOUR_SUPABASE_ANON_KEY');
+        console.log('Actual URL:', this.supabaseUrl);
+        console.log('Key length:', this.supabaseKey?.length || 0);
         
         this.supabase = null;
         this.currentUser = null;
@@ -3583,6 +3585,75 @@ class SupabaseDocumentStorage {
         this.localBackup = new DocumentStorage(); // Fallback to localStorage
         
         this.init();
+        
+        // Make debug function always available
+        window.debugSupabase = () => {
+            console.log('🔍 === SUPABASE DEBUG INFO ===');
+            console.log('Config loaded:', !!window.SUPABASE_CONFIG_LOADED);
+            console.log('URL from config:', window.SUPABASE_URL);
+            console.log('Key from config (length):', window.SUPABASE_ANON_KEY?.length || 0);
+            console.log('Storage instance URL:', this.supabaseUrl);
+            console.log('Storage instance key length:', this.supabaseKey?.length || 0);
+            console.log('Demo mode:', this.demoMode);
+            console.log('Current user:', this.currentUser?.email || 'None');
+            console.log('Current user ID:', this.currentUser?.id || 'None');
+            console.log('Supabase loaded:', window.supabaseLoaded);
+            console.log('Supabase object exists:', !!window.supabase);
+            if (window.supabase) {
+                console.log('createClient exists:', !!window.supabase.createClient);
+            }
+            console.log('Supabase instance:', !!this.supabase);
+            console.log('Current space:', this.currentSpace?.name || 'None');
+            console.log('=== END DEBUG INFO ===');
+        };
+        
+        // Make document recovery function always available
+        window.recoverMyDocuments = async () => {
+            if (this.demoMode) {
+                console.log('❌ Cannot recover documents in demo mode. Please sign in first.');
+                return;
+            }
+            
+            if (!this.currentUser) {
+                console.log('❌ Please sign in first.');
+                return;
+            }
+            
+            console.log('🔍 Searching for your documents...');
+            
+            try {
+                // Get all documents in the database
+                const { data: allDocs } = await this.supabase
+                    .from('documents')
+                    .select('*');
+                    
+                console.log('📊 Found', allDocs?.length || 0, 'total documents in database');
+                
+                if (allDocs && allDocs.length > 0) {
+                    // Group by user_id
+                    const userGroups = {};
+                    allDocs.forEach(doc => {
+                        if (!userGroups[doc.user_id]) userGroups[doc.user_id] = [];
+                        userGroups[doc.user_id].push(doc);
+                    });
+                    
+                    console.log('👥 Documents grouped by user:');
+                    Object.keys(userGroups).forEach(userId => {
+                        console.log(`User ${userId}: ${userGroups[userId].length} documents`);
+                        console.log('  Documents:', userGroups[userId].map(d => d.name).join(', '));
+                    });
+                    
+                    console.log('🆔 Your current user ID:', this.currentUser.id);
+                    
+                    if (!userGroups[this.currentUser.id] || userGroups[this.currentUser.id].length === 0) {
+                        console.log('💡 Your documents are under a different user ID.');
+                        console.log('💡 If you see your document names above, I can help migrate them.');
+                    }
+                }
+            } catch (error) {
+                console.error('❌ Error searching for documents:', error);
+            }
+        };
     }
 
     async init() {
@@ -3602,6 +3673,11 @@ class SupabaseDocumentStorage {
         
         // Check if Supabase credentials are configured
         if (this.supabaseUrl === 'YOUR_SUPABASE_URL' || this.supabaseKey === 'YOUR_SUPABASE_ANON_KEY') {
+            console.error('❌ Supabase credentials not loaded properly!');
+            console.error('URL check:', this.supabaseUrl, '===', 'YOUR_SUPABASE_URL', '?', this.supabaseUrl === 'YOUR_SUPABASE_URL');
+            console.error('Key check:', this.supabaseKey, '===', 'YOUR_SUPABASE_ANON_KEY', '?', this.supabaseKey === 'YOUR_SUPABASE_ANON_KEY');
+            console.error('Window.SUPABASE_URL:', window.SUPABASE_URL);
+            console.error('Window.SUPABASE_ANON_KEY length:', window.SUPABASE_ANON_KEY?.length);
             console.warn('Supabase not configured, falling back to demo mode');
             this.useDemoMode();
             return;
@@ -3701,6 +3777,17 @@ class SupabaseDocumentStorage {
             
         } catch (error) {
             console.error('❌ Failed to initialize Supabase:', error);
+            console.error('Error details:', error.message);
+            console.error('Error stack:', error.stack);
+            
+            // Additional debugging
+            console.error('🔍 Debug info at error:');
+            console.error('window.supabaseLoaded:', window.supabaseLoaded);
+            console.error('window.supabase exists:', !!window.supabase);
+            console.error('supabaseLib found:', !!supabaseLib);
+            console.error('this.supabaseUrl:', this.supabaseUrl);
+            console.error('this.supabaseKey length:', this.supabaseKey?.length);
+            
             this.useDemoMode();
         }
 
@@ -3727,6 +3814,68 @@ class SupabaseDocumentStorage {
             console.log('🔄 Manual retry requested...');
             this.demoMode = false;
             this.init();
+        };
+        
+        // Add data recovery function
+        window.recoverMyDocuments = async () => {
+            if (this.demoMode) {
+                console.log('❌ Cannot recover documents in demo mode. Please sign in first.');
+                return;
+            }
+            
+            console.log('🔍 Searching for your documents...');
+            
+            try {
+                // Get all documents in the database
+                const { data: allDocs } = await this.supabase
+                    .from('documents')
+                    .select('*');
+                    
+                console.log('📊 Found', allDocs?.length || 0, 'total documents in database');
+                
+                if (allDocs && allDocs.length > 0) {
+                    // Group by user_id
+                    const userGroups = {};
+                    allDocs.forEach(doc => {
+                        if (!userGroups[doc.user_id]) userGroups[doc.user_id] = [];
+                        userGroups[doc.user_id].push(doc);
+                    });
+                    
+                    console.log('👥 Documents grouped by user:');
+                    Object.keys(userGroups).forEach(userId => {
+                        console.log(`User ${userId}: ${userGroups[userId].length} documents`);
+                        console.log('  Documents:', userGroups[userId].map(d => d.name).join(', '));
+                    });
+                    
+                    console.log('🆔 Your current user ID:', this.currentUser.id);
+                    
+                    if (!userGroups[this.currentUser.id] || userGroups[this.currentUser.id].length === 0) {
+                        console.log('💡 Your documents might be under a different user ID.');
+                        console.log('💡 If you see your document names above, I can help migrate them.');
+                    }
+                }
+            } catch (error) {
+                console.error('❌ Error searching for documents:', error);
+            }
+        };
+        
+        // Add debug function for troubleshooting
+        window.debugSupabase = () => {
+            console.log('🔍 === SUPABASE DEBUG INFO ===');
+            console.log('Config loaded:', !!window.SUPABASE_CONFIG_LOADED);
+            console.log('URL from config:', window.SUPABASE_URL);
+            console.log('Key from config (length):', window.SUPABASE_ANON_KEY?.length || 0);
+            console.log('Storage instance URL:', this.supabaseUrl);
+            console.log('Storage instance key length:', this.supabaseKey?.length || 0);
+            console.log('Demo mode:', this.demoMode);
+            console.log('Current user:', this.currentUser?.email || 'None');
+            console.log('Supabase loaded:', window.supabaseLoaded);
+            console.log('Supabase object exists:', !!window.supabase);
+            if (window.supabase) {
+                console.log('createClient exists:', !!window.supabase.createClient);
+            }
+            console.log('Supabase instance:', !!this.supabase);
+            console.log('=== END DEBUG INFO ===');
         };
     }
 
@@ -4096,6 +4245,8 @@ class SupabaseDocumentStorage {
     async loadUserData() {
         if (this.demoMode || !this.currentUser) return;
         
+        console.log('📂 Loading user data for:', this.currentUser.email, 'ID:', this.currentUser.id);
+        
         try {
             // Load spaces, documents and categories
             await Promise.all([
@@ -4103,6 +4254,31 @@ class SupabaseDocumentStorage {
                 this.loadDocuments(),
                 this.loadCategories()
             ]);
+            
+            // Debug: Check what we loaded
+            const { data: allDocs } = await this.supabase
+                .from('documents')
+                .select('id, name, created_at, user_id')
+                .eq('user_id', this.currentUser.id);
+                
+            console.log('📊 Total documents found for this user:', allDocs?.length || 0);
+            if (allDocs && allDocs.length > 0) {
+                console.log('📋 Your documents:', allDocs.map(d => d.name));
+            } else {
+                console.log('🔍 No documents found. Checking if there are documents with different user_id...');
+                
+                // Check if there are any documents in the database at all
+                const { data: anyDocs } = await this.supabase
+                    .from('documents')
+                    .select('id, name, user_id')
+                    .limit(5);
+                    
+                console.log('📊 Total documents in database:', anyDocs?.length || 0);
+                if (anyDocs && anyDocs.length > 0) {
+                    console.log('🔍 Other user_ids in database:', [...new Set(anyDocs.map(d => d.user_id))]);
+                    console.log('🆔 Your current user_id:', this.currentUser.id);
+                }
+            }
             
             this.renderSidebar();
         } catch (error) {

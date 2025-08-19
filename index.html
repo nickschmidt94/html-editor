@@ -17,11 +17,93 @@
         object-src 'none';
         base-uri 'self';
         form-action 'self';
-        frame-ancestors 'none';
     ">
 
     <!-- Configuration (load first) -->
     <script src="config.js" onerror="console.warn('config.js not found - using environment variables or defaults')"></script>
+    
+    <!-- Debug functions (available immediately) -->
+    <script>
+        // Make debug functions available immediately
+        window.debugSupabase = function() {
+            const storage = window.documentStorage;
+            if (!storage) {
+                console.log('❌ Document storage not initialized yet');
+                return;
+            }
+            
+            console.log('🔍 === SUPABASE DEBUG INFO ===');
+            console.log('Config loaded:', !!window.SUPABASE_CONFIG_LOADED);
+            console.log('URL from config:', window.SUPABASE_URL);
+            console.log('Key from config (length):', window.SUPABASE_ANON_KEY?.length || 0);
+            console.log('Storage instance URL:', storage.supabaseUrl);
+            console.log('Storage instance key length:', storage.supabaseKey?.length || 0);
+            console.log('Demo mode:', storage.demoMode);
+            console.log('Current user:', storage.currentUser?.email || 'None');
+            console.log('Current user ID:', storage.currentUser?.id || 'None');
+            console.log('Supabase loaded:', window.supabaseLoaded);
+            console.log('Supabase object exists:', !!window.supabase);
+            if (window.supabase) {
+                console.log('createClient exists:', !!window.supabase.createClient);
+            }
+            console.log('Supabase instance:', !!storage.supabase);
+            console.log('Current space:', storage.currentSpace?.name || 'None');
+            console.log('=== END DEBUG INFO ===');
+        };
+        
+        window.recoverMyDocuments = async function() {
+            const storage = window.documentStorage;
+            if (!storage) {
+                console.log('❌ Document storage not initialized yet');
+                return;
+            }
+            
+            if (storage.demoMode) {
+                console.log('❌ Cannot recover documents in demo mode. Please sign in first.');
+                return;
+            }
+            
+            if (!storage.currentUser) {
+                console.log('❌ Please sign in first.');
+                return;
+            }
+            
+            console.log('🔍 Searching for your documents...');
+            
+            try {
+                // Get all documents in the database
+                const { data: allDocs } = await storage.supabase
+                    .from('documents')
+                    .select('*');
+                    
+                console.log('📊 Found', allDocs?.length || 0, 'total documents in database');
+                
+                if (allDocs && allDocs.length > 0) {
+                    // Group by user_id
+                    const userGroups = {};
+                    allDocs.forEach(doc => {
+                        if (!userGroups[doc.user_id]) userGroups[doc.user_id] = [];
+                        userGroups[doc.user_id].push(doc);
+                    });
+                    
+                    console.log('👥 Documents grouped by user:');
+                    Object.keys(userGroups).forEach(userId => {
+                        console.log(`User ${userId}: ${userGroups[userId].length} documents`);
+                        console.log('  Documents:', userGroups[userId].map(d => d.name).join(', '));
+                    });
+                    
+                    console.log('🆔 Your current user ID:', storage.currentUser.id);
+                    
+                    if (!userGroups[storage.currentUser.id] || userGroups[storage.currentUser.id].length === 0) {
+                        console.log('💡 Your documents are under a different user ID.');
+                        console.log('💡 If you see your document names above, I can help migrate them.');
+                    }
+                }
+            } catch (error) {
+                console.error('❌ Error searching for documents:', error);
+            }
+        };
+    </script>
     
     <!-- Monaco Editor CDN with SRI -->
     <script src="https://unpkg.com/monaco-editor@0.44.0/min/vs/loader.js" 
