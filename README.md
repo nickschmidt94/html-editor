@@ -1,4 +1,4 @@
-# HTML Editor & Learning Platform
+# SnipDump
 
 A modern, feature-rich HTML editor with real-time preview and a dedicated learning platform. Built with a modular architecture for easy maintenance and expansion.
 

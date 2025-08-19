@@ -1,4 +1,4 @@
-# Supabase Setup Guide for HTML Editor
+# Supabase Setup Guide for SnipDump
 
 This guide will help you set up Supabase for cloud storage and sync with your HTML editor.
 
