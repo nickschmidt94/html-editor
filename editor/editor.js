@@ -3586,6 +3586,20 @@ class SupabaseDocumentStorage {
     }
 
     async init() {
+        // Wait a moment for config.js to load if it hasn't yet
+        if (!window.SUPABASE_CONFIG_LOADED) {
+            console.log('⏳ Waiting for config.js to load...');
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            // Re-check credentials after waiting
+            this.supabaseUrl = window.SUPABASE_URL || process?.env?.SUPABASE_URL || 'YOUR_SUPABASE_URL';
+            this.supabaseKey = window.SUPABASE_ANON_KEY || process?.env?.SUPABASE_ANON_KEY || 'YOUR_SUPABASE_ANON_KEY';
+            
+            console.log('🔧 Supabase configuration recheck:');
+            console.log('URL configured:', this.supabaseUrl !== 'YOUR_SUPABASE_URL');
+            console.log('Key configured:', this.supabaseKey !== 'YOUR_SUPABASE_ANON_KEY');
+        }
+        
         // Check if Supabase credentials are configured
         if (this.supabaseUrl === 'YOUR_SUPABASE_URL' || this.supabaseKey === 'YOUR_SUPABASE_ANON_KEY') {
             console.warn('Supabase not configured, falling back to demo mode');
@@ -3706,12 +3720,14 @@ class SupabaseDocumentStorage {
         }
         
         // Add a way to retry Supabase connection
+        console.log('💡 To retry connection, run: retrySupabaseConnection() in console');
+        
+        // Make retry function globally available
         window.retrySupabaseConnection = () => {
-            console.log('🔄 Retrying Supabase connection...');
+            console.log('🔄 Manual retry requested...');
             this.demoMode = false;
             this.init();
         };
-        console.log('💡 To retry connection, run: retrySupabaseConnection() in console');
     }
 
     disableDemoMode() {

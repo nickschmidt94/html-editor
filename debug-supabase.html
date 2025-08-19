@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Supabase Debug</title>
+</head>
+<body>
+    <h1>Supabase Configuration Debug</h1>
+    <div id="debug-output"></div>
+    
+    <!-- Load config -->
+    <script src="config.js"></script>
+    
+    <script>
+        const output = document.getElementById('debug-output');
+        
+        function log(message) {
+            output.innerHTML += '<p>' + message + '</p>';
+            console.log(message);
+        }
+        
+        log('=== Supabase Configuration Debug ===');
+        log('Config loaded: ' + !!window.SUPABASE_CONFIG_LOADED);
+        log('URL: ' + (window.SUPABASE_URL || 'NOT SET'));
+        log('Key: ' + (window.SUPABASE_ANON_KEY ? 'SET (length: ' + window.SUPABASE_ANON_KEY.length + ')' : 'NOT SET'));
+        
+        if (window.SUPABASE_URL && window.SUPABASE_ANON_KEY) {
+            log('✅ Configuration looks good!');
+        } else {
+            log('❌ Configuration missing!');
+        }
+    </script>
+</body>
+</html>
