@@ -19,10 +19,16 @@
         form-action 'self';
     ">
 
-    <!-- Configuration (load first) -->
-    <script src="config.js" 
-            onload="console.log('✅ config.js loaded successfully')"
-            onerror="console.error('❌ config.js failed to load - check network/file permissions')"></script>
+    <!-- Configuration (embedded for reliability) -->
+    <script>
+        // Embedded Supabase configuration
+        window.SUPABASE_URL = 'https://tpeotxhvlhijpboqtxzr.supabase.co';
+        window.SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRwZW90eGh2bGhpanBib3F0eHpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMwMDg4OTYsImV4cCI6MjA2ODU4NDg5Nn0.yOWHk5mlwJSBJ2_BxBCwErZuyS5zmO0StyRyJvbfJGY';
+        window.SUPABASE_CONFIG_LOADED = true;
+        console.log('🔧 Supabase configuration loaded (embedded)');
+        console.log('URL:', window.SUPABASE_URL);
+        console.log('Key loaded:', !!window.SUPABASE_ANON_KEY);
+    </script>
     
     <!-- Debug functions (available immediately) -->
     <script>
@@ -103,23 +109,6 @@
                 }
             } catch (error) {
                 console.error('❌ Error searching for documents:', error);
-            }
-        };
-        
-        // Manual config loader function
-        window.loadConfigManually = function() {
-            console.log('🔄 Loading config manually...');
-            window.SUPABASE_URL = 'https://tpeotxhvlhijpboqtxzr.supabase.co';
-            window.SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRwZW90eGh2bGhpanBib3F0eHpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMwMDg4OTYsImV4cCI6MjA2ODU4NDg5Nn0.yOWHk5mlwJSBJ2_BxBCwErZuyS5zmO0StyRyJvbfJGY';
-            window.SUPABASE_CONFIG_LOADED = true;
-            console.log('✅ Config loaded manually');
-            
-            // Try to reinitialize storage
-            if (window.documentStorage) {
-                console.log('🔄 Reinitializing document storage...');
-                window.documentStorage.supabaseUrl = window.SUPABASE_URL;
-                window.documentStorage.supabaseKey = window.SUPABASE_ANON_KEY;
-                window.documentStorage.init();
             }
         };
     </script>
