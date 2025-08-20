@@ -3359,8 +3359,10 @@ function createInlineCategory() {
 
 function toggleSpaceDropdown() {
     const dropdown = document.getElementById('spaceDropdown');
-    if (!dropdown) {
-        console.error('Space dropdown element not found');
+    const spaceSelector = document.getElementById('currentSpaceSelector');
+    
+    if (!dropdown || !spaceSelector) {
+        console.error('Space dropdown or selector element not found');
         return;
     }
     
@@ -3370,6 +3372,11 @@ function toggleSpaceDropdown() {
         dropdown.classList.remove('show');
         document.removeEventListener('click', closeSpaceDropdownOnClickOutside);
     } else {
+        // Calculate position for fixed dropdown
+        const rect = spaceSelector.getBoundingClientRect();
+        dropdown.style.top = `${rect.bottom + 8}px`;
+        dropdown.style.left = `${rect.left}px`;
+        
         populateSpaceDropdown();
         dropdown.classList.add('show');
         setTimeout(() => {
