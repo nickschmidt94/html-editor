@@ -197,6 +197,8 @@
     justify-content: center;
     width: 20px;
     height: 20px;
+    position: relative;
+    z-index: 4;
 }
 
 .space-action-btn:hover {
@@ -216,6 +218,8 @@
     max-height: 300px;
     overflow-y: auto;
     padding: 8px 0;
+    position: relative;
+    z-index: 1;
 }
 
 .spaces-list::-webkit-scrollbar {
@@ -244,6 +248,7 @@
     margin: 2px 8px;
     border-radius: 6px;
     border: 1px solid transparent;
+    z-index: 2;
 }
 
 .space-item:hover {
@@ -261,6 +266,8 @@
     flex: 1;
     cursor: pointer;
     padding: 4px 0;
+    position: relative;
+    z-index: 3;
 }
 
 .space-name {
@@ -283,6 +290,8 @@
     gap: 4px;
     opacity: 0;
     transition: opacity 0.3s ease;
+    position: relative;
+    z-index: 3;
 }
 
 .space-item:hover .space-actions {
