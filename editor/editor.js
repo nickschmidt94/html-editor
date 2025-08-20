@@ -5032,6 +5032,8 @@ class SupabaseDocumentStorage {
         const space = this.getSpaces().find(s => s.id === spaceId);
         if (space) {
             this.currentSpace = space;
+            // Persist the current space selection
+            localStorage.setItem(this.currentSpaceKey, spaceId);
             this.renderSidebar();
             this.showNotification(`Switched to "${space.name}"`, 'success');
         }
@@ -5222,7 +5224,19 @@ class SupabaseDocumentStorage {
         const currentSpace = this.currentSpace;
         
         if (currentSpace) {
-            spaceSelector.textContent = currentSpace.name;
+            // Update the text content but preserve the chevron icon
+            const chevronSvg = spaceSelector.querySelector('.space-chevron');
+            spaceSelector.innerHTML = `${currentSpace.name}`;
+            if (chevronSvg) {
+                spaceSelector.appendChild(chevronSvg);
+            } else {
+                // Re-create the chevron if it doesn't exist
+                spaceSelector.innerHTML += `
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="space-chevron">
+                        <polyline points="6,9 12,15 18,9" stroke="currentColor" stroke-width="2"/>
+                    </svg>
+                `;
+            }
             spaceSelector.title = currentSpace.description || currentSpace.name;
         }
     }
