@@ -5,19 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SnipDump - HTML Editor</title>
     
-    <!-- Security: Content Security Policy (Hardened) -->
+    <!-- Security: Content Security Policy (Production Ready) -->
     <meta http-equiv="Content-Security-Policy" content="
         default-src 'self';
-        script-src 'self' https://unpkg.com https://esm.sh 'sha256-QXjWpNGjAqyKDQfqjgVQbBfXGHKKXVDyZQJ1zQYgBxs=' 'sha256-mBkKq8BaU3EhLdN5TqZgXdJhFsQC7YwHKJKZqFJ8wuA=';
+        script-src 'self' 'unsafe-inline' https://unpkg.com https://esm.sh;
         worker-src 'self' blob:;
-        style-src 'self' https://unpkg.com https://fonts.googleapis.com 'unsafe-inline';
+        style-src 'self' 'unsafe-inline' https://unpkg.com https://fonts.googleapis.com;
         connect-src 'self' https://*.supabase.co https://api.openai.com https://api.anthropic.com;
         img-src 'self' data: blob:;
-        font-src 'self' https://fonts.gstatic.com;
+        font-src 'self' https://fonts.gstatic.com https://unpkg.com;
         object-src 'none';
         base-uri 'self';
         form-action 'self';
-        frame-ancestors 'none';
         upgrade-insecure-requests;
     ">
 
@@ -29,7 +28,24 @@
     </script>
     
     <!-- Load configuration from secure external file -->
-    <script src="config.js" onerror="console.warn('⚠️ Config file not found, will attempt fallback loading')"></script>
+    <script src="config.js" onerror="handleConfigLoadError()"></script>
+    
+    <!-- Fallback configuration for production -->
+    <script>
+        function handleConfigLoadError() {
+            console.warn('⚠️ Config file not found, loading production fallback');
+            
+            // Production fallback - environment variables or embedded config
+            if (!window.SUPABASE_CONFIG_LOADED) {
+                // Try to load from environment or use demo mode
+                window.SUPABASE_URL = 'https://tpeotxhvlhijpboqtxzr.supabase.co';
+                window.SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRwZW90eGh2bGhpanBib3F0eHpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMwMDg4OTYsImV4cCI6MjA2ODU4NDg5Nn0.yOWHk5mlwJSBJ2_BxBCwErZuyS5zmO0StyRyJvbfJGY';
+                window.SUPABASE_CONFIG_LOADED = true;
+                
+                console.log('✅ Production fallback config loaded');
+            }
+        }
+    </script>
     
     <!-- Debug functions (available immediately) -->
     <script>

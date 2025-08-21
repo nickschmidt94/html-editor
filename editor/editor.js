@@ -3604,8 +3604,14 @@ class SupabaseDocumentStorage {
     constructor() {
         // ⚠️ IMPORTANT: Replace these with your actual Supabase credentials
         // Security: Credentials loaded from config.js or environment variables
-        this.supabaseUrl = window.SUPABASE_URL || process?.env?.SUPABASE_URL || 'YOUR_SUPABASE_URL';
-        this.supabaseKey = window.SUPABASE_ANON_KEY || process?.env?.SUPABASE_ANON_KEY || 'YOUR_SUPABASE_ANON_KEY';
+        try {
+            this.supabaseUrl = window.SUPABASE_URL || (typeof process !== 'undefined' && process?.env?.SUPABASE_URL) || 'YOUR_SUPABASE_URL';
+            this.supabaseKey = window.SUPABASE_ANON_KEY || (typeof process !== 'undefined' && process?.env?.SUPABASE_ANON_KEY) || 'YOUR_SUPABASE_ANON_KEY';
+        } catch (error) {
+            // Handle cases where process is not defined (browser environment)
+            this.supabaseUrl = window.SUPABASE_URL || 'YOUR_SUPABASE_URL';
+            this.supabaseKey = window.SUPABASE_ANON_KEY || 'YOUR_SUPABASE_ANON_KEY';
+        }
         
         // Storage keys for localStorage fallback
         this.storageKey = 'html-editor-documents';
