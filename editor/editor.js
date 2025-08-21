@@ -3377,8 +3377,17 @@ function toggleSpaceDropdown() {
         dropdown.style.top = `${rect.bottom + 8}px`;
         dropdown.style.left = `${rect.left}px`;
         
+        // Ensure dropdown is at the top level to avoid z-index conflicts
+        if (dropdown.parentElement !== document.body) {
+            document.body.appendChild(dropdown);
+        }
+        
         populateSpaceDropdown();
         dropdown.classList.add('show');
+        
+        // Force a reflow to ensure positioning is applied
+        dropdown.offsetHeight;
+        
         setTimeout(() => {
             document.addEventListener('click', closeSpaceDropdownOnClickOutside);
         }, 0);
