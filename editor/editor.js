@@ -4723,17 +4723,25 @@ class SupabaseDocumentStorage {
         const modal = document.getElementById('saveModal');
         const nameInput = document.getElementById('documentName');
         const categorySelect = document.getElementById('documentCategory');
+        const spaceSelect = document.getElementById('documentSpace');
         
-        // Populate categories
+        // Populate spaces and categories
+        this.populateSpaceSelect();
         this.populateCategorySelect();
         
         // Pre-fill if editing current document
         if (this.currentDocument) {
             nameInput.value = this.currentDocument.name;
             categorySelect.value = this.currentDocument.category;
+            if (spaceSelect) {
+                spaceSelect.value = this.currentDocument.spaceId || this.currentSpace?.id;
+            }
         } else {
             nameInput.value = '';
             categorySelect.value = '';
+            if (spaceSelect) {
+                spaceSelect.value = this.currentSpace?.id || '';
+            }
         }
         
         modal.classList.add('show');
@@ -4751,7 +4759,17 @@ class SupabaseDocumentStorage {
 
     populateCategorySelect() {
         const select = document.getElementById('documentCategory');
-        const categories = this.demoMode ? this.localBackup.getCategories() : (this.categories || []);
+        let categories = [];
+        
+        if (this.demoMode) {
+            categories = this.localBackup.getCategories();
+        } else if (!this.currentUser || !this.categories) {
+            // Fall back to local backup if not logged in or categories not loaded
+            categories = this.localBackup.getCategories();
+        } else {
+            // Extract category names from Supabase category objects
+            categories = this.categories.map(cat => cat.name);
+        }
         
         select.innerHTML = '<option value="">Select category...</option>';
         categories.forEach(category => {
