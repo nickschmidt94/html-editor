@@ -5087,13 +5087,23 @@ class SupabaseDocumentStorage {
             return this.localBackup.setCurrentSpace(spaceId);
         }
         
-        const space = this.getSpaces().find(s => s.id === spaceId);
+        console.log('Supabase: setCurrentSpace called with spaceId:', spaceId);
+        const spaces = this.getSpaces();
+        console.log('Supabase: Available spaces:', spaces);
+        
+        const space = spaces.find(s => s.id === spaceId);
+        console.log('Supabase: Found space:', space);
+        
         if (space) {
             this.currentSpace = space;
             // Persist the current space selection
             localStorage.setItem(this.currentSpaceKey, spaceId);
+            console.log('Supabase: Space set, calling renderSidebar and updateSpaceSelector');
             this.renderSidebar();
+            this.updateSpaceSelector();
             this.showNotification(`Switched to "${space.name}"`, 'success');
+        } else {
+            console.error('Supabase: Space not found with ID:', spaceId);
         }
     }
     
