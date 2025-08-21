@@ -3117,13 +3117,17 @@ class DocumentStorage {
         }
         
         const currentSpace = this.currentSpace;
+        console.log('Updating space selector with space:', currentSpace?.name);
         
         if (currentSpace) {
             // Update the text content but preserve the chevron icon
             const chevronSvg = spaceSelector.querySelector('.space-chevron');
+            const chevronClone = chevronSvg ? chevronSvg.cloneNode(true) : null;
+            
             spaceSelector.innerHTML = `${currentSpace.name}`;
-            if (chevronSvg) {
-                spaceSelector.appendChild(chevronSvg);
+            
+            if (chevronClone) {
+                spaceSelector.appendChild(chevronClone);
             } else {
                 spaceSelector.innerHTML += `
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="space-chevron">
@@ -3132,6 +3136,7 @@ class DocumentStorage {
                 `;
             }
             spaceSelector.title = currentSpace.description || currentSpace.name;
+            console.log('Space selector updated to:', currentSpace.name);
         } else {
             console.warn('No current space set');
         }
@@ -3456,7 +3461,16 @@ function populateSpaceDropdown() {
 function switchToSpace(spaceId) {
     const storage = window.documentStorage;
     if (storage) {
+        console.log('Switching to space:', spaceId);
         storage.setCurrentSpace(spaceId);
+        
+        // Update the space selector immediately
+        setTimeout(() => {
+            if (storage.updateSpaceSelector) {
+                storage.updateSpaceSelector();
+            }
+        }, 100);
+        
         toggleSpaceDropdown(); // Close the dropdown
     }
 }
@@ -5263,16 +5277,23 @@ class SupabaseDocumentStorage {
         }
         
         const spaceSelector = document.getElementById('currentSpaceSelector');
-        if (!spaceSelector) return;
+        if (!spaceSelector) {
+            console.error('Supabase: Space selector element not found');
+            return;
+        }
         
         const currentSpace = this.currentSpace;
+        console.log('Supabase: Updating space selector with space:', currentSpace?.name);
         
         if (currentSpace) {
             // Update the text content but preserve the chevron icon
             const chevronSvg = spaceSelector.querySelector('.space-chevron');
+            const chevronClone = chevronSvg ? chevronSvg.cloneNode(true) : null;
+            
             spaceSelector.innerHTML = `${currentSpace.name}`;
-            if (chevronSvg) {
-                spaceSelector.appendChild(chevronSvg);
+            
+            if (chevronClone) {
+                spaceSelector.appendChild(chevronClone);
             } else {
                 // Re-create the chevron if it doesn't exist
                 spaceSelector.innerHTML += `
@@ -5282,6 +5303,9 @@ class SupabaseDocumentStorage {
                 `;
             }
             spaceSelector.title = currentSpace.description || currentSpace.name;
+            console.log('Supabase: Space selector updated to:', currentSpace.name);
+        } else {
+            console.warn('Supabase: No current space set');
         }
     }
     
