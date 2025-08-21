@@ -5021,6 +5021,10 @@ class SupabaseDocumentStorage {
         if (this.demoMode) {
             return this.localBackup.getSpaces();
         }
+        // If not logged in or spaces not loaded, fall back to local backup
+        if (!this.currentUser || !this.spaces) {
+            return this.localBackup.getSpaces();
+        }
         return this.spaces || [];
     }
     
