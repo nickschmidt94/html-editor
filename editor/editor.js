@@ -5091,6 +5091,36 @@ class SupabaseDocumentStorage {
         return this.spaces || [];
     }
     
+    // MISSING METHODS: Add getDocuments and getCategories for UI compatibility
+    getDocuments() {
+        if (this.demoMode) {
+            return this.localBackup.getDocuments();
+        }
+        
+        // Return cached documents (filtered by current space)
+        if (!this.currentUser || !this.documents) {
+            return this.localBackup.getDocuments();
+        }
+        
+        // Documents are already filtered by space in loadDocuments()
+        return this.documents || [];
+    }
+    
+    getCategories() {
+        if (this.demoMode) {
+            return this.localBackup.getCategories();
+        }
+        
+        // Return cached categories (filtered by current space)
+        if (!this.currentUser || !this.categories) {
+            return this.localBackup.getCategories();
+        }
+        
+        // Extract category names from Supabase category objects
+        // Categories are already filtered by space in loadCategories()
+        return this.categories.map(cat => cat.name) || [];
+    }
+    
     getCurrentSpace() {
         if (this.demoMode) {
             return this.localBackup.getCurrentSpace();
@@ -5124,9 +5154,17 @@ class SupabaseDocumentStorage {
         }
     }
     
-    updateUIAfterSpaceChange(space) {
+    async updateUIAfterSpaceChange(space) {
         try {
-            // Update sidebar first
+            // Reload documents and categories for the new space
+            if (!this.demoMode && this.currentUser) {
+                await Promise.all([
+                    this.loadDocuments(),
+                    this.loadCategories()
+                ]);
+            }
+            
+            // Update sidebar to show new space content
             this.renderSidebar();
             
             // Force space selector update with multiple attempts
