@@ -3619,11 +3619,10 @@ class SupabaseDocumentStorage {
         this.spacesKey = 'html-editor-spaces';
         this.currentSpaceKey = 'html-editor-current-space';
         
-        console.log('🔧 Supabase configuration check:');
-        console.log('URL configured:', this.supabaseUrl !== 'YOUR_SUPABASE_URL');
-        console.log('Key configured:', this.supabaseKey !== 'YOUR_SUPABASE_ANON_KEY');
-        console.log('Actual URL:', this.supabaseUrl);
-        console.log('Key length:', this.supabaseKey?.length || 0);
+        // Basic configuration check (minimal logging)
+        if (this.supabaseUrl === 'YOUR_SUPABASE_URL' || this.supabaseKey === 'YOUR_SUPABASE_ANON_KEY') {
+            console.warn('⚠️ Supabase credentials not configured, will fall back to demo mode');
+        }
         
         this.supabase = null;
         this.currentUser = null;
@@ -3712,12 +3711,16 @@ class SupabaseDocumentStorage {
             await new Promise(resolve => setTimeout(resolve, 100));
             
             // Re-check credentials after waiting
-            this.supabaseUrl = window.SUPABASE_URL || process?.env?.SUPABASE_URL || 'YOUR_SUPABASE_URL';
-            this.supabaseKey = window.SUPABASE_ANON_KEY || process?.env?.SUPABASE_ANON_KEY || 'YOUR_SUPABASE_ANON_KEY';
+            try {
+                this.supabaseUrl = window.SUPABASE_URL || (typeof process !== 'undefined' && process?.env?.SUPABASE_URL) || 'YOUR_SUPABASE_URL';
+                this.supabaseKey = window.SUPABASE_ANON_KEY || (typeof process !== 'undefined' && process?.env?.SUPABASE_ANON_KEY) || 'YOUR_SUPABASE_ANON_KEY';
+            } catch (error) {
+                // Handle browser environment where process is not defined
+                this.supabaseUrl = window.SUPABASE_URL || 'YOUR_SUPABASE_URL';
+                this.supabaseKey = window.SUPABASE_ANON_KEY || 'YOUR_SUPABASE_ANON_KEY';
+            }
             
-            console.log('🔧 Supabase configuration recheck:');
-            console.log('URL configured:', this.supabaseUrl !== 'YOUR_SUPABASE_URL');
-            console.log('Key configured:', this.supabaseKey !== 'YOUR_SUPABASE_ANON_KEY');
+            // Minimal recheck logging
         }
         
         // Check if Supabase credentials are configured

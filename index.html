@@ -25,13 +25,8 @@
         // Secure configuration loading
         // Credentials are loaded from external config file (not in source control)
         console.log('🔧 Loading Supabase configuration...');
-    </script>
-    
-    <!-- Load configuration from secure external file -->
-    <script src="config.js" onerror="handleConfigLoadError()"></script>
-    
-    <!-- Fallback configuration for production -->
-    <script>
+        
+        // Define fallback function BEFORE it's used
         function handleConfigLoadError() {
             console.warn('⚠️ Config file not found, loading production fallback');
             
@@ -46,6 +41,9 @@
             }
         }
     </script>
+    
+    <!-- Load configuration from secure external file -->
+    <script src="config.js" onerror="handleConfigLoadError()"></script>
     
     <!-- Debug functions (available immediately) -->
     <script>
