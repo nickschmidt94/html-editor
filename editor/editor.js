@@ -3459,19 +3459,26 @@ function populateSpaceDropdown() {
 }
 
 function switchToSpace(spaceId) {
-    const storage = window.documentStorage;
-    if (storage) {
-        console.log('Switching to space:', spaceId);
+    try {
+        const storage = window.documentStorage;
+        if (!storage) {
+            console.error('Document storage not available');
+            return;
+        }
+        
+        if (!spaceId) {
+            console.error('Invalid space ID provided');
+            return;
+        }
+        
         storage.setCurrentSpace(spaceId);
-        
-        // Update the space selector immediately
-        setTimeout(() => {
-            if (storage.updateSpaceSelector) {
-                storage.updateSpaceSelector();
-            }
-        }, 100);
-        
         toggleSpaceDropdown(); // Close the dropdown
+        
+    } catch (error) {
+        console.error('Error switching space:', error);
+        if (window.documentStorage && window.documentStorage.showNotification) {
+            window.documentStorage.showNotification('Failed to switch space', 'error');
+        }
     }
 }
 
@@ -5087,23 +5094,82 @@ class SupabaseDocumentStorage {
             return this.localBackup.setCurrentSpace(spaceId);
         }
         
-        console.log('Supabase: setCurrentSpace called with spaceId:', spaceId);
         const spaces = this.getSpaces();
-        console.log('Supabase: Available spaces:', spaces);
-        
         const space = spaces.find(s => s.id === spaceId);
-        console.log('Supabase: Found space:', space);
         
         if (space) {
+            // Set the space
             this.currentSpace = space;
+            
             // Persist the current space selection
             localStorage.setItem(this.currentSpaceKey, spaceId);
-            console.log('Supabase: Space set, calling renderSidebar and updateSpaceSelector');
-            this.renderSidebar();
-            this.updateSpaceSelector();
+            
+            // Update UI with proper error handling and retries
+            this.updateUIAfterSpaceChange(space);
+            
+            // Show success notification
             this.showNotification(`Switched to "${space.name}"`, 'success');
         } else {
-            console.error('Supabase: Space not found with ID:', spaceId);
+            console.warn('Space not found with ID:', spaceId);
+            this.showNotification('Space not found', 'error');
+        }
+    }
+    
+    updateUIAfterSpaceChange(space) {
+        try {
+            // Update sidebar first
+            this.renderSidebar();
+            
+            // Force space selector update with multiple attempts
+            this.updateSpaceSelectorWithRetry(space, 3);
+            
+            // Update any other UI elements that depend on current space
+            this.refreshSpaceDependentUI();
+            
+        } catch (error) {
+            console.error('Supabase: Error updating UI after space change:', error);
+        }
+    }
+    
+    updateSpaceSelectorWithRetry(space, maxRetries = 3, attempt = 1) {
+        const updateSuccess = () => {
+            const selector = document.getElementById('currentSpaceSelector');
+            if (!selector) return false;
+            
+            // Get current text content (excluding HTML)
+            const currentText = selector.textContent.trim();
+            return currentText === space.name;
+        };
+        
+        // Try to update
+        this.updateSpaceSelector();
+        
+        // Check if update was successful
+        setTimeout(() => {
+            if (!updateSuccess() && attempt < maxRetries) {
+                console.log(`Supabase: Space selector update attempt ${attempt} failed, retrying...`);
+                this.updateSpaceSelectorWithRetry(space, maxRetries, attempt + 1);
+            } else if (updateSuccess()) {
+                console.log('Supabase: Space selector updated successfully');
+            } else {
+                console.error('Supabase: Failed to update space selector after', maxRetries, 'attempts');
+            }
+        }, 100 * attempt); // Increasing delay
+    }
+    
+    refreshSpaceDependentUI() {
+        // Refresh any dropdowns or UI elements that show space-specific data
+        try {
+            // Update space dropdown if it's open
+            const dropdown = document.getElementById('spaceDropdown');
+            if (dropdown && dropdown.classList.contains('show')) {
+                // Repopulate the dropdown to show current active space
+                if (window.populateSpaceDropdown) {
+                    window.populateSpaceDropdown();
+                }
+            }
+        } catch (error) {
+            console.error('Error refreshing space-dependent UI:', error);
         }
     }
     

@@ -155,6 +155,35 @@
     overflow: hidden;
     pointer-events: none;
     width: 248px;
+    max-width: calc(100vw - 32px);
+    max-height: calc(100vh - 100px);
+}
+
+/* Mobile responsiveness for space dropdown */
+@media (max-width: 768px) {
+    .space-dropdown {
+        width: calc(100vw - 32px);
+        left: 16px !important;
+        right: 16px;
+        max-height: 60vh;
+    }
+    
+    .space-dropdown-header {
+        padding: 16px;
+    }
+    
+    .spaces-list {
+        max-height: calc(60vh - 80px);
+    }
+    
+    .space-item {
+        padding: 12px 16px;
+        margin: 4px 8px;
+    }
+    
+    .space-name {
+        font-size: 14px;
+    }
 }
 
 .space-dropdown.show {
