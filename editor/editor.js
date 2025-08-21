@@ -4839,8 +4839,9 @@ class SupabaseDocumentStorage {
         }
         
         const container = document.getElementById('categoriesList');
-        const documents = this.documents || [];
-        const categories = this.categories || [];
+        // Use the filtering methods instead of direct properties
+        const documents = this.getDocuments();
+        const categories = this.getCategories();
         
         // Group documents by category
         const groupedDocs = {};
@@ -5099,10 +5100,12 @@ class SupabaseDocumentStorage {
         
         // Return cached documents (filtered by current space)
         if (!this.currentUser || !this.documents) {
+            console.log('Supabase getDocuments: Using local backup (no user or no documents)');
             return this.localBackup.getDocuments();
         }
         
         // Documents are already filtered by space in loadDocuments()
+        console.log('Supabase getDocuments: Returning', this.documents.length, 'documents for space:', this.currentSpace?.name);
         return this.documents || [];
     }
     
@@ -5113,12 +5116,15 @@ class SupabaseDocumentStorage {
         
         // Return cached categories (filtered by current space)
         if (!this.currentUser || !this.categories) {
+            console.log('Supabase getCategories: Using local backup (no user or no categories)');
             return this.localBackup.getCategories();
         }
         
         // Extract category names from Supabase category objects
         // Categories are already filtered by space in loadCategories()
-        return this.categories.map(cat => cat.name) || [];
+        const categoryNames = this.categories.map(cat => cat.name) || [];
+        console.log('Supabase getCategories: Returning', categoryNames.length, 'categories for space:', this.currentSpace?.name, ':', categoryNames);
+        return categoryNames;
     }
     
     getCurrentSpace() {
