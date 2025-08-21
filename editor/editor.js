@@ -3577,6 +3577,12 @@ class SupabaseDocumentStorage {
         this.supabaseUrl = window.SUPABASE_URL || process?.env?.SUPABASE_URL || 'YOUR_SUPABASE_URL';
         this.supabaseKey = window.SUPABASE_ANON_KEY || process?.env?.SUPABASE_ANON_KEY || 'YOUR_SUPABASE_ANON_KEY';
         
+        // Storage keys for localStorage fallback
+        this.storageKey = 'html-editor-documents';
+        this.categoriesKey = 'html-editor-categories';
+        this.spacesKey = 'html-editor-spaces';
+        this.currentSpaceKey = 'html-editor-current-space';
+        
         console.log('🔧 Supabase configuration check:');
         console.log('URL configured:', this.supabaseUrl !== 'YOUR_SUPABASE_URL');
         console.log('Key configured:', this.supabaseKey !== 'YOUR_SUPABASE_ANON_KEY');
