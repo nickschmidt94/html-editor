@@ -3792,6 +3792,8 @@ class SupabaseDocumentStorage {
             } else {
                 console.log('ℹ️ No existing session found');
                 this.updateAuthUI();
+                // Ensure demo mode UI is properly initialized
+                this.useDemoMode(false);
             }
 
             // Listen to auth changes
@@ -3859,6 +3861,9 @@ class SupabaseDocumentStorage {
         this.demoMode = true;
         this.localBackup.init();
         this.updateAuthUI();
+        // Ensure categories are rendered when switching to demo mode
+        this.renderSidebar();
+        this.populateCategorySelect();
         if (showNotification) {
             this.showNotification('Running in demo mode - using local storage. Click "Demo Mode" to try signing in.', 'info');
         }
@@ -4337,7 +4342,11 @@ class SupabaseDocumentStorage {
                 }
             }
             
+            // Ensure UI is updated with loaded data
             this.renderSidebar();
+            this.populateCategorySelect();
+            
+            console.log('✅ User data loaded successfully');
         } catch (error) {
             console.error('Failed to load user data:', error);
             this.showNotification('Failed to load documents', 'error');
@@ -4421,7 +4430,9 @@ class SupabaseDocumentStorage {
             
             if (error) throw error;
             
-            this.categories = data?.map(cat => cat.name) || [];
+            // Store the full category objects, not just names
+            this.categories = data || [];
+            console.log('Supabase loadCategories: Loaded categories:', this.categories);
             
             // Ensure default categories exist (only on first load)
             if (this.categories.length === 0 && spaceId) {
@@ -4436,10 +4447,11 @@ class SupabaseDocumentStorage {
                     .eq('user_id', this.currentUser.id)
                     .eq('space_id', spaceId)
                     .order('name');
-                this.categories = updatedData?.map(cat => cat.name) || [];
+                this.categories = updatedData || [];
+                console.log('Supabase loadCategories: Added defaults, categories now:', this.categories);
             }
             
-            return this.categories;
+            return this.categories.map(cat => cat.name);
         } catch (error) {
             console.error('Failed to load categories:', error);
             return [];
@@ -4809,16 +4821,31 @@ class SupabaseDocumentStorage {
 
     populateCategorySelect() {
         const select = document.getElementById('documentCategory');
+        if (!select) {
+            console.warn('Category select element not found');
+            return;
+        }
+        
         let categories = [];
         
         if (this.demoMode) {
             categories = this.localBackup.getCategories();
-        } else if (!this.currentUser || !this.categories) {
+        } else if (!this.currentUser || !this.categories || this.categories.length === 0) {
             // Fall back to local backup if not logged in or categories not loaded
+            console.log('Supabase: Using local backup for categories');
             categories = this.localBackup.getCategories();
         } else {
             // Extract category names from Supabase category objects
-            categories = this.categories.map(cat => cat.name);
+            categories = this.categories.map(cat => {
+                if (typeof cat === 'object' && cat.name) {
+                    return cat.name;
+                } else if (typeof cat === 'string') {
+                    return cat;
+                } else {
+                    console.warn('Invalid category format:', cat);
+                    return null;
+                }
+            }).filter(name => name && name.trim().length > 0);
         }
         
         select.innerHTML = '<option value="">Select category...</option>';
@@ -4852,13 +4879,32 @@ class SupabaseDocumentStorage {
         }
         
         const container = document.getElementById('categoriesList');
+        if (!container) {
+            console.warn('Categories list container not found');
+            return;
+        }
+        
         // Use the filtering methods instead of direct properties
         const documents = this.getDocuments();
         const categories = this.getCategories();
         
+        console.log('Supabase renderSidebar: Documents:', documents.length);
+        console.log('Supabase renderSidebar: Categories:', categories);
+        
         // Group documents by category
         const groupedDocs = {};
-        categories.forEach(cat => groupedDocs[cat] = []);
+        
+        // Initialize all categories with empty arrays
+        categories.forEach(cat => {
+            if (cat && typeof cat === 'string') {
+                groupedDocs[cat] = [];
+            }
+        });
+        
+        // Add uncategorized group if we have documents
+        if (documents.length > 0) {
+            groupedDocs['Uncategorized'] = [];
+        }
         
         documents.forEach(doc => {
             const category = doc.category || 'Uncategorized';
@@ -4869,9 +4915,12 @@ class SupabaseDocumentStorage {
         });
 
         container.innerHTML = '';
+        
+        console.log('Supabase renderSidebar: Grouped docs:', groupedDocs);
 
         Object.entries(groupedDocs).forEach(([category, docs]) => {
-            if (docs.length === 0) return;
+            // Show categories even if they have no documents (for better UX)
+            if (categories.includes(category) || docs.length > 0) {
 
             const categoryGroup = document.createElement('div');
             categoryGroup.className = 'category-group';
@@ -5249,6 +5298,9 @@ class SupabaseDocumentStorage {
                     window.populateSpaceDropdown();
                 }
             }
+            
+            // Update category dropdown to show categories for the current space
+            this.populateCategorySelect();
         } catch (error) {
             console.error('Error refreshing space-dependent UI:', error);
         }
