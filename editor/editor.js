@@ -4921,84 +4921,84 @@ class SupabaseDocumentStorage {
         Object.entries(groupedDocs).forEach(([category, docs]) => {
             // Show categories even if they have no documents (for better UX)
             if (categories.includes(category) || docs.length > 0) {
+                const categoryGroup = document.createElement('div');
+                categoryGroup.className = 'category-group';
 
-            const categoryGroup = document.createElement('div');
-            categoryGroup.className = 'category-group';
-
-            const categoryHeader = document.createElement('div');
-            categoryHeader.className = 'category-header';
-            categoryHeader.setAttribute('data-category', category);
-            categoryHeader.innerHTML = `
-                <div class="category-title">
-                    <span>${category}</span>
-                </div>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <span class="category-count">${docs.length}</span>
-                    ${category !== 'Uncategorized' ? `
-                        <button class="document-action" onclick="documentStorage.deleteCategory('${category}')" title="Delete category" style="opacity: 0.6; transition: opacity 0.2s;">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" stroke="currentColor" stroke-width="2"/>
-                            </svg>
-                        </button>
-                    ` : ''}
-                    <svg class="category-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <polyline points="6,9 12,15 18,9" stroke="currentColor" stroke-width="2"/>
-                    </svg>
-                </div>
-            `;
-            
-            // Add drop zone functionality
-            try {
-                this.addDropZoneListeners(categoryHeader, category);
-            } catch (error) {
-                console.error('Error adding drop zone listeners in SupabaseDocumentStorage:', error);
-            }
-
-            const categoryDocuments = document.createElement('div');
-            categoryDocuments.className = 'category-documents';
-
-            docs.forEach(doc => {
-                const docItem = document.createElement('div');
-                docItem.className = 'document-item';
-                docItem.draggable = true;
-                docItem.setAttribute('data-doc-id', doc.id);
-                docItem.setAttribute('data-doc-category', doc.category);
-                docItem.innerHTML = `
-                    <span class="document-name" onclick="documentStorage.loadDocument('${doc.id}')" title="Click to open document">${doc.name}</span>
-                    <div class="document-actions">
-                        <button class="document-action" onclick="documentStorage.duplicateDocument('${doc.id}')" title="Duplicate">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2" stroke="currentColor" stroke-width="2"/>
-                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2 2v1" stroke="currentColor" stroke-width="2"/>
-                            </svg>
-                        </button>
-                        <button class="document-action" onclick="documentStorage.deleteDocument('${doc.id}')" title="Delete">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" stroke="currentColor" stroke-width="2"/>
-                            </svg>
-                        </button>
+                const categoryHeader = document.createElement('div');
+                categoryHeader.className = 'category-header';
+                categoryHeader.setAttribute('data-category', category);
+                categoryHeader.innerHTML = `
+                    <div class="category-title">
+                        <span>${category}</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="category-count">${docs.length}</span>
+                        ${category !== 'Uncategorized' ? `
+                            <button class="document-action" onclick="documentStorage.deleteCategory('${category}')" title="Delete category" style="opacity: 0.6; transition: opacity 0.2s;">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" stroke="currentColor" stroke-width="2"/>
+                                </svg>
+                            </button>
+                        ` : ''}
+                        <svg class="category-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <polyline points="6,9 12,15 18,9" stroke="currentColor" stroke-width="2"/>
+                        </svg>
                     </div>
                 `;
                 
-                // Add drag event listeners
+                // Add drop zone functionality
                 try {
-                    this.addDragEventListeners(docItem, doc);
+                    this.addDropZoneListeners(categoryHeader, category);
                 } catch (error) {
-                    console.error('Error adding drag listeners in SupabaseDocumentStorage:', error);
+                    console.error('Error adding drop zone listeners in SupabaseDocumentStorage:', error);
                 }
-                
-                categoryDocuments.appendChild(docItem);
-            });
 
-            // Toggle category collapse
-            categoryHeader.addEventListener('click', () => {
-                categoryHeader.classList.toggle('collapsed');
-                categoryDocuments.classList.toggle('collapsed');
-            });
+                const categoryDocuments = document.createElement('div');
+                categoryDocuments.className = 'category-documents';
 
-            categoryGroup.appendChild(categoryHeader);
-            categoryGroup.appendChild(categoryDocuments);
-            container.appendChild(categoryGroup);
+                docs.forEach(doc => {
+                    const docItem = document.createElement('div');
+                    docItem.className = 'document-item';
+                    docItem.draggable = true;
+                    docItem.setAttribute('data-doc-id', doc.id);
+                    docItem.setAttribute('data-doc-category', doc.category);
+                    docItem.innerHTML = `
+                        <span class="document-name" onclick="documentStorage.loadDocument('${doc.id}')" title="Click to open document">${doc.name}</span>
+                        <div class="document-actions">
+                            <button class="document-action" onclick="documentStorage.duplicateDocument('${doc.id}')" title="Duplicate">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2" stroke="currentColor" stroke-width="2"/>
+                                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2 2v1" stroke="currentColor" stroke-width="2"/>
+                                </svg>
+                            </button>
+                            <button class="document-action" onclick="documentStorage.deleteDocument('${doc.id}')" title="Delete">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" stroke="currentColor" stroke-width="2"/>
+                                </svg>
+                            </button>
+                        </div>
+                    `;
+                    
+                    // Add drag event listeners
+                    try {
+                        this.addDragEventListeners(docItem, doc);
+                    } catch (error) {
+                        console.error('Error adding drag listeners in SupabaseDocumentStorage:', error);
+                    }
+                    
+                    categoryDocuments.appendChild(docItem);
+                });
+
+                // Toggle category collapse
+                categoryHeader.addEventListener('click', () => {
+                    categoryHeader.classList.toggle('collapsed');
+                    categoryDocuments.classList.toggle('collapsed');
+                });
+
+                categoryGroup.appendChild(categoryHeader);
+                categoryGroup.appendChild(categoryDocuments);
+                container.appendChild(categoryGroup);
+            }
         });
     }
 
