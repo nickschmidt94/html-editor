@@ -4823,7 +4823,12 @@ class SupabaseDocumentStorage {
         
         select.innerHTML = '<option value="">Select category...</option>';
         console.log('Supabase: Populating category select with:', categories);
-        categories.forEach(category => {
+        
+        // Filter out undefined/null categories and ensure they're strings
+        const validCategories = categories.filter(cat => cat && typeof cat === 'string' && cat.trim().length > 0);
+        console.log('Supabase: Valid categories after filtering:', validCategories);
+        
+        validCategories.forEach(category => {
             const option = document.createElement('option');
             option.value = category;
             option.textContent = category;
@@ -5132,7 +5137,8 @@ class SupabaseDocumentStorage {
         
         // Extract category names from Supabase category objects
         // Categories are already filtered by space in loadCategories()
-        const categoryNames = this.categories.map(cat => cat.name) || [];
+        console.log('Supabase getCategories: Raw categories data:', this.categories);
+        const categoryNames = this.categories.map(cat => cat.name || cat) || [];
         console.log('Supabase getCategories: Returning', categoryNames.length, 'categories for space:', this.currentSpace?.name, ':', categoryNames);
         return categoryNames;
     }
