@@ -2822,6 +2822,21 @@ class DocumentStorage {
     deleteCategory(name) {
         if (!this.currentSpace) return;
         
+        // Get document count in this category
+        const documents = JSON.parse(localStorage.getItem(this.storageKey) || '[]');
+        const docsInCategory = documents.filter(doc => 
+            doc.category === name && doc.spaceId === this.currentSpace.id
+        ).length;
+        
+        // Confirmation dialog
+        const message = docsInCategory > 0 
+            ? `Are you sure you want to delete the category "${name}"? ${docsInCategory} document(s) will be moved to "Uncategorized".`
+            : `Are you sure you want to delete the category "${name}"?`;
+            
+        if (!confirm(message)) {
+            return;
+        }
+        
         const allCategories = JSON.parse(localStorage.getItem(this.categoriesKey) || '[]');
         const filteredCategories = allCategories.filter(cat => 
             !(cat.name === name && cat.spaceId === this.currentSpace.id)
@@ -2829,7 +2844,6 @@ class DocumentStorage {
         localStorage.setItem(this.categoriesKey, JSON.stringify(filteredCategories));
         
         // Move documents from deleted category to 'Uncategorized' within current space
-        const documents = JSON.parse(localStorage.getItem(this.storageKey) || '[]');
         documents.forEach(doc => {
             if (doc.category === name && doc.spaceId === this.currentSpace.id) {
                 doc.category = 'Uncategorized';
@@ -2839,6 +2853,7 @@ class DocumentStorage {
         
         this.renderSidebar();
         this.populateCategorySelect();
+        this.showNotification(`Category "${name}" deleted`, 'success');
     }
 
     showSaveModal() {
@@ -4673,6 +4688,25 @@ class SupabaseDocumentStorage {
         if (!spaceId) return;
         
         try {
+            // Get document count in this category
+            const { data: docsInCategory } = await this.supabase
+                .from('documents')
+                .select('id')
+                .eq('user_id', this.currentUser.id)
+                .eq('space_id', spaceId)
+                .eq('category', name);
+            
+            const docCount = docsInCategory?.length || 0;
+            
+            // Confirmation dialog
+            const message = docCount > 0 
+                ? `Are you sure you want to delete the category "${name}"? ${docCount} document(s) will be moved to "Uncategorized".`
+                : `Are you sure you want to delete the category "${name}"?`;
+                
+            if (!confirm(message)) {
+                return;
+            }
+            
             // Delete category from current space
             await this.supabase
                 .from('categories')
@@ -4682,20 +4716,24 @@ class SupabaseDocumentStorage {
                 .eq('name', name);
             
             // Move documents to 'Uncategorized' in current space
-            await this.supabase
-                .from('documents')
-                .update({ category: 'Uncategorized' })
-                .eq('user_id', this.currentUser.id)
-                .eq('space_id', spaceId)
-                .eq('category', name);
+            if (docCount > 0) {
+                await this.supabase
+                    .from('documents')
+                    .update({ category: 'Uncategorized' })
+                    .eq('user_id', this.currentUser.id)
+                    .eq('space_id', spaceId)
+                    .eq('category', name);
+            }
             
             await this.loadCategories();
             await this.loadDocuments();
             this.renderSidebar();
             this.populateCategorySelect();
+            this.showNotification(`Category "${name}" deleted`, 'success');
             
         } catch (error) {
             console.error('Failed to delete category:', error);
+            this.showNotification('Failed to delete category', 'error');
         }
     }
 
