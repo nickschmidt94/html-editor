@@ -1313,6 +1313,23 @@
     color: var(--text-primary);
 }
 
+/* Fix invisible select options */
+.form-group select option {
+    background: rgba(30, 30, 30, 0.95);
+    color: #ffffff;
+    padding: 8px 12px;
+    border: none;
+}
+
+.form-group select option:hover {
+    background: rgba(50, 50, 50, 0.95);
+}
+
+.form-group select option:checked {
+    background: rgba(168, 85, 247, 0.8);
+    color: #ffffff;
+}
+
 .form-group input::placeholder {
     color: var(--text-tertiary);
 }

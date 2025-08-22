@@ -2988,10 +2988,14 @@ class DocumentStorage {
         const categories = this.getCategories();
         
         select.innerHTML = '<option value="">Select category...</option>';
+        console.log('Local: Populating category select with:', categories);
         categories.forEach(category => {
             const option = document.createElement('option');
             option.value = category;
             option.textContent = category;
+            // Ensure option text is visible
+            option.style.color = '#ffffff';
+            option.style.backgroundColor = 'rgba(30, 30, 30, 0.95)';
             select.appendChild(option);
         });
         
@@ -3001,6 +3005,7 @@ class DocumentStorage {
         createOption.textContent = '+ Create new category...';
         createOption.style.fontStyle = 'italic';
         createOption.style.color = '#a855f7';
+        createOption.style.backgroundColor = 'rgba(30, 30, 30, 0.95)';
         select.appendChild(createOption);
     }
 
@@ -4817,10 +4822,14 @@ class SupabaseDocumentStorage {
         }
         
         select.innerHTML = '<option value="">Select category...</option>';
+        console.log('Supabase: Populating category select with:', categories);
         categories.forEach(category => {
             const option = document.createElement('option');
             option.value = category;
             option.textContent = category;
+            // Ensure option text is visible
+            option.style.color = '#ffffff';
+            option.style.backgroundColor = 'rgba(30, 30, 30, 0.95)';
             select.appendChild(option);
         });
         
@@ -4830,6 +4839,7 @@ class SupabaseDocumentStorage {
         createOption.textContent = '+ Create new category...';
         createOption.style.fontStyle = 'italic';
         createOption.style.color = '#a855f7';
+        createOption.style.backgroundColor = 'rgba(30, 30, 30, 0.95)';
         select.appendChild(createOption);
     }
 
