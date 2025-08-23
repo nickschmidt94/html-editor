@@ -2512,12 +2512,8 @@ class DocumentStorage {
         // Migrate existing categories without space IDs
         this.migrateExistingCategories();
         
-        // Initialize default categories for current space if none exist
-        if (!this.getCategories().length) {
-            this.addCategory('Personal');
-            this.addCategory('Work');
-            this.addCategory('Learning');
-        }
+        // Note: Default categories are no longer automatically created
+        // Users can create their own categories as needed
         this.renderSidebar();
         this.setupEventListeners();
         
@@ -3003,15 +2999,26 @@ class DocumentStorage {
         const categories = this.getCategories();
         
         select.innerHTML = '<option value="">Select category...</option>';
+        
+        // Always add "Uncategorized" as an option
+        const uncategorizedOption = document.createElement('option');
+        uncategorizedOption.value = 'Uncategorized';
+        uncategorizedOption.textContent = 'Uncategorized';
+        uncategorizedOption.style.color = '#ffffff';
+        uncategorizedOption.style.backgroundColor = 'rgba(30, 30, 30, 0.95)';
+        select.appendChild(uncategorizedOption);
+        
         console.log('Local: Populating category select with:', categories);
         categories.forEach(category => {
-            const option = document.createElement('option');
-            option.value = category;
-            option.textContent = category;
-            // Ensure option text is visible
-            option.style.color = '#ffffff';
-            option.style.backgroundColor = 'rgba(30, 30, 30, 0.95)';
-            select.appendChild(option);
+            if (category !== 'Uncategorized') { // Avoid duplicates
+                const option = document.createElement('option');
+                option.value = category;
+                option.textContent = category;
+                // Ensure option text is visible
+                option.style.color = '#ffffff';
+                option.style.backgroundColor = 'rgba(30, 30, 30, 0.95)';
+                select.appendChild(option);
+            }
         });
         
         // Add "Create new category..." option
@@ -4449,22 +4456,8 @@ class SupabaseDocumentStorage {
             this.categories = data || [];
             console.log('Supabase loadCategories: Loaded categories:', this.categories);
             
-            // Ensure default categories exist (only on first load)
-            if (this.categories.length === 0 && spaceId) {
-                const defaults = ['Personal', 'Work', 'Learning'];
-                for (const defaultCat of defaults) {
-                    await this.addCategory(defaultCat);
-                }
-                // Reload categories after adding defaults
-                const { data: updatedData } = await this.supabase
-                    .from('categories')
-                    .select('*')
-                    .eq('user_id', this.currentUser.id)
-                    .eq('space_id', spaceId)
-                    .order('name');
-                this.categories = updatedData || [];
-                console.log('Supabase loadCategories: Added defaults, categories now:', this.categories);
-            }
+            // Note: Default categories are no longer automatically created
+            // Users can create their own categories as needed
             
             return this.categories.map(cat => cat.name);
         } catch (error) {
@@ -4887,18 +4880,29 @@ class SupabaseDocumentStorage {
         }
         
         select.innerHTML = '<option value="">Select category...</option>';
+        
+        // Always add "Uncategorized" as an option
+        const uncategorizedOption = document.createElement('option');
+        uncategorizedOption.value = 'Uncategorized';
+        uncategorizedOption.textContent = 'Uncategorized';
+        uncategorizedOption.style.color = '#ffffff';
+        uncategorizedOption.style.backgroundColor = 'rgba(30, 30, 30, 0.95)';
+        select.appendChild(uncategorizedOption);
+        
         console.log('Supabase: Populating category select with:', categories);
         console.log('Supabase: Categories type check:', categories.map(cat => typeof cat));
         
         // Categories should already be strings from getCategories()
         categories.forEach(category => {
-            const option = document.createElement('option');
-            option.value = category;
-            option.textContent = category;
-            // Ensure option text is visible
-            option.style.color = '#ffffff';
-            option.style.backgroundColor = 'rgba(30, 30, 30, 0.95)';
-            select.appendChild(option);
+            if (category !== 'Uncategorized') { // Avoid duplicates
+                const option = document.createElement('option');
+                option.value = category;
+                option.textContent = category;
+                // Ensure option text is visible
+                option.style.color = '#ffffff';
+                option.style.backgroundColor = 'rgba(30, 30, 30, 0.95)';
+                select.appendChild(option);
+            }
         });
         
         // Add "Create new category..." option
