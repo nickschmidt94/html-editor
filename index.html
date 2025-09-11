@@ -421,6 +421,19 @@
                             </button>
                         </div>
                     </div>
+                    <button 
+                        id="shareBtn" 
+                        onclick="showShareModal()" 
+                        title="Share for Collaboration"
+                        class="action-btn share"
+                        style="display: none;"
+                    >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <polyline points="16,6 12,2 8,6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <line x1="12" y1="2" x2="12" y2="15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                    </button>
                 </div>
             </div>
             <div id="editor-container"></div>
@@ -770,6 +783,72 @@
                         <button type="submit" class="btn primary">Update Password</button>
                     </div>
                 </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Share Document Modal -->
+    <div id="shareModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Share Document for Collaboration</h3>
+                <button class="modal-close" onclick="closeShareModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="share-options">
+                    <div class="form-group">
+                        <label for="sharePermission">Permission Level</label>
+                        <select id="sharePermission">
+                            <option value="edit">Can Edit - Allow others to edit the document</option>
+                            <option value="view">View Only - Others can only view, not edit</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="shareExpiry">Link Expiry (Optional)</label>
+                        <select id="shareExpiry">
+                            <option value="">Never expires</option>
+                            <option value="1">1 hour</option>
+                            <option value="24">24 hours</option>
+                            <option value="168">1 week</option>
+                            <option value="720">1 month</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="shareResult" class="share-result" style="display: none;">
+                    <div class="form-group">
+                        <label for="shareUrl">Share Link</label>
+                        <div class="share-url-container">
+                            <input type="text" id="shareUrl" readonly />
+                            <button type="button" class="btn-copy" onclick="copyShareUrl()" title="Copy to clipboard">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2" stroke="currentColor" stroke-width="2"/>
+                                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2 2v1" stroke="currentColor" stroke-width="2"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    <p class="share-info">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                            <path d="M12 16v-4" stroke="currentColor" stroke-width="2"/>
+                            <path d="M12 8h.01" stroke="currentColor" stroke-width="2"/>
+                        </svg>
+                        Anyone with this link can collaborate on your document. Changes are synchronized in real-time.
+                    </p>
+                </div>
+
+                <div id="existingShares" class="existing-shares" style="display: none;">
+                    <h4>Existing Shares</h4>
+                    <div id="sharesList" class="shares-list"></div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn secondary" onclick="closeShareModal()">Cancel</button>
+                    <button type="button" class="btn primary" onclick="generateShareLink()" id="generateShareBtn">Generate Share Link</button>
+                    <button type="button" class="btn secondary" onclick="loadExistingShares()" id="loadSharesBtn">View Existing Shares</button>
+                </div>
             </div>
         </div>
     </div>

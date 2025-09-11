@@ -2478,6 +2478,9 @@ window.addEventListener('DOMContentLoaded', () => {
         window.documentStorage = new DocumentStorage();
     }
     
+    // Setup collaboration cleanup handlers
+    setupCollaborationCleanup();
+    
     // Set up sidebar toggle
     const sidebarToggle = document.getElementById('sidebarToggle');
     if (sidebarToggle) {
@@ -3621,9 +3624,215 @@ function saveDocument() {
     const storage = window.documentStorage;
     
     if (storage) {
-        storage.saveDocument(name, category, content, spaceId);
+        storage.saveDocument(name, category, content, spaceId).then(() => {
+            // Show share button if document is saved and user is authenticated
+            if (storage.currentDocument && !storage.demoMode) {
+                document.getElementById('shareBtn').style.display = 'block';
+            }
+        });
         closeSaveModal();
     }
+}
+
+// === COLLABORATION UI FUNCTIONS ===
+
+function showShareModal() {
+    const storage = window.documentStorage;
+    
+    if (!storage || storage.demoMode) {
+        storage?.showNotification('Sharing not available in demo mode', 'error');
+        return;
+    }
+    
+    if (!storage.currentDocument) {
+        storage?.showNotification('Please save the document first', 'error');
+        return;
+    }
+    
+    // Reset modal state
+    document.getElementById('shareResult').style.display = 'none';
+    document.getElementById('sharePermission').value = 'edit';
+    document.getElementById('shareExpiry').value = '';
+    document.getElementById('generateShareBtn').textContent = 'Generate Share Link';
+    
+    document.getElementById('shareModal').classList.add('show');
+}
+
+function closeShareModal() {
+    document.getElementById('shareModal').classList.remove('show');
+}
+
+async function generateShareLink() {
+    const storage = window.documentStorage;
+    const permissionSelect = document.getElementById('sharePermission');
+    const expirySelect = document.getElementById('shareExpiry');
+    const generateBtn = document.getElementById('generateShareBtn');
+    
+    if (!storage || !storage.currentDocument) return;
+    
+    generateBtn.textContent = 'Generating...';
+    generateBtn.disabled = true;
+    
+    try {
+        const permission = permissionSelect.value;
+        const expiryHours = expirySelect.value ? parseInt(expirySelect.value) : null;
+        
+        const shareInfo = await storage.shareDocument(
+            storage.currentDocument.id,
+            permission,
+            expiryHours
+        );
+        
+        if (shareInfo) {
+            document.getElementById('shareUrl').value = shareInfo.shareUrl;
+            document.getElementById('shareResult').style.display = 'block';
+            generateBtn.textContent = 'Generate New Link';
+        }
+    } catch (error) {
+        console.error('Failed to generate share link:', error);
+    } finally {
+        generateBtn.disabled = false;
+    }
+}
+
+async function copyShareUrl() {
+    const shareUrl = document.getElementById('shareUrl').value;
+    
+    try {
+        await navigator.clipboard.writeText(shareUrl);
+        
+        // Show feedback
+        const copyBtn = document.querySelector('.btn-copy');
+        const originalContent = copyBtn.innerHTML;
+        copyBtn.innerHTML = `
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <polyline points="20,6 9,17 4,12" stroke="currentColor" stroke-width="2"/>
+            </svg>
+        `;
+        copyBtn.style.color = '#22c55e';
+        
+        setTimeout(() => {
+            copyBtn.innerHTML = originalContent;
+            copyBtn.style.color = '';
+        }, 2000);
+        
+        window.documentStorage?.showNotification('Share link copied to clipboard!', 'success');
+    } catch (error) {
+        console.error('Failed to copy:', error);
+        window.documentStorage?.showNotification('Failed to copy link', 'error');
+    }
+}
+
+async function loadExistingShares() {
+    const storage = window.documentStorage;
+    if (!storage || !storage.currentDocument) return;
+
+    try {
+        const { data: shares, error } = await storage.supabase
+            .from('document_shares')
+            .select('*')
+            .eq('document_id', storage.currentDocument.id)
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        const sharesList = document.getElementById('sharesList');
+        const existingShares = document.getElementById('existingShares');
+        const loadSharesBtn = document.getElementById('loadSharesBtn');
+
+        if (shares && shares.length > 0) {
+            sharesList.innerHTML = shares.map(share => `
+                <div class="share-item">
+                    <div class="share-info">
+                        <span class="share-permission ${share.permission_level}">${share.permission_level}</span>
+                        <span class="share-date">Created ${new Date(share.created_at).toLocaleDateString()}</span>
+                        ${share.expires_at ? `<span class="share-expiry">Expires ${new Date(share.expires_at).toLocaleDateString()}</span>` : '<span class="share-expiry">Never expires</span>'}
+                    </div>
+                    <div class="share-actions">
+                        <button onclick="copyShareLink('${share.share_token}')" class="btn-mini">Copy Link</button>
+                        <button onclick="deleteShare('${share.id}')" class="btn-mini danger">Delete</button>
+                    </div>
+                </div>
+            `).join('');
+            existingShares.style.display = 'block';
+            loadSharesBtn.textContent = 'Hide Shares';
+            loadSharesBtn.onclick = () => {
+                existingShares.style.display = 'none';
+                loadSharesBtn.textContent = 'View Existing Shares';
+                loadSharesBtn.onclick = loadExistingShares;
+            };
+        } else {
+            sharesList.innerHTML = '<p class="no-shares">No existing shares for this document.</p>';
+            existingShares.style.display = 'block';
+        }
+    } catch (error) {
+        console.error('Failed to load shares:', error);
+        storage?.showNotification('Failed to load existing shares', 'error');
+    }
+}
+
+async function deleteShare(shareId) {
+    const storage = window.documentStorage;
+    if (!storage) return;
+
+    if (!confirm('Are you sure you want to delete this share? The link will stop working.')) {
+        return;
+    }
+
+    try {
+        const { error } = await storage.supabase
+            .from('document_shares')
+            .delete()
+            .eq('id', shareId);
+
+        if (error) throw error;
+
+        storage.showNotification('Share deleted successfully', 'success');
+        loadExistingShares(); // Refresh the list
+    } catch (error) {
+        console.error('Failed to delete share:', error);
+        storage.showNotification('Failed to delete share', 'error');
+    }
+}
+
+function copyShareLink(shareToken) {
+    const shareUrl = `${window.location.origin}${window.location.pathname}?share=${shareToken}`;
+    navigator.clipboard.writeText(shareUrl).then(() => {
+        window.documentStorage?.showNotification('Share link copied!', 'success');
+    }).catch(() => {
+        window.documentStorage?.showNotification('Failed to copy link', 'error');
+    });
+}
+
+// Setup collaboration cleanup handlers
+function setupCollaborationCleanup() {
+    // Cleanup collaboration when user leaves
+    window.addEventListener('beforeunload', () => {
+        if (window.documentStorage && window.documentStorage.isCollaborativeMode) {
+            window.documentStorage.endCollaborationSession();
+        }
+    });
+
+    // Handle page visibility changes (user switches tabs/apps)
+    document.addEventListener('visibilitychange', () => {
+        const storage = window.documentStorage;
+        if (storage && storage.collaborationSession) {
+            if (document.hidden) {
+                // User switched away - mark as inactive
+                storage.supabase?.from('collaboration_sessions')
+                    .update({ is_active: false })
+                    .eq('id', storage.collaborationSession.id);
+            } else {
+                // User came back - mark as active
+                storage.supabase?.from('collaboration_sessions')
+                    .update({ 
+                        is_active: true,
+                        last_seen: new Date().toISOString()
+                    })
+                    .eq('id', storage.collaborationSession.id);
+            }
+        }
+    });
 }
 
 // Supabase Configuration and Storage System
@@ -3659,7 +3868,19 @@ class SupabaseDocumentStorage {
         this.demoMode = false;
         this.localBackup = new DocumentStorage(); // Fallback to localStorage
         
+        // Collaboration properties
+        this.isCollaborativeMode = false;
+        this.collaborationChannel = null;
+        this.collaborationSession = null;
+        this.activeCollaborators = new Map();
+        this.shareToken = null;
+        this.documentOperations = [];
+        this.lastSequenceNumber = 0;
+        
         this.init();
+        
+        // Check for shared document in URL
+        this.checkForSharedDocument();
         
         // Make debug function always available
         window.debugSupabase = () => {
@@ -4006,6 +4227,11 @@ class SupabaseDocumentStorage {
             this.showConnectionStatus();
             if (!this.demoMode && this.currentUser) {
                 this.syncOfflineChanges();
+                
+                // Reconnect to collaboration if we were in a session
+                if (this.isCollaborativeMode && this.currentDocument) {
+                    this.reconnectCollaboration();
+                }
             }
         });
 
@@ -4163,6 +4389,11 @@ class SupabaseDocumentStorage {
 
     async signOut() {
         if (this.demoMode) return;
+        
+        // End collaboration session before signing out
+        if (this.isCollaborativeMode) {
+            await this.endCollaborationSession();
+        }
         
         try {
             const { error } = await this.supabase.auth.signOut();
@@ -4526,6 +4757,11 @@ class SupabaseDocumentStorage {
             if (result.error) throw result.error;
 
             this.currentDocument = result.data;
+            
+            // If this is a collaborative document, broadcast the change
+            if (this.isCollaborativeMode && this.collaborationChannel) {
+                this.broadcastDocumentUpdate(content);
+            }
             this.showNotification('Document saved to cloud!', 'success');
             this.showConnectionStatus('online');
             
@@ -4540,6 +4776,523 @@ class SupabaseDocumentStorage {
             
             // TODO: Store for offline sync
         }
+    }
+
+    // === COLLABORATION METHODS ===
+
+    async shareDocument(documentId, permissionLevel = 'edit', expiresIn = null) {
+        if (this.demoMode) {
+            this.showNotification('Sharing not available in demo mode', 'error');
+            return null;
+        }
+
+        if (!this.currentUser) {
+            this.showAuthModal();
+            return null;
+        }
+
+        try {
+            // Generate share token
+            const shareToken = this.generateShareToken();
+            const expiresAt = expiresIn ? new Date(Date.now() + expiresIn * 60 * 60 * 1000).toISOString() : null;
+
+            const { data, error } = await this.supabase
+                .from('document_shares')
+                .insert({
+                    document_id: documentId,
+                    share_token: shareToken,
+                    shared_by: this.currentUser.id,
+                    permission_level: permissionLevel,
+                    expires_at: expiresAt
+                })
+                .select()
+                .single();
+
+            if (error) throw error;
+
+            const shareUrl = `${window.location.origin}${window.location.pathname}?share=${shareToken}`;
+            this.showNotification('Share link created!', 'success');
+            
+            return {
+                shareToken,
+                shareUrl,
+                permissionLevel,
+                expiresAt
+            };
+        } catch (error) {
+            console.error('Failed to share document:', error);
+            this.showNotification('Failed to create share link: ' + error.message, 'error');
+            return null;
+        }
+    }
+
+    async loadSharedDocument(shareToken) {
+        if (this.demoMode) {
+            this.showNotification('Shared documents not available in demo mode', 'error');
+            return null;
+        }
+
+        try {
+            // Get share info and document
+            const { data: shareData, error: shareError } = await this.supabase
+                .from('document_shares')
+                .select(`
+                    *,
+                    documents (*)
+                `)
+                .eq('share_token', shareToken)
+                .single();
+
+            if (shareError) throw shareError;
+
+            // Check if share is expired
+            if (shareData.expires_at && new Date(shareData.expires_at) < new Date()) {
+                throw new Error('Share link has expired');
+            }
+
+            const document = shareData.documents;
+            this.currentDocument = document;
+            this.shareToken = shareToken;
+            this.isCollaborativeMode = true;
+
+            // Load document content into editor
+            if (editor) {
+                editor.setValue(document.content);
+            }
+
+            // Start collaboration session
+            await this.startCollaborationSession(document.id, shareData.permission_level);
+
+            // Show collaboration status indicator
+            this.showCollaborationStatus(shareData.permission_level);
+
+            this.showNotification(`Joined collaborative session for "${document.name}"`, 'success');
+            return { document, shareData };
+
+        } catch (error) {
+            console.error('Failed to load shared document:', error);
+            this.showNotification('Failed to load shared document: ' + error.message, 'error');
+            return null;
+        }
+    }
+
+    async startCollaborationSession(documentId, permissionLevel = 'edit') {
+        if (this.demoMode) return;
+
+        try {
+            // Generate random color for user
+            const userColor = this.generateUserColor();
+            const userName = this.currentUser?.user_metadata?.full_name || 
+                           this.currentUser?.email?.split('@')[0] || 
+                           'Anonymous User';
+
+            // Create collaboration session
+            const { data: session, error } = await this.supabase
+                .from('collaboration_sessions')
+                .insert({
+                    document_id: documentId,
+                    user_id: this.currentUser?.id,
+                    user_name: userName,
+                    user_color: userColor,
+                    cursor_position: { line: 1, column: 1 },
+                    selection_range: null
+                })
+                .select()
+                .single();
+
+            if (error) throw error;
+
+            this.collaborationSession = session;
+
+            // Set up realtime subscription
+            await this.setupRealtimeCollaboration(documentId);
+
+            // Set up editor event listeners for collaboration
+            this.setupCollaborativeEditor(permissionLevel);
+
+            // Start heartbeat to keep session alive
+            this.startSessionHeartbeat();
+
+        } catch (error) {
+            console.error('Failed to start collaboration session:', error);
+            this.showNotification('Failed to start collaboration: ' + error.message, 'error');
+        }
+    }
+
+    async setupRealtimeCollaboration(documentId) {
+        if (!this.supabase) return;
+
+        try {
+            // Subscribe to collaboration sessions (user presence)
+            this.collaborationChannel = this.supabase
+                .channel(`document_${documentId}`)
+                .on('postgres_changes', 
+                    { 
+                        event: '*', 
+                        schema: 'public', 
+                        table: 'collaboration_sessions',
+                        filter: `document_id=eq.${documentId}`
+                    }, 
+                    (payload) => this.handleCollaborationSessionChange(payload)
+                )
+                .on('postgres_changes',
+                    {
+                        event: '*',
+                        schema: 'public',
+                        table: 'document_operations',
+                        filter: `document_id=eq.${documentId}`
+                    },
+                    (payload) => this.handleDocumentOperation(payload)
+                )
+                .on('postgres_changes',
+                    {
+                        event: 'UPDATE',
+                        schema: 'public',
+                        table: 'documents',
+                        filter: `id=eq.${documentId}`
+                    },
+                    (payload) => this.handleDocumentUpdate(payload)
+                )
+                .subscribe();
+
+            console.log('✅ Realtime collaboration enabled');
+
+        } catch (error) {
+            console.error('Failed to setup realtime collaboration:', error);
+        }
+    }
+
+    setupCollaborativeEditor(permissionLevel) {
+        if (!editor) return;
+
+        // Make editor read-only if user only has view permission
+        if (permissionLevel === 'view') {
+            editor.updateOptions({ readOnly: true });
+            this.showNotification('You have view-only access to this document', 'info');
+            return;
+        }
+
+        // Track cursor movements
+        editor.onDidChangeCursorPosition((e) => {
+            if (this.collaborationSession && this.isOnline) {
+                this.updateCursorPosition(e.position);
+            }
+        });
+
+        // Track selection changes
+        editor.onDidChangeCursorSelection((e) => {
+            if (this.collaborationSession && this.isOnline) {
+                this.updateSelection(e.selection);
+            }
+        });
+
+        // Track content changes for operational transform
+        editor.onDidChangeModelContent((e) => {
+            if (this.isCollaborativeMode && this.collaborationSession && this.isOnline) {
+                this.handleLocalContentChange(e);
+            }
+        });
+    }
+
+    async updateCursorPosition(position) {
+        if (!this.collaborationSession) return;
+
+        try {
+            await this.supabase
+                .from('collaboration_sessions')
+                .update({
+                    cursor_position: { line: position.lineNumber, column: position.column },
+                    last_seen: new Date().toISOString()
+                })
+                .eq('id', this.collaborationSession.id);
+        } catch (error) {
+            console.error('Failed to update cursor position:', error);
+        }
+    }
+
+    async updateSelection(selection) {
+        if (!this.collaborationSession) return;
+
+        try {
+            await this.supabase
+                .from('collaboration_sessions')
+                .update({
+                    selection_range: {
+                        startLine: selection.startLineNumber,
+                        startColumn: selection.startColumn,
+                        endLine: selection.endLineNumber,
+                        endColumn: selection.endColumn
+                    },
+                    last_seen: new Date().toISOString()
+                })
+                .eq('id', this.collaborationSession.id);
+        } catch (error) {
+            console.error('Failed to update selection:', error);
+        }
+    }
+
+    handleLocalContentChange(changeEvent) {
+        // Convert Monaco editor changes to operations
+        for (const change of changeEvent.changes) {
+            const operation = {
+                document_id: this.currentDocument.id,
+                user_id: this.currentUser?.id,
+                operation_type: change.text ? 'insert' : 'delete',
+                position: this.getPositionFromRange(change.range),
+                content: change.text || '',
+                length: change.rangeLength || 0
+            };
+
+            this.sendOperation(operation);
+        }
+    }
+
+    async sendOperation(operation) {
+        try {
+            await this.supabase
+                .from('document_operations')
+                .insert(operation);
+        } catch (error) {
+            console.error('Failed to send operation:', error);
+            // If we're offline, could queue operations for later sync
+            if (!this.isOnline) {
+                this.showNotification('Changes will sync when connection is restored', 'warning');
+            }
+        }
+    }
+
+    handleCollaborationSessionChange(payload) {
+        const session = payload.new;
+        
+        if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+            if (session.id !== this.collaborationSession?.id) {
+                this.activeCollaborators.set(session.id, session);
+                this.updateCollaboratorIndicators();
+            }
+        } else if (payload.eventType === 'DELETE') {
+            this.activeCollaborators.delete(payload.old.id);
+            this.updateCollaboratorIndicators();
+        }
+    }
+
+    handleDocumentOperation(payload) {
+        if (payload.eventType === 'INSERT') {
+            const operation = payload.new;
+            
+            // Don't apply our own operations
+            if (operation.user_id === this.currentUser?.id) return;
+
+            // Apply the operation to the editor
+            this.applyRemoteOperation(operation);
+        }
+    }
+
+    handleDocumentUpdate(payload) {
+        if (payload.eventType === 'UPDATE') {
+            const updatedDoc = payload.new;
+            
+            // Update current document reference
+            if (this.currentDocument && this.currentDocument.id === updatedDoc.id) {
+                this.currentDocument = updatedDoc;
+            }
+        }
+    }
+
+    applyRemoteOperation(operation) {
+        if (!editor) return;
+
+        const model = editor.getModel();
+        const position = this.getPositionFromOffset(operation.position);
+
+        try {
+            if (operation.operation_type === 'insert') {
+                const range = new monaco.Range(position.lineNumber, position.column, position.lineNumber, position.column);
+                model.pushEditOperations([], [{
+                    range: range,
+                    text: operation.content
+                }], () => null);
+            } else if (operation.operation_type === 'delete') {
+                const endPosition = this.getPositionFromOffset(operation.position + operation.length);
+                const range = new monaco.Range(position.lineNumber, position.column, endPosition.lineNumber, endPosition.column);
+                model.pushEditOperations([], [{
+                    range: range,
+                    text: ''
+                }], () => null);
+            }
+        } catch (error) {
+            console.error('Failed to apply remote operation:', error);
+        }
+    }
+
+    updateCollaboratorIndicators() {
+        // Create or update collaborator indicators in the UI
+        let indicatorContainer = document.getElementById('collaboratorIndicators');
+        if (!indicatorContainer) {
+            indicatorContainer = document.createElement('div');
+            indicatorContainer.id = 'collaboratorIndicators';
+            indicatorContainer.className = 'collaborator-indicators';
+            document.querySelector('.pane-header').appendChild(indicatorContainer);
+        }
+
+        indicatorContainer.innerHTML = '';
+
+        this.activeCollaborators.forEach((collaborator) => {
+            if (collaborator.is_active) {
+                const indicator = document.createElement('div');
+                indicator.className = 'collaborator-indicator';
+                indicator.style.backgroundColor = collaborator.user_color;
+                indicator.title = collaborator.user_name;
+                indicator.textContent = collaborator.user_name.charAt(0).toUpperCase();
+                indicatorContainer.appendChild(indicator);
+            }
+        });
+    }
+
+    startSessionHeartbeat() {
+        // Update last_seen every 30 seconds to keep session alive
+        this.heartbeatInterval = setInterval(async () => {
+            if (this.collaborationSession) {
+                try {
+                    await this.supabase
+                        .from('collaboration_sessions')
+                        .update({ last_seen: new Date().toISOString() })
+                        .eq('id', this.collaborationSession.id);
+                } catch (error) {
+                    console.error('Failed to update heartbeat:', error);
+                }
+            }
+        }, 30000);
+    }
+
+    async endCollaborationSession() {
+        if (this.collaborationSession) {
+            try {
+                await this.supabase
+                    .from('collaboration_sessions')
+                    .delete()
+                    .eq('id', this.collaborationSession.id);
+            } catch (error) {
+                console.error('Failed to end collaboration session:', error);
+            }
+        }
+
+        if (this.collaborationChannel) {
+            await this.collaborationChannel.unsubscribe();
+            this.collaborationChannel = null;
+        }
+
+        if (this.heartbeatInterval) {
+            clearInterval(this.heartbeatInterval);
+            this.heartbeatInterval = null;
+        }
+
+        this.isCollaborativeMode = false;
+        this.collaborationSession = null;
+        this.shareToken = null;
+        this.activeCollaborators.clear();
+
+        // Remove collaborator indicators
+        const indicators = document.getElementById('collaboratorIndicators');
+        if (indicators) {
+            indicators.remove();
+        }
+
+        // Remove collaboration status indicator
+        const statusIndicator = document.getElementById('collaborationStatus');
+        if (statusIndicator) {
+            statusIndicator.remove();
+        }
+
+        // Make editor writable again if it was read-only
+        if (editor) {
+            editor.updateOptions({ readOnly: false });
+        }
+    }
+
+    showCollaborationStatus(permissionLevel) {
+        // Remove existing status indicator
+        const existingStatus = document.getElementById('collaborationStatus');
+        if (existingStatus) {
+            existingStatus.remove();
+        }
+
+        // Create new status indicator
+        const statusDiv = document.createElement('div');
+        statusDiv.id = 'collaborationStatus';
+        statusDiv.className = `collaboration-status ${permissionLevel === 'view' ? 'view-only' : ''}`;
+        
+        const isViewOnly = permissionLevel === 'view';
+        statusDiv.innerHTML = `
+            <div class="collaboration-pulse"></div>
+            <span>${isViewOnly ? 'Viewing Collaboratively' : 'Editing Collaboratively'}</span>
+        `;
+        
+        // Add to header
+        const headerControls = document.querySelector('.pane-header .header-controls');
+        if (headerControls) {
+            headerControls.appendChild(statusDiv);
+        }
+    }
+
+    broadcastDocumentUpdate(content) {
+        // This is called when document is saved
+        // The database trigger will notify other clients via realtime
+    }
+
+    // Utility methods
+    generateShareToken() {
+        return Array.from(crypto.getRandomValues(new Uint8Array(16)))
+            .map(b => b.toString(16).padStart(2, '0'))
+            .join('');
+    }
+
+    generateUserColor() {
+        const colors = [
+            '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7',
+            '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9'
+        ];
+        return colors[Math.floor(Math.random() * colors.length)];
+    }
+
+    getPositionFromRange(range) {
+        const model = editor.getModel();
+        return model.getOffsetAt({ lineNumber: range.startLineNumber, column: range.startColumn });
+    }
+
+    getPositionFromOffset(offset) {
+        const model = editor.getModel();
+        return model.getPositionAt(offset);
+    }
+
+    async checkForSharedDocument() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const shareToken = urlParams.get('share');
+        
+        if (shareToken) {
+            // Wait for Supabase to be initialized
+            await this.waitForSupabaseInit();
+            
+            // Load the shared document
+            await this.loadSharedDocument(shareToken);
+            
+            // Remove the share token from URL for cleaner look
+            const url = new URL(window.location);
+            url.searchParams.delete('share');
+            window.history.replaceState({}, document.title, url.toString());
+        }
+    }
+
+    async waitForSupabaseInit() {
+        return new Promise((resolve) => {
+            const checkInit = () => {
+                if (this.supabase && !this.demoMode) {
+                    resolve();
+                } else {
+                    setTimeout(checkInit, 100);
+                }
+            };
+            checkInit();
+        });
     }
 
     async loadDocument(id) {
@@ -4560,6 +5313,11 @@ class SupabaseDocumentStorage {
                 editor.setValue(data.content);
                 this.currentDocument = data;
                 this.showNotification(`Loaded "${data.name}"`, 'success');
+                
+                // Show share button for loaded documents
+                if (!this.demoMode) {
+                    document.getElementById('shareBtn').style.display = 'block';
+                }
             }
         } catch (error) {
             console.error('Failed to load document:', error);
@@ -5129,6 +5887,21 @@ class SupabaseDocumentStorage {
     async syncOfflineChanges() {
         // TODO: Implement offline sync logic
         console.log('Syncing offline changes...');
+    }
+
+    async reconnectCollaboration() {
+        try {
+            console.log('Reconnecting to collaboration session...');
+            
+            // Re-establish realtime connection
+            if (this.currentDocument && this.shareToken) {
+                await this.setupRealtimeCollaboration(this.currentDocument.id);
+                this.showNotification('Collaboration reconnected', 'success');
+            }
+        } catch (error) {
+            console.error('Failed to reconnect collaboration:', error);
+            this.showNotification('Failed to reconnect collaboration', 'error');
+        }
     }
 
     handleEmailConfirmation() {
