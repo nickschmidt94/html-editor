@@ -2468,14 +2468,57 @@ function useDemoMode() {
     }
 }
 
-// Initialize storage systems when page loads
-window.addEventListener('DOMContentLoaded', () => {
-    // Try to initialize Supabase storage first, falls back to local storage
+// Enhanced storage initialization with proper fallback handling
+window.addEventListener('DOMContentLoaded', async () => {
+    console.log('🚀 Initializing document storage system...');
+    
     try {
-        window.documentStorage = new SupabaseDocumentStorage();
+        // Always try Supabase storage first
+        const supabaseStorage = new SupabaseDocumentStorage();
+        
+        // Wait for initialization to complete or fail
+        await supabaseStorage.init();
+        
+        // If we get here, Supabase initialized successfully
+        window.documentStorage = supabaseStorage;
+        console.log('✅ SupabaseDocumentStorage initialized successfully');
+        
     } catch (error) {
-        console.warn('Failed to initialize Supabase storage, using local storage:', error);
-        window.documentStorage = new DocumentStorage();
+        console.warn('❌ SupabaseDocumentStorage failed to initialize:', error.message);
+        console.log('🔄 Falling back to local storage...');
+        
+        try {
+            // Fall back to local storage
+            const localStorage = new DocumentStorage();
+            window.documentStorage = localStorage;
+            console.log('✅ Local DocumentStorage initialized as fallback');
+            
+            // Show user notification about fallback mode
+            setTimeout(() => {
+                if (window.documentStorage && typeof window.documentStorage.showNotification === 'function') {
+                    window.documentStorage.showNotification(
+                        'Working in offline mode. Sign in to sync your documents to the cloud.',
+                        'info'
+                    );
+                }
+            }, 2000);
+            
+        } catch (localError) {
+            console.error('❌ Failed to initialize any storage system:', localError);
+            
+            // Create minimal fallback
+            window.documentStorage = {
+                demoMode: true,
+                showNotification: (message, type) => {
+                    console.log(`${type.toUpperCase()}: ${message}`);
+                    alert(message);
+                },
+                renderSidebar: () => console.log('Sidebar render skipped - no storage'),
+                saveDocument: () => {
+                    alert('Storage system failed to initialize. Please refresh the page.');
+                }
+            };
+        }
     }
     
     // Setup collaboration cleanup handlers
@@ -2486,9 +2529,11 @@ window.addEventListener('DOMContentLoaded', () => {
     if (sidebarToggle) {
         sidebarToggle.addEventListener('click', toggleSidebar);
     }
+    
+    console.log('✅ Document storage system initialization complete');
 }); 
 
-// Document Storage System with Spaces Support
+// Document Storage System with Spaces Support (Local Storage Implementation)
 class DocumentStorage {
     constructor() {
         this.storageKey = 'html-editor-documents';
@@ -2497,10 +2542,44 @@ class DocumentStorage {
         this.currentSpaceKey = 'html-editor-current-space';
         this.currentDocument = null;
         this.currentSpace = null;
+        this.currentUser = null; // For interface compatibility
+        this.demoMode = true; // Local storage is always demo mode
+        this.isOnline = navigator.onLine;
+        
+        // Initialize immediately for local storage
         this.init();
     }
+    
+    // Interface compatibility methods
+    async init() {
+        return this.initSync();
+    }
+    
+    showNotification(message, type = 'info') {
+        console.log(`${type.toUpperCase()}: ${message}`);
+        
+        // Try to show notification if notification system is available
+        if (typeof window.showNotification === 'function') {
+            window.showNotification(message, type);
+        } else {
+            // Fallback to simple alert for critical messages
+            if (type === 'error') {
+                alert(`Error: ${message}`);
+            }
+        }
+    }
+    
+    showConnectionStatus(status) {
+        // Local storage doesn't need connection status
+        console.log(`Connection status: ${status} (local storage)`);
+    }
+    
+    updateAuthUI() {
+        // Local storage doesn't have auth UI
+        console.log('Auth UI update skipped (local storage)');
+    }
 
-    init() {
+    initSync() {
         // Initialize default space if none exist
         if (!this.getSpaces().length) {
             this.addSpace('Personal Workspace', 'Your main workspace for personal projects', true);
@@ -3877,10 +3956,11 @@ class SupabaseDocumentStorage {
         this.documentOperations = [];
         this.lastSequenceNumber = 0;
         
-        this.init();
+        // Note: init() is called explicitly by the initialization system
+        // Do not call init() automatically to avoid race conditions
         
-        // Check for shared document in URL
-        this.checkForSharedDocument();
+        // Check for shared document in URL will be called after init
+        this.shouldCheckSharedDocument = true;
         
         // Make debug function always available
         window.debugSupabase = () => {
@@ -3953,155 +4033,464 @@ class SupabaseDocumentStorage {
     }
 
     async init() {
-        // Wait a moment for config.js to load if it hasn't yet
-        if (!window.SUPABASE_CONFIG_LOADED) {
-            console.log('⏳ Waiting for config.js to load...');
-            await new Promise(resolve => setTimeout(resolve, 100));
-            
-            // Re-check credentials after waiting
-            try {
-                this.supabaseUrl = window.SUPABASE_URL || (typeof process !== 'undefined' && process?.env?.SUPABASE_URL) || 'YOUR_SUPABASE_URL';
-                this.supabaseKey = window.SUPABASE_ANON_KEY || (typeof process !== 'undefined' && process?.env?.SUPABASE_ANON_KEY) || 'YOUR_SUPABASE_ANON_KEY';
-            } catch (error) {
-                // Handle browser environment where process is not defined
-                this.supabaseUrl = window.SUPABASE_URL || 'YOUR_SUPABASE_URL';
-                this.supabaseKey = window.SUPABASE_ANON_KEY || 'YOUR_SUPABASE_ANON_KEY';
-            }
-            
-            // Minimal recheck logging
-        }
+        console.log('🚀 Initializing SupabaseDocumentStorage...');
         
-        // Check if Supabase credentials are configured
-        if (this.supabaseUrl === 'YOUR_SUPABASE_URL' || this.supabaseKey === 'YOUR_SUPABASE_ANON_KEY') {
-            console.error('❌ Supabase credentials not loaded properly!');
-            console.error('URL check:', this.supabaseUrl, '===', 'YOUR_SUPABASE_URL', '?', this.supabaseUrl === 'YOUR_SUPABASE_URL');
-            console.error('Key check:', this.supabaseKey, '===', 'YOUR_SUPABASE_ANON_KEY', '?', this.supabaseKey === 'YOUR_SUPABASE_ANON_KEY');
-            console.error('Window.SUPABASE_URL:', window.SUPABASE_URL);
-            console.error('Window.SUPABASE_ANON_KEY length:', window.SUPABASE_ANON_KEY?.length);
-            console.warn('Supabase not configured, falling back to demo mode');
-            this.useDemoMode();
-            return;
-        }
-
-        // Wait for Supabase to be available - retry for up to 10 seconds
-        let supabaseLib = null;
-        let attempts = 0;
-        const maxAttempts = 20; // 10 seconds with 500ms intervals
-        
-        while (!supabaseLib && attempts < maxAttempts) {
-            attempts++;
-            
-            if (window.supabaseLoaded && window.supabase && typeof window.supabase.createClient === 'function') {
-                supabaseLib = window.supabase;
-                console.log('✅ Found Supabase at window.supabase');
-                break;
-            } else if (typeof window.createClient === 'function') {
-                supabaseLib = { createClient: window.createClient };
-                console.log('✅ Found Supabase createClient at window.createClient');
-                break;
-            }
-            
-            if (attempts < maxAttempts) {
-                console.log(`⏳ Waiting for Supabase to load... attempt ${attempts}/${maxAttempts}`);
-                await new Promise(resolve => setTimeout(resolve, 500));
-            }
-        }
-
-        if (!supabaseLib) {
-            console.warn('⚠️ Supabase library failed to load after waiting, falling back to demo mode');
-            this.useDemoMode();
-            this.setupEventListeners();
-            return;
-        }
-
         try {
-            // Initialize Supabase client
-            console.log('🚀 Creating Supabase client...');
-            this.supabase = supabaseLib.createClient(this.supabaseUrl, this.supabaseKey);
-            console.log('✅ Supabase client created successfully');
+            // Wait for both config and Supabase library to be ready
+            await this.waitForDependencies();
             
-            // Test the connection with a simple call
-            const { data, error } = await this.supabase.auth.getSession();
-            if (error) {
-                throw error;
-            }
+            // Validate configuration
+            this.validateConfiguration();
             
-            // If we have a session, set up the user
-            if (data.session) {
-                this.currentUser = data.session.user;
-                console.log('✅ Found existing session for:', this.currentUser.email);
-                this.updateAuthUI();
-                await this.loadUserData();
-            } else {
-                console.log('ℹ️ No existing session found');
-                this.updateAuthUI();
-                // Ensure demo mode UI is properly initialized
-                this.useDemoMode(false);
-            }
-
-            // Listen to auth changes
-            this.supabase.auth.onAuthStateChange((event, session) => {
-                console.log('🔑 Auth state changed:', event, session?.user?.email);
-                this.currentUser = session?.user || null;
-                
-                // IMPORTANT: Clear demo mode when user successfully signs in
-                if (event === 'SIGNED_IN' && this.currentUser) {
-                    this.demoMode = false;
-                    console.log('✅ User signed in, disabled demo mode');
-                    
-                    // Clear any pending signup info since user is now confirmed and signed in
-                    localStorage.removeItem('pendingSignupEmail');
-                    
-                    // Check if this was from email confirmation
-                    const isFromEmailConfirmation = window.location.hash.includes('access_token') || window.location.hash.includes('type=signup');
-                    if (isFromEmailConfirmation) {
-                        this.showNotification('Email confirmed successfully! Welcome to your account.', 'success');
-                        // Clean up URL if needed
-                        if (window.location.hash) {
-                            window.history.replaceState(null, null, window.location.pathname);
-                        }
-                    }
-                }
-                
-                this.updateAuthUI();
-                
-                if (event === 'SIGNED_IN') {
-                    this.loadUserData();
-                } else if (event === 'SIGNED_OUT') {
-                    this.renderSidebar();
-                }
-            });
-
+            // Create Supabase client
+            await this.createSupabaseClient();
+            
+            // Initialize authentication
+            await this.initializeAuthentication();
+            
             // Setup real-time subscriptions
             this.setupRealtimeSync();
             
-            console.log('🎉 Supabase initialized successfully!');
+            console.log('✅ SupabaseDocumentStorage initialized successfully');
+            
+            // Check for shared document in URL after successful initialization
+            if (this.shouldCheckSharedDocument) {
+                this.checkForSharedDocument();
+                this.shouldCheckSharedDocument = false;
+            }
             
         } catch (error) {
-            console.error('❌ Failed to initialize Supabase:', error);
+            console.error('❌ Failed to initialize SupabaseDocumentStorage:', error);
             console.error('Error details:', error.message);
-            console.error('Error stack:', error.stack);
             
-            // Additional debugging
-            console.error('🔍 Debug info at error:');
-            console.error('window.supabaseLoaded:', window.supabaseLoaded);
-            console.error('window.supabase exists:', !!window.supabase);
-            console.error('supabaseLib found:', !!supabaseLib);
-            console.error('this.supabaseUrl:', this.supabaseUrl);
-            console.error('this.supabaseKey length:', this.supabaseKey?.length);
+            // Log detailed debug information
+            this.logDebugInfo(error);
             
-            this.useDemoMode();
+            // Fall back to demo mode
+            this.useDemoMode(true);
         }
 
+        // Always set up these regardless of success/failure
         this.setupEventListeners();
         this.setupConnectionMonitoring();
         this.showConnectionStatus();
+    }
+    
+    async waitForDependencies() {
+        console.log('⏳ Waiting for dependencies...');
+        
+        // Wait for configuration with timeout
+        try {
+            await window.waitForSupabaseConfig(10000);
+            console.log('✅ Configuration ready');
+        } catch (configError) {
+            throw new Error(`Configuration loading failed: ${configError.message}`);
+        }
+        
+        // Wait for Supabase library with timeout
+        try {
+            await window.waitForSupabase(15000);
+            console.log('✅ Supabase library ready');
+        } catch (supabaseError) {
+            throw new Error(`Supabase library loading failed: ${supabaseError.message}`);
+        }
+    }
+    
+    validateConfiguration() {
+        console.log('🔍 Validating configuration...');
+        
+        // Update credentials from global config
+        this.supabaseUrl = window.SUPABASE_URL;
+        this.supabaseKey = window.SUPABASE_ANON_KEY;
+        
+        const errors = [];
+        
+        if (!this.supabaseUrl || typeof this.supabaseUrl !== 'string') {
+            errors.push('Missing or invalid Supabase URL');
+        } else if (this.supabaseUrl === 'YOUR_SUPABASE_URL') {
+            errors.push('Supabase URL not configured (still using placeholder)');
+        } else if (!this.supabaseUrl.startsWith('https://') || !this.supabaseUrl.includes('.supabase.co')) {
+            errors.push('Invalid Supabase URL format');
+        }
+        
+        if (!this.supabaseKey || typeof this.supabaseKey !== 'string') {
+            errors.push('Missing or invalid Supabase key');
+        } else if (this.supabaseKey === 'YOUR_SUPABASE_ANON_KEY') {
+            errors.push('Supabase key not configured (still using placeholder)');
+        } else if (!this.supabaseKey.includes('.') || this.supabaseKey.split('.').length !== 3) {
+            errors.push('Invalid Supabase key format (must be JWT)');
+        } else if (this.supabaseKey.length < 100) {
+            errors.push('Supabase key appears too short');
+        }
+        
+        if (errors.length > 0) {
+            throw new Error('Configuration validation failed: ' + errors.join(', '));
+        }
+        
+        console.log('✅ Configuration validated successfully');
+    }
+    
+    async createSupabaseClient() {
+        console.log('🔧 Creating Supabase client...');
+        
+        // Get the Supabase library
+        let supabaseLib = window.supabase;
+        if (!supabaseLib && window.createClient) {
+            supabaseLib = { createClient: window.createClient };
+        }
+        
+        if (!supabaseLib || typeof supabaseLib.createClient !== 'function') {
+            throw new Error('Supabase createClient function not available');
+        }
+        
+        // Create client with enhanced configuration
+        this.supabase = supabaseLib.createClient(this.supabaseUrl, this.supabaseKey, {
+            auth: {
+                autoRefreshToken: true,
+                persistSession: true,
+                detectSessionInUrl: true,
+                flowType: 'pkce'
+            },
+            realtime: {
+                params: {
+                    eventsPerSecond: 10
+                }
+            },
+            db: {
+                schema: 'public'
+            },
+            global: {
+                headers: {
+                    'X-Client-Info': 'html-editor@1.0.0'
+                }
+            }
+        });
+        
+        if (!this.supabase) {
+            throw new Error('Failed to create Supabase client');
+        }
+        
+        // Test connection with a simple query
+        try {
+            const { error } = await this.supabase.from('spaces').select('count', { count: 'exact', head: true });
+            if (error && error.code !== 'PGRST116') { // PGRST116 is "table not found" which is acceptable
+                throw error;
+            }
+            console.log('✅ Supabase connection test successful');
+        } catch (connectionError) {
+            console.warn('⚠️ Supabase connection test failed:', connectionError.message);
+            // Don't throw here - the table might not exist yet, which is okay
+        }
+        
+        console.log('✅ Supabase client created successfully');
+    }
+    
+    async initializeAuthentication() {
+        console.log('🔐 Initializing authentication...');
+        
+        try {
+            // Check current session
+            const { data: { session }, error: sessionError } = await this.supabase.auth.getSession();
+            
+            if (sessionError) {
+                console.warn('⚠️ Session check failed:', sessionError.message);
+                // Don't throw - this is not critical
+            } else if (session?.user) {
+                console.log('✅ User session found:', session.user.email);
+                this.currentUser = session.user;
+                
+                // Load user data in background
+                this.loadUserData().catch(error => {
+                    console.warn('⚠️ Failed to load user data:', error.message);
+                });
+            } else {
+                console.log('ℹ️ No active user session');
+                // Don't automatically set demo mode - let the system determine the correct state
+                this.updateAuthUI();
+            }
+            
+            // Set up auth state listener
+            this.supabase.auth.onAuthStateChange(async (event, session) => {
+                console.log('🔐 Auth state changed:', event);
+                
+                try {
+                    if (event === 'SIGNED_IN' && session?.user) {
+                        this.currentUser = session.user;
+                        this.demoMode = false; // Clear demo mode
+                        
+                        // Clear any pending signup info
+                        localStorage.removeItem('pendingSignupEmail');
+                        
+                        // Check if this was from email confirmation
+                        const isFromEmailConfirmation = window.location.hash.includes('access_token') || window.location.hash.includes('type=signup');
+                        if (isFromEmailConfirmation) {
+                            this.showNotification('Email confirmed successfully! Welcome to your account.', 'success');
+                            // Clean up URL
+                            if (window.location.hash) {
+                                window.history.replaceState(null, null, window.location.pathname);
+                            }
+                        } else {
+                            this.showNotification('Signed in successfully!', 'success');
+                        }
+                        
+                        await this.loadUserData();
+                        this.updateAuthUI();
+                        
+                    } else if (event === 'SIGNED_OUT') {
+                        // Clean up collaboration before clearing data
+                        if (this.isCollaborativeMode) {
+                            await this.endCollaborationSession().catch(console.error);
+                        }
+                        
+                        this.currentUser = null;
+                        this.currentSpace = null;
+                        this.spaces = [];
+                        this.updateAuthUI();
+                        this.renderSidebar();
+                        this.showNotification('Signed out successfully', 'info');
+                        
+                    } else if (event === 'TOKEN_REFRESHED') {
+                        console.log('🔄 Token refreshed successfully');
+                    }
+                } catch (error) {
+                    console.error('❌ Error handling auth state change:', error);
+                    this.showNotification('Authentication error occurred', 'error');
+                }
+            });
+            
+            console.log('✅ Authentication initialized successfully');
+            
+        } catch (error) {
+            console.error('❌ Failed to initialize authentication:', error);
+            throw new Error(`Authentication initialization failed: ${error.message}`);
+        }
+    }
+    
+    logDebugInfo(error) {
+        console.group('🔍 Debug Information');
+        console.log('Error:', error.message);
+        console.log('Stack:', error.stack);
+        console.log('Config state:', window.SUPABASE_CONFIG_STATE);
+        console.log('Loading state:', window.SUPABASE_LOADING_STATE);
+        console.log('window.supabaseLoaded:', window.supabaseLoaded);
+        console.log('window.supabase exists:', !!window.supabase);
+        console.log('window.createClient exists:', !!window.createClient);
+        console.log('this.supabaseUrl:', this.supabaseUrl);
+        console.log('this.supabaseKey length:', this.supabaseKey?.length);
+        console.log('Navigator online:', navigator.onLine);
+        console.groupEnd();
+    }
+    
+    // Enhanced error handling utilities
+    handleDatabaseError(error, operation, context = {}) {
+        console.error(`❌ Database error during ${operation}:`, error);
+        
+        // Enhanced error classification
+        const errorInfo = this.classifyError(error);
+        
+        // Log context for debugging
+        if (Object.keys(context).length > 0) {
+            console.error('Operation context:', context);
+        }
+        
+        // Show user-friendly message
+        this.showUserFriendlyError(errorInfo, operation);
+        
+        // Return structured error info for handling
+        return {
+            ...errorInfo,
+            operation,
+            context,
+            timestamp: new Date().toISOString()
+        };
+    }
+    
+    classifyError(error) {
+        const errorCode = error?.code;
+        const errorMessage = error?.message?.toLowerCase() || '';
+        
+        // Network/Connection errors
+        if (!navigator.onLine) {
+            return {
+                type: 'network',
+                category: 'offline',
+                message: 'You appear to be offline. Changes will be saved locally and synced when connection is restored.',
+                severity: 'warning',
+                recoverable: true,
+                retryable: true
+            };
+        }
+        
+        if (errorMessage.includes('fetch') || errorMessage.includes('network') || errorCode === 'NETWORK_ERROR') {
+            return {
+                type: 'network',
+                category: 'connection',
+                message: 'Connection error. Please check your internet connection and try again.',
+                severity: 'error',
+                recoverable: true,
+                retryable: true
+            };
+        }
+        
+        // Authentication errors
+        if (errorCode === 'INVALID_CREDENTIALS' || errorMessage.includes('invalid credentials')) {
+            return {
+                type: 'auth',
+                category: 'credentials',
+                message: 'Invalid email or password. Please check your credentials and try again.',
+                severity: 'error',
+                recoverable: true,
+                retryable: false
+            };
+        }
+        
+        if (errorCode === 'EMAIL_NOT_CONFIRMED' || errorMessage.includes('email not confirmed')) {
+            return {
+                type: 'auth',
+                category: 'confirmation',
+                message: 'Please check your email and click the confirmation link before signing in.',
+                severity: 'warning',
+                recoverable: true,
+                retryable: false
+            };
+        }
+        
+        if (errorCode === 'TOO_MANY_REQUESTS' || errorMessage.includes('too many requests')) {
+            return {
+                type: 'auth',
+                category: 'rate_limit',
+                message: 'Too many attempts. Please wait a few minutes before trying again.',
+                severity: 'warning',
+                recoverable: true,
+                retryable: true
+            };
+        }
+        
+        // Database/Permission errors
+        if (errorCode === 'PGRST301' || errorMessage.includes('permission denied')) {
+            return {
+                type: 'database',
+                category: 'permission',
+                message: 'Permission denied. Please sign in to access your data.',
+                severity: 'error',
+                recoverable: true,
+                retryable: false
+            };
+        }
+        
+        if (errorCode === 'PGRST116' || errorMessage.includes('relation') && errorMessage.includes('does not exist')) {
+            return {
+                type: 'database',
+                category: 'schema',
+                message: 'Database schema issue detected. Please contact support.',
+                severity: 'error',
+                recoverable: false,
+                retryable: false
+            };
+        }
+        
+        if (errorMessage.includes('duplicate key') || errorCode === '23505') {
+            return {
+                type: 'database',
+                category: 'conflict',
+                message: 'A document with this name already exists in this category.',
+                severity: 'warning',
+                recoverable: true,
+                retryable: false
+            };
+        }
+        
+        // Validation errors
+        if (errorMessage.includes('violates check constraint') || errorMessage.includes('invalid input')) {
+            return {
+                type: 'validation',
+                category: 'input',
+                message: 'Invalid input data. Please check your entries and try again.',
+                severity: 'warning',
+                recoverable: true,
+                retryable: false
+            };
+        }
+        
+        // Generic/Unknown errors
+        return {
+            type: 'unknown',
+            category: 'generic',
+            message: 'An unexpected error occurred. Please try again or contact support if the problem persists.',
+            severity: 'error',
+            recoverable: true,
+            retryable: true
+        };
+    }
+    
+    showUserFriendlyError(errorInfo, operation) {
+        const { message, severity, type, category } = errorInfo;
+        
+        // Map severity to notification type
+        const notificationType = severity === 'warning' ? 'warning' : 'error';
+        
+        // Show notification with appropriate styling
+        this.showNotification(message, notificationType);
+        
+        // For critical errors, also show more detailed guidance
+        if (severity === 'error' && !errorInfo.recoverable) {
+            setTimeout(() => {
+                this.showNotification(
+                    'If this problem continues, please refresh the page or contact support.',
+                    'info'
+                );
+            }, 3000);
+        }
+        
+        // For network errors, suggest offline mode
+        if (type === 'network' && category === 'offline') {
+            setTimeout(() => {
+                this.showNotification(
+                    'Working in offline mode. Your changes are saved locally.',
+                    'info'
+                );
+            }, 2000);
+        }
+    }
+    
+    async withErrorHandling(operation, operationName, context = {}) {
+        try {
+            this.showConnectionStatus('syncing');
+            const result = await operation();
+            this.showConnectionStatus('online');
+            return result;
+        } catch (error) {
+            this.showConnectionStatus('error');
+            const errorInfo = this.handleDatabaseError(error, operationName, context);
+            
+            // For retryable errors, attempt retry after delay
+            if (errorInfo.retryable && !context.isRetry) {
+                console.log(`🔄 Retrying ${operationName} after error...`);
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                
+                try {
+                    return await this.withErrorHandling(
+                        operation, 
+                        operationName, 
+                        { ...context, isRetry: true }
+                    );
+                } catch (retryError) {
+                    console.error(`❌ Retry failed for ${operationName}:`, retryError);
+                    // Don't show another error message for retry failure
+                }
+            }
+            
+            throw error;
+        }
     }
 
     useDemoMode(showNotification = false) {
         console.log('⚠️ Switching to demo mode, showNotification:', showNotification);
         console.log('💡 TIP: If this was unexpected, try refreshing the page or check browser console for errors');
         this.demoMode = true;
+        
+        // Update UI to reflect demo mode but still allow sign in attempts
+        this.updateAuthUI();
         this.localBackup.init();
         this.updateAuthUI();
         // Ensure categories are rendered when switching to demo mode
@@ -4562,25 +4951,46 @@ class SupabaseDocumentStorage {
         
         console.log('📂 Loading user data for:', this.currentUser.email, 'ID:', this.currentUser.id);
         
-        try {
-            // Load spaces, documents and categories
-            await Promise.all([
-                this.loadSpaces(),
+        return await this.withErrorHandling(async () => {
+            // Load spaces first - this is critical for everything else
+            const spaces = await this.loadSpaces();
+            console.log(`✅ Loaded ${spaces.length} spaces`);
+            
+            // Ensure we have a current space
+            if (!this.currentSpace && spaces.length > 0) {
+                // Try to find default space first
+                const defaultSpace = spaces.find(s => s.is_default) || spaces[0];
+                this.currentSpace = defaultSpace;
+                console.log(`🏠 Set current space to: ${defaultSpace.name}`);
+                this.refreshSpaceDependentUI();
+            }
+            
+            // If no spaces exist, create a default one
+            if (spaces.length === 0) {
+                console.log('🏗️ No spaces found, creating default space...');
+                try {
+                    const defaultSpace = await this.addSpace('Personal Workspace', 'Your default workspace', true);
+                    if (defaultSpace) {
+                        this.currentSpace = defaultSpace;
+                        console.log('✅ Default space created and set as current');
+                    }
+                } catch (spaceError) {
+                    console.warn('⚠️ Failed to create default space:', spaceError.message);
+                    // Continue without a space - user can create one manually
+                }
+            }
+            
+            // Load documents and categories in parallel
+            const [documents, categories] = await Promise.all([
                 this.loadDocuments(),
                 this.loadCategories()
             ]);
             
+            console.log(`✅ Loaded ${documents.length} documents and ${categories.length} categories`);
+            
             // Debug: Check what we loaded
-            const { data: allDocs } = await this.supabase
-                .from('documents')
-                .select('id, name, created_at, user_id')
-                .eq('user_id', this.currentUser.id);
-                
-            console.log('📊 Total documents found for this user:', allDocs?.length || 0);
-            if (allDocs && allDocs.length > 0) {
-                console.log('📋 Your documents:', allDocs.map(d => d.name));
-            } else {
-                console.log('🔍 No documents found. Checking if there are documents with different user_id...');
+            if (documents.length === 0) {
+                console.log('🔍 No documents found. Checking database state...');
                 
                 // Check if there are any documents in the database at all
                 const { data: anyDocs } = await this.supabase
@@ -4593,17 +5003,20 @@ class SupabaseDocumentStorage {
                     console.log('🔍 Other user_ids in database:', [...new Set(anyDocs.map(d => d.user_id))]);
                     console.log('🆔 Your current user_id:', this.currentUser.id);
                 }
+            } else {
+                console.log('📋 Your documents:', documents.map(d => d.name));
             }
             
-            // Ensure UI is updated with loaded data
+            // Update UI
             this.renderSidebar();
             this.populateCategorySelect();
             
             console.log('✅ User data loaded successfully');
-        } catch (error) {
-            console.error('Failed to load user data:', error);
-            this.showNotification('Failed to load documents', 'error');
-        }
+            
+        }, 'loadUserData', {
+            userId: this.currentUser?.id,
+            userEmail: this.currentUser?.email
+        });
     }
 
     async loadDocuments() {
@@ -4709,16 +5122,28 @@ class SupabaseDocumentStorage {
 
         const targetSpaceId = spaceId || this.currentSpace?.id;
         if (!targetSpaceId) {
-            this.showNotification('No space selected', 'error');
+            this.showNotification('No space selected. Please create or select a space first.', 'warning');
             return;
         }
 
-        try {
-            this.showConnectionStatus('syncing');
-            
+        // Validate input data
+        if (!name || typeof name !== 'string' || name.trim().length === 0) {
+            this.showNotification('Document name is required', 'warning');
+            return;
+        }
+
+        if (!content || typeof content !== 'string') {
+            this.showNotification('Document content cannot be empty', 'warning');
+            return;
+        }
+
+        const trimmedName = name.trim();
+        const trimmedCategory = (category || 'Uncategorized').trim();
+
+        return await this.withErrorHandling(async () => {
             const documentData = {
-                name,
-                category: category || 'Uncategorized',
+                name: trimmedName,
+                category: trimmedCategory,
                 content,
                 user_id: this.currentUser.id,
                 space_id: targetSpaceId,
@@ -4726,14 +5151,16 @@ class SupabaseDocumentStorage {
             };
 
             // Check if document exists in the same space
-            const { data: existing } = await this.supabase
+            const { data: existing, error: searchError } = await this.supabase
                 .from('documents')
-                .select('id')
+                .select('id, updated_at')
                 .eq('user_id', this.currentUser.id)
                 .eq('space_id', targetSpaceId)
-                .eq('name', name)
-                .eq('category', category || 'Uncategorized')
-                .single();
+                .eq('name', trimmedName)
+                .eq('category', trimmedCategory)
+                .maybeSingle(); // Use maybeSingle to avoid error when no match found
+
+            if (searchError) throw searchError;
 
             let result;
             if (existing) {
@@ -4762,20 +5189,29 @@ class SupabaseDocumentStorage {
             if (this.isCollaborativeMode && this.collaborationChannel) {
                 this.broadcastDocumentUpdate(content);
             }
-            this.showNotification('Document saved to cloud!', 'success');
-            this.showConnectionStatus('online');
+            
+            const action = existing ? 'updated' : 'created';
+            this.showNotification(`Document ${action} successfully!`, 'success');
+            
+            // Show share button if document is saved and user is authenticated
+            if (this.currentDocument && !this.demoMode) {
+                const shareBtn = document.getElementById('shareBtn');
+                if (shareBtn) {
+                    shareBtn.style.display = 'block';
+                }
+            }
             
             // Refresh documents list
             await this.loadDocuments();
             this.renderSidebar();
             
-        } catch (error) {
-            console.error('Failed to save document:', error);
-            this.showNotification('Failed to save document', 'error');
-            this.showConnectionStatus('offline');
-            
-            // TODO: Store for offline sync
-        }
+            return result.data;
+        }, 'saveDocument', {
+            name: trimmedName,
+            category: trimmedCategory,
+            spaceId: targetSpaceId,
+            isUpdate: !!existing
+        });
     }
 
     // === COLLABORATION METHODS ===
@@ -5494,51 +5930,71 @@ class SupabaseDocumentStorage {
         const userMenuName = document.getElementById('userMenuName');
         const userMenuEmail = document.getElementById('userMenuEmail');
         
-        // If user is signed in, ALWAYS show their profile (regardless of demo mode)
+        console.log('🎯 Updating auth UI - User:', !!this.currentUser, 'Demo mode:', this.demoMode, 'Supabase:', !!this.supabase);
+        
         if (this.currentUser) {
-            // User signed in - show profile
+            // User is signed in - show profile
             authBtn.style.display = 'none';
             userProfile.style.display = 'flex';
             
             // Use the full name if available, otherwise extract username from email
-            const displayName = this.currentUser.user_metadata?.full_name || this.currentUser.email.split('@')[0];
+            const displayName = this.currentUser.user_metadata?.full_name || 
+                               this.currentUser.full_name || 
+                               this.currentUser.email.split('@')[0];
             if (userMenuName) userMenuName.textContent = displayName;
             if (userMenuEmail) userMenuEmail.textContent = this.currentUser.email;
-            console.log('🎯 UI updated for signed-in user:', this.currentUser.email);
+            console.log('✅ UI updated for signed-in user:', this.currentUser.email);
             
-            // If we have a real user but demo mode is still on, fix it
+            // Clear demo mode if user is actually signed in
             if (this.demoMode && this.supabase) {
-                console.log('🔧 User is signed in but demo mode is active - fixing...');
+                console.log('🔧 User is signed in but demo mode is active - clearing demo mode...');
                 this.demoMode = false;
             }
-        } else if (this.demoMode) {
-            // Demo mode
-            authBtn.style.display = 'block';
-            userProfile.style.display = 'none';
-            authBtn.textContent = 'Demo Mode';
-            authBtn.className = 'auth-btn demo';
-            authBtn.onclick = () => {
-                // Try to reconnect to Supabase first
-                console.log('🔄 Demo Mode clicked - attempting to reconnect to Supabase...');
-                if (window.retrySupabaseConnection) {
-                    window.retrySupabaseConnection();
-                } else {
-                    this.showAuthModal();
-                }
-            };
         } else {
-            // Not signed in
+            // User is NOT signed in
             authBtn.style.display = 'block';
             userProfile.style.display = 'none';
-            authBtn.textContent = 'Sign In';
-            authBtn.className = 'auth-btn';
-            authBtn.onclick = () => this.showAuthModal();
+            
+            // Determine what to show based on system state
+            if (this.demoMode || !this.supabase) {
+                // True demo mode (no Supabase connection) or fallback mode
+                authBtn.textContent = 'Demo Mode';
+                authBtn.className = 'auth-btn demo';
+                authBtn.onclick = () => {
+                    console.log('🔄 Demo Mode clicked - attempting to show auth or reconnect...');
+                    // Always try to show auth modal, even in demo mode
+                    this.showAuthModal();
+                };
+                console.log('📱 UI set to Demo Mode (no user, demo mode active)');
+            } else {
+                // Supabase is available but user not signed in - normal sign in
+                authBtn.textContent = 'Sign In';
+                authBtn.className = 'auth-btn-compact';
+                authBtn.onclick = () => this.showAuthModal();
+                console.log('📱 UI set to Sign In (Supabase available, no user)');
+            }
         }
     }
 
     showAuthModal() {
         const modal = document.getElementById('authModal');
+        if (!modal) {
+            console.error('❌ Auth modal not found in DOM');
+            return;
+        }
+        
         const resendSection = document.getElementById('resendConfirmationSection');
+        
+        // Update modal title based on current state
+        const modalTitle = document.getElementById('authModalTitle');
+        if (modalTitle) {
+            if (this.demoMode && !this.supabase) {
+                modalTitle.textContent = 'Sign In to Sync Your Work to Cloud';
+            } else {
+                modalTitle.textContent = 'Sign In to Save Your Work';
+            }
+        }
+        
         modal.classList.add('show');
         
         // Check if there's a pending signup that needs email confirmation
@@ -6131,12 +6587,27 @@ class SupabaseDocumentStorage {
             return;
         }
 
-        try {
+        // Validate input
+        if (!name || typeof name !== 'string' || name.trim().length === 0) {
+            this.showNotification('Space name is required', 'warning');
+            return;
+        }
+
+        const trimmedName = name.trim();
+        const trimmedDescription = (description || '').trim();
+
+        // Check for duplicate space names
+        if (this.spaces && this.spaces.some(space => space.name.toLowerCase() === trimmedName.toLowerCase())) {
+            this.showNotification('A space with this name already exists', 'warning');
+            return;
+        }
+
+        return await this.withErrorHandling(async () => {
             const spaceData = {
                 user_id: this.currentUser.id,
-                name,
-                description,
-                is_default: setAsCurrent && this.spaces.length === 0,
+                name: trimmedName,
+                description: trimmedDescription,
+                is_default: setAsCurrent && (!this.spaces || this.spaces.length === 0),
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString()
             };
@@ -6153,18 +6624,20 @@ class SupabaseDocumentStorage {
             this.spaces = this.spaces || [];
             this.spaces.push(data);
 
-            if (setAsCurrent) {
+            if (setAsCurrent || !this.currentSpace) {
                 this.currentSpace = data;
+                this.refreshSpaceDependentUI();
             }
 
             this.renderSidebar();
-            this.showNotification(`Space "${name}" created successfully!`, 'success');
+            this.showNotification(`Space "${trimmedName}" created successfully!`, 'success');
             
             return data;
-        } catch (error) {
-            console.error('Failed to create space:', error);
-            this.showNotification('Failed to create space', 'error');
-        }
+        }, 'addSpace', {
+            name: trimmedName,
+            description: trimmedDescription,
+            setAsCurrent
+        });
     }
     
     async updateSpace(spaceId, updates) {

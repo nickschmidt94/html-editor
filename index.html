@@ -133,11 +133,21 @@
             crossorigin="anonymous"
             onerror="console.error('Failed to load Monaco Editor')"></script>
     
-    <!-- Supabase Client -->
+    <!-- Supabase Client with Improved Loading -->
     <script>
+        // Enhanced Supabase loading state management
+        window.SUPABASE_LOADING_STATE = {
+            loaded: false,
+            loading: false,
+            failed: false,
+            error: null,
+            retryCount: 0,
+            maxRetries: 3
+        };
+        
         // Function to check if Supabase is available and properly expose it
         function verifySupabase() {
-            console.log('=== Supabase Verification ===');
+            console.log('🔍 Verifying Supabase availability...');
             
             // Check various possible locations where Supabase might be available
             const locations = [
@@ -153,11 +163,15 @@
                     console.log(`✅ Found Supabase at ${loc.name}`);
                     window.supabase = loc.obj;
                     window.supabaseLoaded = true;
+                    window.SUPABASE_LOADING_STATE.loaded = true;
+                    window.SUPABASE_LOADING_STATE.loading = false;
                     return true;
                 } else if (loc.obj && typeof loc.obj === 'function' && loc.name === 'window.createClient') {
                     console.log(`✅ Found createClient function at ${loc.name}`);
                     window.supabase = { createClient: loc.obj };
                     window.supabaseLoaded = true;
+                    window.SUPABASE_LOADING_STATE.loaded = true;
+                    window.SUPABASE_LOADING_STATE.loading = false;
                     return true;
                 }
             }
@@ -165,56 +179,187 @@
             return false;
         }
         
-        // Load Supabase from CDN
-        function loadSupabase() {
-            console.log('Attempting to load Supabase...');
+        // Enhanced Supabase loading with retry logic
+        async function loadSupabase(isRetry = false) {
+            if (window.SUPABASE_LOADING_STATE.loading) {
+                console.log('⏳ Supabase already loading, waiting...');
+                return;
+            }
             
-            // Method 1: Try the correct UMD path for Supabase
-            const script1 = document.createElement('script');
-            script1.src = 'https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js';
-            script1.onload = () => {
-                console.log('✅ Supabase script loaded from unpkg');
-                setTimeout(() => {
-                    if (verifySupabase()) {
-                        console.log('✅ Supabase is ready!');
-                    } else {
-                        console.log('⏳ Waiting for Supabase to initialize...');
-                        // Try alternative method
-                        loadSupabaseAlternative();
+            if (window.SUPABASE_LOADING_STATE.loaded) {
+                console.log('✅ Supabase already loaded');
+                return true;
+            }
+            
+            window.SUPABASE_LOADING_STATE.loading = true;
+            console.log(`🚀 Loading Supabase... (attempt ${window.SUPABASE_LOADING_STATE.retryCount + 1})`);
+            
+            try {
+                // Method 1: Try the correct UMD path for Supabase
+                await new Promise((resolve, reject) => {
+                    const script1 = document.createElement('script');
+                    script1.src = 'https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js';
+                    script1.onload = () => {
+                        console.log('📦 Supabase script loaded from unpkg');
+                        setTimeout(() => {
+                            if (verifySupabase()) {
+                                console.log('✅ Supabase UMD loading successful!');
+                                resolve(true);
+                            } else {
+                                console.log('⚠️ UMD loading failed, trying ES modules...');
+                                reject(new Error('UMD verification failed'));
+                            }
+                        }, 100);
+                    };
+                    script1.onerror = () => {
+                        console.warn('❌ Failed to load UMD from unpkg');
+                        reject(new Error('UMD script loading failed'));
+                    };
+                    
+                    // Set timeout for script loading
+                    setTimeout(() => {
+                        reject(new Error('UMD script loading timeout'));
+                    }, 10000);
+                    
+                    document.head.appendChild(script1);
+                });
+                
+                // If we get here, UMD loading succeeded
+                window.SUPABASE_LOADING_STATE.loaded = true;
+                window.SUPABASE_LOADING_STATE.loading = false;
+                window.dispatchEvent(new CustomEvent('supabaseReady'));
+                return true;
+                
+            } catch (umdError) {
+                console.log('🔄 Trying ES module fallback...');
+                
+                try {
+                    // Method 2: Try ES module with manual window assignment
+                    await new Promise((resolve, reject) => {
+                        const script = document.createElement('script');
+                        script.type = 'module';
+                        script.innerHTML = `
+                            try {
+                                console.log('📦 Loading Supabase via ES modules...');
+                                const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
+                                window.supabase = { createClient };
+                                window.supabaseLoaded = true;
+                                window.SUPABASE_LOADING_STATE.loaded = true;
+                                window.SUPABASE_LOADING_STATE.loading = false;
+                                console.log('✅ Supabase loaded via ES modules');
+                                
+                                // Dispatch custom event to notify listeners
+                                window.dispatchEvent(new CustomEvent('supabaseReady'));
+                                window.dispatchEvent(new CustomEvent('supabaseESModuleLoaded'));
+                            } catch (error) {
+                                console.error('❌ ES module loading failed:', error);
+                                window.SUPABASE_LOADING_STATE.failed = true;
+                                window.SUPABASE_LOADING_STATE.loading = false;
+                                window.SUPABASE_LOADING_STATE.error = error.message;
+                                window.dispatchEvent(new CustomEvent('supabaseFailed', { detail: { error: error.message } }));
+                            }
+                        `;
+                        document.head.appendChild(script);
+                        
+                        // Listen for success/failure
+                        const onSuccess = () => {
+                            cleanup();
+                            resolve(true);
+                        };
+                        
+                        const onFailure = (event) => {
+                            cleanup();
+                            reject(new Error(event.detail?.error || 'ES module loading failed'));
+                        };
+                        
+                        const cleanup = () => {
+                            window.removeEventListener('supabaseESModuleLoaded', onSuccess);
+                            window.removeEventListener('supabaseFailed', onFailure);
+                            clearTimeout(timeoutId);
+                        };
+                        
+                        const timeoutId = setTimeout(() => {
+                            cleanup();
+                            reject(new Error('ES module loading timeout'));
+                        }, 10000);
+                        
+                        window.addEventListener('supabaseESModuleLoaded', onSuccess);
+                        window.addEventListener('supabaseFailed', onFailure);
+                    });
+                    
+                    return true;
+                    
+                } catch (esError) {
+                    console.error('❌ Both UMD and ES module loading failed');
+                    window.SUPABASE_LOADING_STATE.failed = true;
+                    window.SUPABASE_LOADING_STATE.loading = false;
+                    window.SUPABASE_LOADING_STATE.error = `UMD: ${umdError.message}, ES: ${esError.message}`;
+                    window.SUPABASE_LOADING_STATE.retryCount++;
+                    
+                    // Retry logic
+                    if (!isRetry && window.SUPABASE_LOADING_STATE.retryCount < window.SUPABASE_LOADING_STATE.maxRetries) {
+                        console.log(`⏳ Retrying Supabase loading (${window.SUPABASE_LOADING_STATE.retryCount}/${window.SUPABASE_LOADING_STATE.maxRetries})...`);
+                        setTimeout(() => loadSupabase(true), 2000 * window.SUPABASE_LOADING_STATE.retryCount);
+                        return;
                     }
-                }, 100);
-            };
-            script1.onerror = () => {
-                console.warn('❌ Failed to load from unpkg, trying alternative...');
-                loadSupabaseAlternative();
-            };
-            document.head.appendChild(script1);
+                    
+                    // Final failure
+                    console.warn('⚠️ Supabase loading failed after all retries, will use demo mode');
+                    window.supabaseLoaded = false;
+                    window.dispatchEvent(new CustomEvent('supabaseFailed', { 
+                        detail: { 
+                            error: window.SUPABASE_LOADING_STATE.error,
+                            retryCount: window.SUPABASE_LOADING_STATE.retryCount
+                        }
+                    }));
+                    return false;
+                }
+            }
         }
         
-        // Alternative loading method
-        function loadSupabaseAlternative() {
-            console.log('Trying alternative Supabase loading...');
-            
-            // Method 2: Try ES module with manual window assignment
-            const script = document.createElement('script');
-            script.type = 'module';
-            script.innerHTML = `
-                try {
-                    const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
-                    window.supabase = { createClient };
-                    window.supabaseLoaded = true;
-                    console.log('✅ Supabase loaded via ES modules');
-                    
-                    // Dispatch custom event to notify listeners
-                    window.dispatchEvent(new CustomEvent('supabaseReady'));
-                } catch (error) {
-                    console.error('❌ ES module loading failed:', error);
-                    window.supabaseLoaded = false;
-                    window.dispatchEvent(new CustomEvent('supabaseFailed'));
+        // Utility function to wait for Supabase to be ready
+        window.waitForSupabase = (timeout = 15000) => {
+            return new Promise((resolve, reject) => {
+                // If already loaded, resolve immediately
+                if (window.SUPABASE_LOADING_STATE.loaded) {
+                    resolve(true);
+                    return;
                 }
-            `;
-            document.head.appendChild(script);
-        }
+                
+                // If failed, reject immediately
+                if (window.SUPABASE_LOADING_STATE.failed) {
+                    reject(new Error('Supabase loading failed'));
+                    return;
+                }
+                
+                // Set up event listeners
+                const onReady = () => {
+                    cleanup();
+                    resolve(true);
+                };
+                
+                const onFailed = (event) => {
+                    cleanup();
+                    reject(new Error(`Supabase loading failed: ${event.detail?.error || 'Unknown error'}`));
+                };
+                
+                const cleanup = () => {
+                    window.removeEventListener('supabaseReady', onReady);
+                    window.removeEventListener('supabaseFailed', onFailed);
+                    clearTimeout(timeoutId);
+                };
+                
+                // Set up timeout
+                const timeoutId = setTimeout(() => {
+                    cleanup();
+                    reject(new Error('Timeout waiting for Supabase'));
+                }, timeout);
+                
+                // Listen for events
+                window.addEventListener('supabaseReady', onReady);
+                window.addEventListener('supabaseFailed', onFailed);
+            });
+        };
         
         // Start loading immediately
         loadSupabase();
@@ -224,22 +369,9 @@
             console.log('🎉 Supabase ready event fired!');
         });
         
-        window.addEventListener('supabaseFailed', () => {
-            console.warn('⚠️ Supabase loading failed, will use demo mode');
+        window.addEventListener('supabaseFailed', (event) => {
+            console.warn('⚠️ Supabase loading failed:', event.detail?.error);
         });
-        
-        // Fallback check after delay
-        setTimeout(() => {
-            if (!window.supabaseLoaded) {
-                console.log('Final verification after 3 seconds...');
-                if (verifySupabase()) {
-                    console.log('✅ Supabase found in final check!');
-                } else {
-                    console.warn('⚠️ Supabase loading failed, will use demo mode');
-                    window.supabaseLoaded = false;
-                }
-            }
-        }, 3000);
     </script>
     
     <!-- Stylesheets -->
